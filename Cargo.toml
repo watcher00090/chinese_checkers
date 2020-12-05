@@ -7,6 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+<<<<<<< HEAD
 piston_window = "0.116.0"
 piston = "0.52.1"
 piston2d-graphics = "0.39.0"
+=======
+piston = "0.52.1"
+piston2d-graphics = "0.39.0"
+piston_window = "0.116.0"
+>>>>>>> 4a50f15ca89f2b0c7a6d06be514124fd62518dec
