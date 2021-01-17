@@ -2,7 +2,7 @@ extern crate piston_window;
 
 use piston_window::*;
 
-struct Square<'a> {x:f64, y:f64, c:graphics::types::Color, p:Option<i32>, tl:&'a Square<'a>, tr:&'a Square<'a>, lf:&'a Square<'a>, rt:&'a Square<'a>, bl:&'a Square<'a>, br:&'a Square<'a>}
+struct Square<'a> {x:f64, y:f64, c:graphics::types::Color, p:Option<i32>, tl:Option<&'a Square<'a>>, tr:Option<&'a Square<'a>>, lf:Option<&'a Square<'a>>, rt:Option<&'a Square<'a>>, bl:Option<&'a Square<'a>>, br:Option<&'a Square<'a>>}
 
 // rownum goes from 1 to 17
 fn row_length(rownum:i32) -> i32 {
@@ -31,7 +31,7 @@ fn main() {
     }).collect::<Vec<[f64; 2]>>();
 
     // initialize board
-    let start : Square = Square{x:1000.0, y:1000.0, c:[0.0, 0.0, 0.0, 0.0], p:None};
+    let start : Square = Square{x:1000.0, y:1000.0, c:[0.0, 0.0, 0.0, 0.0], p:None, tl:None, tr:None, lf:None, rt:None, bl:None, br:None};
 
     let mut window: PistonWindow = 
         WindowSettings::new("Hello Piston!", [640, 480]).resizable(false).exit_on_esc(true).build().unwrap();
