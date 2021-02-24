@@ -168,7 +168,8 @@ fn main() {
     let blue_color_array: [f32; 4] = [0.110, 0.110, 0.902, 1.0];
     let green_color_array: [f32; 4] = [0.059, 0.600, 0.239, 1.0];
     let black_color_array: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-    let white_color_array: [f32; 4] = [0.5, 0.5, 1.0, 1.0];
+    let white_color_array: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+    let center_color_array: [f32; 4] = [0.5, 0.5, 0.5, 0.5];
 
     // yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
     let x_min: i32 = -4;
@@ -279,23 +280,27 @@ fn main() {
     );
 
     // center squares
-    //let x_min : i32 = -4;
-    //let x_max : i32 = 4;
-    //let y_min : i32 = -4;
-    //let y_max : i32 = 4;
-    //let z_min : i32 = -4;
-    //let z_max : i32 = 4;
-    //add_appropriate_hextiles_to_board(&mut board, x_min, x_max, y_min, y_max, z_min, z_max);
+    let x_min : i32 = -4;
+    let x_max : i32 = 4;
+    let y_min : i32 = -4;
+    let y_max : i32 = 4;
+    let z_min : i32 = -4;
+    let z_max : i32 = 4;
+    add_appropriate_hextiles_to_board(
+        &mut board, 
+        x_min, 
+        x_max, 
+        y_min, 
+        y_max, 
+        z_min, 
+        z_max,
+        center_color_array
+    );
 
     let mut prev_row: Vec<&mut Hextile> = Vec::new();
 
-<<<<<<< HEAD
-    // initialize board
-    // let start : Square = Square{x:1000.0, y:1000.0, c:[0.0, 0.0, 0.0, 0.0], p:None};
-=======
     // let delta_x, delta_y, delta_z
     // let delta_x_prime, delta_y_prime, delta_z_prime
->>>>>>> b1551d2ef58f9444376933b427dbba4fef528f22
 
     // let traingle_endpoint
     let screen_radius: f64 = screen_x(R_X_BOARD) - screen_x(0.0);
