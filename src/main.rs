@@ -12,6 +12,8 @@ struct Hextile {
     p: Option<i32>,
 }
 
+enum Direction {yellow,red,green,blue,white,black}
+
 static XMIN_BOARD: f64 = -10.0;
 static XMAX_BOARD: f64 = 10.0;
 static YMIN_BOARD: f64 = -10.0;
@@ -56,6 +58,33 @@ impl Hextile {
     //left()
     //right()
 
+    // equals and contain functions
+
+
+    fn get_tl(hex: Hextile, board: Vec<Hextile>) {
+
+    }
+
+    fn get_tr(hex: Hextile, board: Vec<Hextile>) {
+        
+    }
+
+    fn get_rt(hex: Hextile, board: Vec<Hextile>) {
+        
+    }
+
+    fn get_lf(hex: Hextile, board: Vec<Hextile>) {
+        
+    }
+
+    fn get_bl(hex: Hextile, board: Vec<Hextile>) {
+        
+    }
+
+    fn get_br(hex: Hextile, board: Vec<Hextile>) {
+        
+    }
+
     fn set_color(&self) {}
 
     // Center of the screen = (320, 240)
@@ -90,7 +119,7 @@ impl Hextile {
         let y: f64 = self.y_hex as f64;
         let z: f64 = self.z_hex as f64;
         let inner: f64 = 3.0;
-        return -z * (inner).sqrt() / 2.0;
+        return -z * (inner).sqrt() / 1.5;
     }
 }
 
@@ -122,6 +151,35 @@ fn add_appropriate_hextiles_to_board(
                 }
             }
         }
+    }
+}
+
+
+
+fn get_adjacent(x: i32, y: i32, z: i32): Vec<[i32; 3]> {
+    let neighbors: Vec<[i32; 3]> = Vec::new();
+    neighbors.push([x, y+1, z-1]); // top left
+    neighbors.push([x+1, y, z-1]); // top right
+    neighbors.push([x, y-1, z+1]); // bottom right
+    neighbors.push([x-1, y+1, z]); // left
+    neighbors.push([x+1, y-1, z]); // right
+    neighbors.push([x-1, y, z+1]); // bottom left
+    return neighbors
+}
+
+fn check_step(piece: Hextile, dest: Hextile) {
+    
+}
+
+fn check_hop(piece: Hextile, dest: Hextile) {
+
+}
+
+fn move_piece(piece: Hextile, dest: Hextile) {
+    if check_step(piece, dest) || check_hop(piece, dest) {
+        // change color of destination to color of moved piece and vice versa
+    } else {
+        // give error
     }
 }
 
