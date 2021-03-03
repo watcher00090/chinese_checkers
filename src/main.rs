@@ -4,7 +4,45 @@ use piston_window::*;
 
 use graphics::color::*;
 
+<<<<<<< Updated upstream
 struct Hextile{y_hex: i32, x_hex: i32, z_hex: i32, c:graphics::types::Color, p:Option<i32>}
+=======
+struct Hextile {
+    y_hex: i32,
+    x_hex: i32,
+    z_hex: i32,
+    c: graphics::types::Color,
+    p: Option<i32>,
+    tile_type: TileColor
+}
+
+enum TileColor {
+    RED,
+    YELLOW,
+    BLUE,
+    GREEN,
+    BLACK,
+    WHITE, 
+    GREY
+}
+
+enum Direction {yellow,red,green,blue,white,black}
+
+static XMIN_BOARD: f64 = -10.0;
+static XMAX_BOARD: f64 = 10.0;
+static YMIN_BOARD: f64 = -10.0;
+static YMAX_BOARD: f64 = 10.0;
+static R_X_BOARD: f64 = 10.0; // horizontal distance from the center of the board to the far right
+static R_Y_BOARD: f64 = 10.0; // vertical distance from the center of the board to the top
+
+fn screen_x(x: f64) -> f64 {
+    return 320.0 + (x / R_X_BOARD) * 320.0;
+}
+
+fn screen_y(y: f64) -> f64 {
+    return 240.0 + (-(y / R_Y_BOARD)) * 240.0;
+}
+>>>>>>> Stashed changes
 
 // rownum goes from 1 to 17
 fn row_length(rownum:i32) -> i32 {
@@ -29,9 +67,86 @@ impl Hextile {
     //left()
     //right()
 
+<<<<<<< Updated upstream
     
     fn set_color(&self) {
         
+=======
+    // equals and contain functions
+
+    // fast method for (x_hex, y_hex, z_hex) -> Option(&Hextile)
+    
+    fn get_tl<'a>(hex: &'a Hextile, board: Vec<&'a Hextile>)  -> Option<&'a Hextile> {
+        for tile in board {
+            let dx : i32 = 0;
+            let dy : i32 = 1;
+            let dz : i32 = -1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
+    }
+
+    fn get_tr<'a>(hex: &'a Hextile, board: Vec<&'a Hextile>) -> Option<&'a Hextile> {
+        for tile in board {
+            let dx : i32 = 1;
+            let dy : i32 = 0;
+            let dz : i32 = -1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
+    }
+
+    fn get_rt<'a>(hex: &'a Hextile, board: Vec<&'a Hextile>) -> Option<&'a Hextile> {
+        for tile in board {
+            let dx : i32 = 1;
+            let dy : i32 = -1;
+            let dz : i32 = 0;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
+    }
+
+    fn get_lf<'a>(hex: &'a Hextile, board: Vec<&'a Hextile>) -> Option<&'a Hextile> {
+        for tile in board {
+            let dx : i32 = -1;
+            let dy : i32 = 1;
+            let dz : i32 = 0;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
+    }
+
+    fn get_bl<'a>(hex: &'a Hextile, board: Vec<&'a Hextile>) -> Option<&'a Hextile> {
+        for tile in board {
+            let dx : i32 = -1;
+            let dy : i32 = 0;
+            let dz : i32 = 1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
+    }
+
+    fn get_br<'a>(hex: &'a Hextile, board: Vec<&'a Hextile>) -> Option<&'a Hextile> {
+        for tile in board {
+            let dx : i32 = 0;
+            let dy : i32 = -1;
+            let dz : i32 = 1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
+>>>>>>> Stashed changes
     }
 
     // Center of the screen = (240, 320)
@@ -73,6 +188,7 @@ impl Hextile {
 
 // add the valid tiles in the given range to the board
 //fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x_max: i32, y_min: i32, y_max: i32, z_min: i32, z_max: i32) {
+<<<<<<< Updated upstream
 fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x_max: i32, y_min: i32, y_max: i32, z_min: i32, z_max: i32, hex_color: [f32;4]) {
     for x in x_min..(x_max+1) {
         for y in y_min..(y_max+1) {
@@ -80,6 +196,32 @@ fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x
                 if x + y + z == 0 {
                     //let tile : Hextile = Hextile{y_hex: y, x_hex: x, z_hex: z, c: [0.0,0.0,0.0,0.0], p: None};
                     let tile : Hextile = Hextile{y_hex: y, x_hex: x, z_hex: z, c: hex_color, p: None};
+=======
+fn add_appropriate_hextiles_to_board(
+    mut board: &mut Vec<Hextile>,
+    x_min: i32,
+    x_max: i32,
+    y_min: i32,
+    y_max: i32,
+    z_min: i32,
+    z_max: i32,
+    hex_color: [f32; 4],
+    tile_color: TileColor
+) {
+    for x in x_min..(x_max + 1) {
+        for y in y_min..(y_max + 1) {
+            for z in z_min..(z_max + 1) {
+                if x + y + z == 0 {
+                    //let tile : Hextile = Hextile{y_hex: y, x_hex: x, z_hex: z, c: [0.0,0.0,0.0,0.0], p: None};
+                    let tile: Hextile = Hextile {
+                        y_hex: y,
+                        x_hex: x,
+                        z_hex: z,
+                        c: hex_color,
+                        p: None,
+                        tile_type: tile_color
+                    };
+>>>>>>> Stashed changes
                     (*board).push(tile)
                 }
             }
@@ -87,6 +229,55 @@ fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x
     }
 }
 
+<<<<<<< Updated upstream
+=======
+
+
+fn get_adjacent(x: i32, y: i32, z: i32) -> Vec<[i32; 3]> {
+    let mut neighbors: Vec<[i32; 3]> = Vec::new();
+    neighbors.push([x, y+1, z-1]); // top left
+    neighbors.push([x+1, y, z-1]); // top right
+    neighbors.push([x, y-1, z+1]); // bottom right
+    neighbors.push([x-1, y+1, z]); // left
+    neighbors.push([x+1, y-1, z]); // right
+    neighbors.push([x-1, y, z+1]); // bottom left
+    return neighbors
+}
+
+fn check_step<'a>(piece: &'a Hextile, dest: &'a Hextile) -> bool {
+    return false;
+}
+
+fn check_hop<'a>(piece: &'a Hextile, dest: &'a Hextile) -> bool {
+    return false;
+}
+
+fn can_single_step_move_to_dest<'a>(piece: &'a Hextile, dest: &'a Hextile, board: Vec<&'a Hextile>) -> bool {
+    // check if dest is one tile away from piece
+    if (get_bl(piece, board) != None) {
+        if ()
+    }
+
+    }
+
+    // check if dest is unoccupied, piece is occupied, and the tile between is occupied
+
+}
+
+// move the piece pointed to by the piece reference to the location pointed to by the dest reference
+fn move_piece<'a>(piece: &'a Hextile, dest: &'a Hextile) {
+    if can_single_step_move_to_dest(piece, dest) {
+        // change color of destination to color of moved piece and vice versa
+        // swap the colors 
+        let tmp : TileColor = (*piece).tile_type;
+        (*piece).tile_type = (*dest).tile_type;
+        (*dest).tile_type = tmp;
+    } else {
+        // give error
+    }
+}
+
+>>>>>>> Stashed changes
 fn main() {
 
     let H: f64 = 100.0; // hexagon side length
@@ -128,6 +319,7 @@ fn main() {
     let white_color_array : [f32; 4] = [0.5, 0.5, 0.9, 1.0];
 
     // yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
+<<<<<<< Updated upstream
     let x_min : i32 = -4;
     let x_max : i32 = -1;
     let y_min : i32 = -4;
@@ -172,6 +364,120 @@ fn main() {
     let z_max : i32 = -1;
     add_appropriate_hextiles_to_board(&mut board, x_min, x_max, y_min, y_max, z_min, z_max, green_color_array);
 
+=======
+    let x_min: i32 = -4;
+    let x_max: i32 = -1;
+    let y_min: i32 = -4;
+    let y_max: i32 = -1;
+    let z_min: i32 = 5;
+    let z_max: i32 = 8;
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        yellow_color_array,
+        TileColor::YELLOW
+    );
+
+    // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
+    let x_min: i32 = -8;
+    let x_max: i32 = -5;
+    let y_min: i32 = 1;
+    let y_max: i32 = 4;
+    let z_min: i32 = 1;
+    let z_max: i32 = 4;
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        red_color_array,
+        TileColor::RED
+    );
+
+    // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
+    let x_min: i32 = 1;
+    let x_max: i32 = 4;
+    let y_min: i32 = -8;
+    let y_max: i32 = -5;
+    let z_min: i32 = 1;
+    let z_max: i32 = 4;
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        blue_color_array,
+        TileColor::BLUE
+    );
+
+    // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
+    let x_min: i32 = -4;
+    let x_max: i32 = -1;
+    let y_min: i32 = 5;
+    let y_max: i32 = 8;
+    let z_min: i32 = -4;
+    let z_max: i32 = -1;
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        black_color_array,
+        TileColor::BLACK
+    );
+
+    // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
+    let x_min: i32 = 5;
+    let x_max: i32 = 8;
+    let y_min: i32 = -4;
+    let y_max: i32 = -1;
+    let z_min: i32 = -4;
+    let z_max: i32 = -1;
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        green_color_array,
+        TileColor::GREEN
+    );
+
+    // white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
+    let x_min: i32 = 1;
+    let x_max: i32 = 4;
+    let y_min: i32 = 1;
+    let y_max: i32 = 4;
+    let z_min: i32 = -8;
+    let z_max: i32 = -5;
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        white_color_array,
+        TileColor::WHITE
+    );
+>>>>>>> Stashed changes
 
     // white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
     let x_min : i32 = 1;
@@ -180,6 +486,7 @@ fn main() {
     let y_max : i32 = -8;
     let z_min : i32 = 1;
     let z_max : i32 = 4;
+<<<<<<< Updated upstream
     add_appropriate_hextiles_to_board(&mut board, x_min, x_max, y_min, y_max, z_min, z_max, white_color_array);
 
     // center squares
@@ -261,6 +568,37 @@ fn main() {
 
     let mut window: PistonWindow = 
         WindowSettings::new("Hello Piston!", [640, 480]).resizable(false).exit_on_esc(true).build().unwrap();
+=======
+    add_appropriate_hextiles_to_board(
+        &mut board, 
+        x_min, 
+        x_max, 
+        y_min, 
+        y_max, 
+        z_min, 
+        z_max,
+        center_color_array,
+        TileColor::GREY
+    );
+
+    let mut prev_row: Vec<&mut Hextile> = Vec::new();
+
+    // let delta_x, delta_y, delta_z
+    // let delta_x_prime, delta_y_prime, delta_z_prime
+
+    // let traingle_endpoint
+    let screen_radius: f64 = screen_x(R_X_BOARD) - screen_x(0.0);
+    println!(
+        "screen_radius = {screen_radius}",
+        screen_radius = screen_radius
+    );
+
+    let mut window: PistonWindow = WindowSettings::new("Hello Piston!", [640, 480])
+        .resizable(false)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
+>>>>>>> Stashed changes
     while let Some(e) = window.next() {
         
         /*
