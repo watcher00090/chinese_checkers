@@ -4,15 +4,36 @@ use piston_window::*;
 
 use graphics::color::*;
 
+#[derive(PartialEq)]
 struct Hextile {
     y_hex: i32,
     x_hex: i32,
     z_hex: i32,
     c: graphics::types::Color,
     p: Option<i32>,
+    tile_type: TileColor
 }
 
-enum Direction {yellow,red,green,blue,white,black}
+#[derive(PartialEq, Copy, Clone)]
+enum TileColor {
+    RED,
+    YELLOW,
+    BLUE,
+    GREEN,
+    BLACK,
+    WHITE, 
+    GREY // A tile is empty iff it is grey
+}
+
+#[derive(PartialEq)]
+enum Direction {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    Left,
+    Right
+}
 
 static XMIN_BOARD: f64 = -10.0;
 static XMAX_BOARD: f64 = 10.0;
@@ -42,6 +63,7 @@ fn row_length(rownum: i32) -> i32 {
 
 impl Hextile {
     //top_left()
+    /*
     fn top_left(&self) -> Hextile {
         return Hextile {
             y_hex: 0,
@@ -51,6 +73,7 @@ impl Hextile {
             p: None,
         };
     }
+    */
 
     //topright()
     //bottomleft()
@@ -60,29 +83,88 @@ impl Hextile {
 
     // equals and contain functions
 
+    // fast method for (x_hex, y_hex, z_hex) -> Option(&Hextile)
 
-    fn get_tl(hex: Hextile, board: Vec<Hextile>) {
-
+    fn get_tile<'a>(x_hex: i32, y_hex: i32, z_hex: i32) -> Option<&'a Hextile> {
+        return None
     }
 
-    fn get_tr(hex: Hextile, board: Vec<Hextile>) {
-        
+    // Returns the hextile at the top left of the given tile, if it exists 
+    fn get_tl<'a>(hex: &'a Hextile, board: &[&'a Hextile])  -> Option<&'a Hextile> {
+        for tile in board.iter() {
+            let dx : i32 = 0;
+            let dy : i32 = 1;
+            let dz : i32 = -1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
     }
 
-    fn get_rt(hex: Hextile, board: Vec<Hextile>) {
-        
+    // Returns the hextile at the top right of the given tile, if it exists 
+    fn get_tr<'a>(hex: &'a Hextile, board: &[&'a Hextile]) -> Option<&'a Hextile> {
+        for tile in board.iter() {
+            let dx : i32 = 1;
+            let dy : i32 = 0;
+            let dz : i32 = -1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
     }
 
-    fn get_lf(hex: Hextile, board: Vec<Hextile>) {
-        
+    // Returns the hextile to the right of the given tile, if it exists 
+    fn get_rt<'a>(hex: &'a Hextile, board: &[&'a Hextile]) -> Option<&'a Hextile> {
+        for tile in board.iter() {
+            let dx : i32 = 1;
+            let dy : i32 = -1;
+            let dz : i32 = 0;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
     }
 
-    fn get_bl(hex: Hextile, board: Vec<Hextile>) {
-        
+    // Returns the hextile to the left of the given tile, if it exists 
+    fn get_lf<'a>(hex: &'a Hextile, board: &[&'a Hextile]) -> Option<&'a Hextile> {
+        for tile in board.iter() {
+            let dx : i32 = -1;
+            let dy : i32 = 1;
+            let dz : i32 = 0;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
     }
 
-    fn get_br(hex: Hextile, board: Vec<Hextile>) {
-        
+    // Returns the hextile at the bottom left of the given tile, if it exists
+    fn get_bl<'a>(hex: &'a Hextile, board: &[&'a Hextile]) -> Option<&'a Hextile> {
+        for tile in board.iter() {
+            let dx : i32 = -1;
+            let dy : i32 = 0;
+            let dz : i32 = 1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
+    }
+
+    // Returns the hextile at the bottom right of the given tile, if it exists
+    fn get_br<'a>(hex: &'a Hextile, board: &[&'a Hextile]) -> Option<&'a Hextile> {
+        for tile in board.iter() {
+            let dx : i32 = 0;
+            let dy : i32 = -1;
+            let dz : i32 = 1;
+            if (*hex).x_hex + dx == (*tile).x_hex && (*hex).y_hex + dy == (*tile).y_hex && (*hex).z_hex + dz == (*tile).z_hex {
+                return Some(&tile);
+            }
+        }
+        return None;
     }
 
     fn set_color(&self) {}
@@ -126,7 +208,7 @@ impl Hextile {
 // add the valid tiles in the given range to the board
 //fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x_max: i32, y_min: i32, y_max: i32, z_min: i32, z_max: i32) {
 fn add_appropriate_hextiles_to_board(
-    mut board: &mut Vec<Hextile>,
+    board: &mut Vec<Hextile>,
     x_min: i32,
     x_max: i32,
     y_min: i32,
@@ -134,6 +216,7 @@ fn add_appropriate_hextiles_to_board(
     z_min: i32,
     z_max: i32,
     hex_color: [f32; 4],
+    tile_color: TileColor
 ) {
     for x in x_min..(x_max + 1) {
         for y in y_min..(y_max + 1) {
@@ -146,6 +229,7 @@ fn add_appropriate_hextiles_to_board(
                         z_hex: z,
                         c: hex_color,
                         p: None,
+                        tile_type: tile_color
                     };
                     (*board).push(tile)
                 }
@@ -156,8 +240,8 @@ fn add_appropriate_hextiles_to_board(
 
 
 
-fn get_adjacent(x: i32, y: i32, z: i32): Vec<[i32; 3]> {
-    let neighbors: Vec<[i32; 3]> = Vec::new();
+fn get_adjacent(x: i32, y: i32, z: i32) -> Vec<[i32; 3]> {
+    let mut neighbors: Vec<[i32; 3]> = Vec::new();
     neighbors.push([x, y+1, z-1]); // top left
     neighbors.push([x+1, y, z-1]); // top right
     neighbors.push([x, y-1, z+1]); // bottom right
@@ -167,17 +251,101 @@ fn get_adjacent(x: i32, y: i32, z: i32): Vec<[i32; 3]> {
     return neighbors
 }
 
-fn check_step(piece: Hextile, dest: Hextile) {
-    
+fn check_step<'a>(piece: &'a Hextile, dest: &'a Hextile) -> bool {
+    return false;
 }
 
-fn check_hop(piece: Hextile, dest: Hextile) {
-
+fn check_hop<'a>(piece: &'a Hextile, dest: &'a Hextile) -> bool {
+    return false;
 }
 
-fn move_piece(piece: Hextile, dest: Hextile) {
-    if check_step(piece, dest) || check_hop(piece, dest) {
+// Returns the tile two squares away, in the given direction, if it exists. Otherwise returns None.
+fn hextile_two_away_in_a_given_direction<'a>(tile: &'a Hextile, board: &[&'a Hextile], dir: Direction) -> Option<&'a Hextile> {
+    if dir == Direction::BottomLeft {
+        let tmp_tile : Option<&'a Hextile> = Hextile::get_bl(tile, board);
+        if tmp_tile.is_some() {
+            let tmp_tile_2 : Option<&'a Hextile> = Hextile::get_bl(tmp_tile.unwrap(), board);
+            if tmp_tile_2.is_some() {
+                return tmp_tile_2;
+            }
+        }
+    }
+    if dir == Direction::BottomRight {
+        let tmp_tile : Option<&'a Hextile> = Hextile::get_br(tile, board);
+        if tmp_tile.is_some() {
+            let tmp_tile_2 : Option<&'a Hextile> = Hextile::get_br(tmp_tile.unwrap(), board);
+            if tmp_tile_2.is_some() {
+                return tmp_tile_2;
+            }
+        }
+    }
+    if dir == Direction::Left {
+        let tmp_tile : Option<&'a Hextile> = Hextile::get_lf(tile,board);
+        if tmp_tile.is_some() {
+            let tmp_tile_2 : Option<&'a Hextile> = Hextile::get_lf(tmp_tile.unwrap(), board);
+            if tmp_tile_2.is_some() {
+                return tmp_tile_2;
+            }
+        }
+    }
+    if dir == Direction::Right {
+        let tmp_tile : Option<&'a Hextile> = Hextile::get_rt(tile,board);
+        if tmp_tile.is_some() {
+            let tmp_tile_2 : Option<&'a Hextile> = Hextile::get_rt(tmp_tile.unwrap(), board);
+            if tmp_tile_2.is_some() {
+                return tmp_tile_2;
+            }
+        }
+    }
+    if dir == Direction::TopLeft {
+        let tmp_tile : Option<&'a Hextile> = Hextile::get_tl(tile,board);
+        if tmp_tile.is_some() {
+            let tmp_tile_2 : Option<&'a Hextile> = Hextile::get_tl(tmp_tile.unwrap(), board);
+            if tmp_tile_2.is_some() {
+                return tmp_tile_2;
+            }
+        }
+    }
+    if dir == Direction::TopRight {
+        let tmp_tile : Option<&'a Hextile> = Hextile::get_tr(tile,board);
+        if tmp_tile.is_some() {
+            let tmp_tile_2 : Option<&'a Hextile> = Hextile::get_tr(tmp_tile.unwrap(), board);
+            if tmp_tile_2.is_some() {
+                return tmp_tile_2;
+            }
+        }
+    }
+    return None
+}   
+
+/*
+fn equals<'a>(tile1: &'a Hextile, tile2: &'a Hextile) -> bool {
+    return *tile1 == *tile2
+}
+*/
+
+fn can_single_step_move_to_dest<'a>(piece: &'a Hextile, dest: &'a Hextile, board: Vec<&'a Hextile>) -> bool {
+    // check if dest is one tile away from piece
+    if hextile_two_away_in_a_given_direction(piece, &board, Direction::TopLeft).unwrap() == dest {
+        /*
+        if dest.tile_type != TileType::GREY {
+            return true;
+        }
+        */
+    }
+
+    // check if dest is unoccupied, piece is occupied, and the tile between is occupied
+    return false;
+}
+
+// move the piece pointed to by the piece reference to the location pointed to by the dest reference
+fn move_piece<'a>(piece: &'a Hextile, dest: &'a Hextile, board: Vec<&'a Hextile>) {
+    if can_single_step_move_to_dest(piece, dest, board) {
         // change color of destination to color of moved piece and vice versa
+        // swap the colors 
+     //   let tmp : TileColor = (*piece).tile_type;
+     //   (*piece).tile_type = (*dest).tile_type;
+     //   (*dest).tile_type = tmp;
     } else {
         // give error
     }
@@ -245,6 +413,7 @@ fn main() {
         z_min,
         z_max,
         yellow_color_array,
+        TileColor::YELLOW
     );
 
     // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
@@ -263,6 +432,7 @@ fn main() {
         z_min,
         z_max,
         red_color_array,
+        TileColor::RED
     );
 
     // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
@@ -281,6 +451,7 @@ fn main() {
         z_min,
         z_max,
         blue_color_array,
+        TileColor::BLUE
     );
 
     // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
@@ -299,6 +470,7 @@ fn main() {
         z_min,
         z_max,
         black_color_array,
+        TileColor::BLACK
     );
 
     // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
@@ -317,6 +489,7 @@ fn main() {
         z_min,
         z_max,
         green_color_array,
+        TileColor::GREEN
     );
 
     // white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
@@ -335,6 +508,7 @@ fn main() {
         z_min,
         z_max,
         white_color_array,
+        TileColor::WHITE
     );
 
     // center squares
@@ -352,7 +526,8 @@ fn main() {
         y_max, 
         z_min, 
         z_max,
-        center_color_array
+        center_color_array,
+        TileColor::GREY
     );
 
     let mut prev_row: Vec<&mut Hextile> = Vec::new();
