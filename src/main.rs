@@ -338,6 +338,98 @@ fn can_single_step_move_to_dest<'a>(piece: &'a Hextile, dest: &'a Hextile, board
     return false;
 }
 
+fn get_user_input(mut s_target: String, mut s_destination: String, current_player: i32) {
+    println!("Player {}'s turn.", current_player);
+    println!("Please enter a target square to move from:");
+    std::io::stdin().read_line(&mut s_target).expect("Error, invalid input");
+    if let Some('\n')=s_target.chars().next_back() {
+        s_target.pop();
+    }     
+    if let Some('\r')=s_target.chars().next_back() {
+        s_target.pop();
+    }
+    println!("You typed: {}", s_target);
+
+    println!("Please enter a destination square to move to:");
+    std::io::stdin().read_line(&mut s_destination).expect("Error, invalid input");
+    if let Some('\n')=s_target.chars().next_back() {
+        s_destination.pop();
+    }     
+    if let Some('\r')=s_target.chars().next_back() {
+        s_destination.pop();
+    }
+    println!("You typed: {}", s_destination);
+}
+
+fn remove_whitespace(s: &mut String) {
+    s.retain(|c| !c.is_whitespace());
+}
+
+// example: 4,tr,3 (format for square)
+//
+//
+//
+//
+//
+fn is_on_board(mut square: String) -> bool {
+    remove_whitespace(&mut square);
+    let v : Vec<&str> = square.split(|c| c == 'c').collect();
+    
+    // get the radius
+    let radius_parse_result = v[0].parse::<i32>();
+    let mut radius : i32 = 0;
+    if (!radius_parse_result.is_err()) {
+        radius = radius_parse_result.unwrap();
+    }
+
+    // get the diagonal
+    //let diagonal_parse_result = v[0].parse();
+    let mut diagonal = v[1];
+    //if (!diagonal_parse_result.is_err()) {
+    //    diagonal = diagonal_parse_result.unwrap();
+    //}
+
+    // get the number of clockwise moves
+    let num_cw_moves_parse_result = v[2].parse::<i32>();
+    let mut num_cw_moves : i32 = 0;
+    if (!num_cw_moves_parse_result.is_err()) {
+        num_cw_moves = num_cw_moves_parse_result.unwrap();
+    }
+    return false;
+}
+
+fn get_hextile<'a>(mut square: String, board: Vec<&Hextile>) -> Option<&'a Hextile> {
+
+    str diagonal
+    int radius
+    int num_steps_cw
+
+    if (radius == 0) {
+        return get_root();
+    }
+
+    // Diagonal = top-left
+    // x coordinate is 0
+    // y coordinate increases and z coordinate decreases heading top left
+    if (diag == top-left) {
+        // get the coordinates of the tile on the diagonal prior to moving radially
+        let x_hex : i32 = 0;
+        let y_hex : i32 = radius;
+        let z_hex : i32 = -radius;
+
+        // move radially from those coordinates to compute the coordinates of the tile
+        // every step subtracts 1 from the y and adds 1 to the x
+        for i in 0..num_steps_cw {
+            x_hex += 1;
+            y_hex -= 1;
+        }
+
+        // loop through the board to get the Hextile
+    }
+
+    return None
+}
+
 // move the piece pointed to by the piece reference to the location pointed to by the dest reference
 fn move_piece<'a>(piece: &'a Hextile, dest: &'a Hextile, board: Vec<&'a Hextile>) {
     if can_single_step_move_to_dest(piece, dest, board) {
@@ -350,6 +442,9 @@ fn move_piece<'a>(piece: &'a Hextile, dest: &'a Hextile, board: Vec<&'a Hextile>
         // give error
     }
 }
+
+// Two players
+// represent a tile as [radius],[diag],[num_moves_clockwise_at_radius_to_reach_from_diag_point]
 
 fn main() {
     let H: f64 = 100.0; // hexagon side length
@@ -372,6 +467,8 @@ fn main() {
         .collect::<Vec<[f64; 2]>>();
 
     let mut board: Vec<Hextile> = Vec::new();
+
+    let mut current_player : i32 = 1; // Player-1 = 1, Player-2 = 2
 
     // furthest points of the board
     // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
@@ -547,25 +644,10 @@ fn main() {
         .exit_on_esc(true)
         .build()
         .unwrap();
+
     while let Some(e) = window.next() {
-        /*
-        window.draw_2d(&e, |c, g, _device| {
-            clear([1.0; 4], g);
-            // rectangle([1.0, 0.0, 0.0, 1.0], // red
-            //           [0.0, 0.0, 100.0, 100.0],
-            //           c.transform, g);
-            // polygon([0.0,0.0,0.0,1.0], points.as_slice(), c.transform, g);
+        println!("while-loop iteration...");
 
-            for tile in board.iter() {
-                format!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = tile.x_hex, y_hex = tile.y_hex, z_hex = tile.z_hex);
-                std::thread::sleep(std::time::Duration::from_millis(2000));
-                circle_arc([0.5,0.5,0.5,1.0], 5.0, 0.0, 6.3, [tile.screen_x() - 5.0, tile.screen_y() - 5.0, 10.0, 10.0], c.transform, g);
-            }
-
-            //circle_arc([0.5,0.5,0.5,1.0], 5.0, 0.0, 6.3, [(320.0 - 5.0), (240.0 - 5.0), 10.0, 10.0], c.transform, g);
-        });
-
-        */
         window.draw_2d(&e, |c, g, _device| {
             clear([1.0; 4], g);
 
@@ -610,5 +692,26 @@ fn main() {
             });
             //std::thread::sleep(std::time::Duration::from_millis(20));
         }
+
+        // take a line of user input
+        let mut s_target=String::new();
+        let mut s_destination=String::new();
+
+        get_user_input(s_target, s_destination, current_player);
+
+        while !is_on_board(s_target) || !is_on_board(s_destination) {
+            print!("Error, either the target or destination isn't on the board. Please trying inputting the target and destination again...");
+            get_user_input(s_target, s_destination, current_player);
+        }
+
+    //    move_piece(get_hextile(s_target).unwrap(), get_hextile(s_destination), board);
+
+        current_player = current_player + 1;
+        if current_player == 3 {
+            current_player = 1;
+        }
+        
     }
+
+
 }
