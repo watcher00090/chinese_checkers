@@ -35,6 +35,7 @@ fn main() {
 
 struct MyGame {
     // Your state here...
+    // Everything that we need to render the game board.
 }
 
 impl MyGame {
