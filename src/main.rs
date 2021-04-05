@@ -3,6 +3,7 @@ use ggez::event::{self, EventHandler};
 use ggez::graphics::{DrawMode, MeshBuilder, DrawParam, Color};
 use ggez::conf::{WindowSetup, NumSamples};
 
+#[derive(PartialEq)]
 struct Hextile {
     y_hex: i32,
     x_hex: i32,
@@ -60,28 +61,28 @@ impl Hextile {
     // equals and contain functions
 
 
-    fn get_tl(hex: Hextile, board: Vec<Hextile>) {
-
+    fn get_tl(board: &Vec<Hextile>) -> Option<Hextile> {
+        return None
     }
 
-    fn get_tr(hex: Hextile, board: Vec<Hextile>) {
-        
+    fn get_tr(board: &Vec<Hextile>) -> Option<Hextile> {
+        return None
     }
 
-    fn get_rt(hex: Hextile, board: Vec<Hextile>) {
-        
+    fn get_rt(board: &Vec<Hextile>) -> Option<Hextile> {
+        return None
     }
 
-    fn get_lf(hex: Hextile, board: Vec<Hextile>) {
-        
+    fn get_lf(board: &Vec<Hextile>) -> Option<Hextile> {
+        return None
     }
 
-    fn get_bl(hex: Hextile, board: Vec<Hextile>) {
-        
-    }
+    fn get_bl(board: &Vec<Hextile>) -> Option<Hextile> {
+        return None
+    }       
 
-    fn get_br(hex: Hextile, board: Vec<Hextile>) {
-        
+    fn get_br(board: &Vec<Hextile>) -> Option<Hextile> {
+        return None
     }
 
     fn set_color(&self) {}
@@ -163,17 +164,34 @@ fn get_adjacent(x: i32, y: i32, z: i32) -> Vec<[i32; 3]> {
     neighbors.push([x-1, y, z+1]); // bottom left
     return neighbors
 }
-
-fn check_step(piece: &Hextile, dest: &Hextile) -> bool {
+ 
+// Is 'dest' a tile that can be moved to a single move, and can we move from 'piece' to 'dest' in a single move
+fn check_step(piece: &Hextile, dest: &Hextile, board: &Vec<Hextile>) -> bool {
+    let mut tmp_var_tl : Option<Hextile> = None;
+    tmp_var_tl = Hextile::get_tl(board);
+    if tmp_var_tl.is_some() {
+        tmp_var_tl = Hextile::get_tl(board);
+        if tmp_var_tl.is_some() && tmp_var_tl.unwrap() == *dest {
+            return true 
+        }
+    }
     return false;
 }
 
-fn check_hop(piece: &Hextile, dest: &Hextile) -> bool {
+// Dir::top_left -> get_tl()
+// Dir::top_right -> get_tr()
+// Dir::left -> get_lf()
+// ....... 
+fn get_method_handle_for_direction(dir: Direction) -> i32 {
+    return 0;
+}
+
+fn check_hop(piece: &Hextile, dest: &Hextile, board: &Vec<Hextile>) -> bool {
     return false;
 }
 
-fn move_piece(piece: Hextile, dest: Hextile) {
-    if check_step(&piece, &dest) || check_hop(&piece, &dest) {
+fn move_piece(piece: Hextile, dest: Hextile, board: &Vec<Hextile>) {
+    if check_step(&piece, &dest, board) || check_hop(&piece, &dest, board) {
         // change color of destination to color of moved piece and vice versa
     } else {
         // give error
