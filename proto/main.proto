@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package fetch_remote_game_state;
+
+// Service on the server which will be executed
+service Move {
+    // function on the remove server which will be called
+    rpc MakeMove(MoveRequest) returns (MoveRespose);
+}
+
+message MoveRequest {
+    required int32 player_num = 1; // either 1 or 2
+    required string color_clicked = 2; // the entire contents of the move
+}
+
+message MoveResponse {
+    required string message = 1; //either 'move successful' or 'failed to move'
+}
+
