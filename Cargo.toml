@@ -1,0 +1,2 @@
+[workspace]
+members = ["chinese_checkers_client", "chinese_checkers_server"]
