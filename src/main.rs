@@ -61,27 +61,57 @@ impl Hextile {
     // equals and contain functions
 
 
-    fn get_tl(board: &Vec<Hextile>) -> Option<Hextile> {
+    fn get_tl<'a>(&self, board: &'a Vec<Hextile>) -> Option<&'a Hextile> {
+        for spot in board.into_iter() {
+            if spot.x_hex == self.x_hex && spot.y_hex == self.y_hex + 1 && spot.z_hex == self.z_hex -1 {
+                return Some(&spot)
+            }
+        }
         return None
     }
 
-    fn get_tr(board: &Vec<Hextile>) -> Option<Hextile> {
+    fn get_tr<'a>(&self, board: &'a Vec<Hextile>) -> Option<&'a Hextile> {
+        for spot in board.into_iter() {
+            if spot.x_hex == self.x_hex + 1 && spot.y_hex == self.y_hex && spot.z_hex == self.z_hex -1 {
+                return Some(&spot)
+            }
+        }
         return None
     }
 
-    fn get_rt(board: &Vec<Hextile>) -> Option<Hextile> {
+    fn get_rt<'a>(&self, board: &'a Vec<Hextile>) -> Option<&'a Hextile> {
+        for spot in board.into_iter() {
+            if spot.x_hex == self.x_hex + 1&& spot.y_hex == self.y_hex - 1 && spot.z_hex == self.z_hex {
+                return Some(&spot)
+            }
+        }
         return None
     }
 
-    fn get_lf(board: &Vec<Hextile>) -> Option<Hextile> {
+    fn get_lf<'a>(&self, board: &'a Vec<Hextile>) -> Option<&'a Hextile> {
+        for spot in board.into_iter() {
+            if spot.x_hex == self.x_hex - 1 && spot.y_hex == self.y_hex + 1 && spot.z_hex == self.z_hex {
+                return Some(&spot)
+            }
+        }
         return None
     }
 
-    fn get_bl(board: &Vec<Hextile>) -> Option<Hextile> {
+    fn get_bl<'a>(&self, board: &'a Vec<Hextile>) -> Option<&'a Hextile> {
+        for spot in board.into_iter() {
+            if spot.x_hex == self.x_hex - 1 && spot.y_hex == self.y_hex && spot.z_hex == self.z_hex + 1 {
+                return Some(&spot)
+            }
+        }
         return None
     }       
 
-    fn get_br(board: &Vec<Hextile>) -> Option<Hextile> {
+    fn get_br<'a>(&self, board: &'a Vec<Hextile>) -> Option<&'a Hextile> {
+        for spot in board.into_iter() {
+            if spot.x_hex == self.x_hex && spot.y_hex == self.y_hex - 1 && spot.z_hex == self.z_hex + 1 {
+                return Some(&spot)
+            }
+        }
         return None
     }
 
@@ -120,6 +150,10 @@ impl Hextile {
         let z: f64 = self.z_hex as f64;
         let inner: f64 = 3.0;
         return -z * (inner).sqrt() / 1.5;
+    }
+
+    fn is_occupied(&self) -> bool {
+        return false
     }
 }
 
@@ -167,13 +201,35 @@ fn get_adjacent(x: i32, y: i32, z: i32) -> Vec<[i32; 3]> {
  
 // Is 'dest' a tile that can be moved to a single move, and can we move from 'piece' to 'dest' in a single move
 fn check_step(piece: &Hextile, dest: &Hextile, board: &Vec<Hextile>) -> bool {
-    let mut tmp_var_tl : Option<Hextile> = None;
-    tmp_var_tl = Hextile::get_tl(board);
-    if tmp_var_tl.is_some() {
-        tmp_var_tl = Hextile::get_tl(board);
-        if tmp_var_tl.is_some() && tmp_var_tl.unwrap() == *dest {
+    let mut tmp_var_tl : Option<&Hextile> = None;
+    tmp_var_tl = piece.get_tl(board);
+    if tmp_var_tl.is_some() && *tmp_var_tl.unwrap() == *dest {
+            return true
+    }
+    let mut tmp_var_tr : Option<&Hextile> = None;
+    tmp_var_tr = piece.get_tr(board);
+    if tmp_var_tr.is_some() && *tmp_var_tr.unwrap() == *dest {
             return true 
-        }
+    }
+    let mut tmp_var_lf : Option<&Hextile> = None;
+    tmp_var_lf = piece.get_lf(board);
+    if tmp_var_lf.is_some() && *tmp_var_lf.unwrap() == *dest {
+        return true
+    }
+    let mut tmp_var_br : Option<&Hextile> = None;
+    tmp_var_br = piece.get_br(board);
+    if tmp_var_br.is_some() && *tmp_var_br.unwrap() == *dest {
+            return true 
+    }
+    let mut tmp_var_bl : Option<&Hextile> = None;
+    tmp_var_bl = piece.get_bl(board);
+    if tmp_var_bl.is_some() && *tmp_var_bl.unwrap() == *dest {
+            return true 
+    }
+    let mut tmp_var_rt : Option<&Hextile> = None;
+    tmp_var_rt = piece.get_tl(board);
+    if tmp_var_rt.is_some() && *tmp_var_rt.unwrap() == *dest {
+            return true 
     }
     return false;
 }
@@ -187,6 +243,54 @@ fn get_method_handle_for_direction(dir: Direction) -> i32 {
 }
 
 fn check_hop(piece: &Hextile, dest: &Hextile, board: &Vec<Hextile>) -> bool {
+    let mut tmp_var_tl : Option<&Hextile> = None;
+    tmp_var_tl = piece.get_tl(board);
+    if tmp_var_tl.is_some() {
+        tmp_var_tl = tmp_var_tl.unwrap().get_tl(board);
+        if tmp_var_tl.is_some() && *tmp_var_tl.unwrap() == *dest {
+            return true 
+        }
+    }
+    let mut tmp_var_tr : Option<&Hextile> = None;
+    tmp_var_tr = piece.get_tr(board);
+    if tmp_var_tr.is_some() {
+        tmp_var_tr = tmp_var_tr.unwrap().get_tr(board);
+        if tmp_var_tr.is_some() && *tmp_var_tr.unwrap() == *dest {
+            return true 
+        }
+    }
+    let mut tmp_var_lf : Option<&Hextile> = None;
+    tmp_var_lf = piece.get_lf(board);
+    if tmp_var_lf.is_some() {
+        tmp_var_lf = tmp_var_lf.unwrap().get_lf(board);
+        if tmp_var_lf.is_some() && *tmp_var_lf.unwrap() == *dest {
+            return true 
+        }
+    }
+    let mut tmp_var_br : Option<&Hextile> = None;
+    tmp_var_br = piece.get_br(board);
+    if tmp_var_br.is_some() {
+        tmp_var_br = tmp_var_br.unwrap().get_br(board);
+        if tmp_var_br.is_some() && *tmp_var_br.unwrap() == *dest {
+            return true 
+        }
+    }
+    let mut tmp_var_bl : Option<&Hextile> = None;
+    tmp_var_bl = piece.get_bl(board);
+    if tmp_var_bl.is_some() {
+        tmp_var_bl = tmp_var_bl.unwrap().get_bl(board);
+        if tmp_var_bl.is_some() && *tmp_var_bl.unwrap() == *dest {
+            return true 
+        }
+    }
+    let mut tmp_var_rt : Option<&Hextile> = None;
+    tmp_var_rt = piece.get_tl(board);
+    if tmp_var_rt.is_some() {
+        tmp_var_rt = tmp_var_rt.unwrap().get_rt(board);
+        if tmp_var_rt.is_some() && *tmp_var_rt.unwrap() == *dest {
+            return true 
+        }
+    }
     return false;
 }
 
