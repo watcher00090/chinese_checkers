@@ -10,7 +10,6 @@ function fix_stickyad() {
 ```
 
 ```
-  -! Warning !-
   if (!elem) {return false;}
   if (document.getElementById("skyscraper")) {
     var skyWidth = Number(w3_getStyleValue(document.getElementById("skyscraper"), "width").replace("px", ""));  
