@@ -1,3 +1,2 @@
 # chinese_checkers
-- Test1
-- Test2
+-! Warning !-
