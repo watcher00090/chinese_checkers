@@ -4,13 +4,15 @@
    // Code for coloring
 ```
 ```html
-   // Code for coloring
+   
 ```
 ```js
    // Code for coloring
 ```
 ```css
-   // Code for coloring
+   span.red {
+      color: red
+   }
 ```
 import { Component } from '@angular/core';
 import { MovieService } from './services/movie.service';
