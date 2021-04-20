@@ -1,15 +1,8 @@
 # chinese_checkers
-```
+```diff
 var stickyadstatus = "";
 function fix_stickyad() {
   document.getElementById("stickypos").style.position = "sticky";
-```
-
-```diff  
-  var elem = document.getElementById("stickyadcontainer");
-```
-
-```
   if (!elem) {return false;}
   if (document.getElementById("skyscraper")) {
     var skyWidth = Number(w3_getStyleValue(document.getElementById("skyscraper"), "width").replace("px", ""));  
