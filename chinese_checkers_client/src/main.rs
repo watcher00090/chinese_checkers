@@ -60,8 +60,20 @@ struct GameState {
 
 }
 
+#[derive(PartialEq, Clone, Data)]
+enum WindowTypeValue {
+    START_WINDOW,
+    SINGLE_PLAYER,
+    MULTI_PLAYER,
+}
+
+#[derive(PartialEq, Clone, Data, Lens)]
+struct WindowType {
+    window_type : WindowTypeValue
+}
+
 // Create the main (root) Widget
-fn build_root_widget() -> impl Widget<GameState> {
+fn build_root_widget() -> impl Widget<WindowType> {
     let padding_dp = (0.0, 10.0); // 4dp of vertical padding, 0dp of horizontal padding 
     let column_layout = Flex::column()
         .with_child(Padding::new(padding_dp, Button::new("Single-Player")))
@@ -76,7 +88,7 @@ fn build_root_widget() -> impl Widget<GameState> {
 fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
-    let initial_state = GameState {};
+    let initial_state = WindowType {window_type : WindowTypeValue::START_WINDOW};
 
     AppLauncher::with_window(main_window)
         .launch(initial_state)
