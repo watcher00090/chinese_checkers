@@ -82,7 +82,9 @@ impl Widget<WindowType> for CanvasWidget {
         let rect = size.to_rect();
         ctx.fill(rect, &Color::WHITE);
 
-        ctx.fill(rect.to_ellipse(), &Color::BLACK);
+        let bounding_square_for_circle = rect;
+
+        ctx.fill(Rect::from_center_size(rect.center(), Size::new(rect.width() * 3.0 / 4.0, rect.height() * 3.0 / 4.0)).to_ellipse(), &Color::rgb8(255,248,220));
 
         // We can paint with a Z index, this indicates that this code will be run
         // after the rest of the painting. Painting with z-index is done in order,
