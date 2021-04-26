@@ -82,6 +82,8 @@ impl Widget<WindowType> for CanvasWidget {
         let rect = size.to_rect();
         ctx.fill(rect, &Color::WHITE);
 
+        ctx.fill(rect.to_ellipse(), &Color::BLACK);
+
         // We can paint with a Z index, this indicates that this code will be run
         // after the rest of the painting. Painting with z-index is done in order,
         // so first everything with z-index 1 is painted and then with z-index 2 etc.
