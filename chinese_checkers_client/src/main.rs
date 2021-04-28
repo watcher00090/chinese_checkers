@@ -41,7 +41,8 @@ impl Hextile {
         let x: f64 = self.x_hex as f64;
         let y: f64 = self.y_hex as f64;
         let z: f64 = self.z_hex as f64;
-        return x + z / 2.0;
+        //return x + z / 2.0;
+        return -y - z / 2.0;
     }
 
     fn cartesian_y(&self) -> f64 {
@@ -49,7 +50,8 @@ impl Hextile {
         let y: f64 = self.y_hex as f64;
         let z: f64 = self.z_hex as f64;
         let inner: f64 = 3.0;
-        return -z * (inner).sqrt() / 1.5;
+        return -z * (inner).sqrt() / 0.6;
+        //return -z * inner.sqrt() / 2.0;
     }
 }
 
@@ -144,7 +146,7 @@ impl Widget<AppState> for CanvasWidget {
                 };    
 
                 // loop through the board, draw each hextile
-                let size_bounds = Size::new(10.0,10.0);
+                let size_bounds = Size::new(5.0,5.0);
 
                 //println!("Size of board Vec = {}", board.len());
 
