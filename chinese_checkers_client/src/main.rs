@@ -9,6 +9,10 @@ use std::sync::Arc;
 use druid::kurbo::BezPath;
 use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
 
+static BOARD_WIDTH : f64 = 600.0;
+static BOARD_HEIGHT: f64 = 600.0;
+static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
+static ABSTRACT_BOARD_HEIGHT: f64 = 25.0; // vertical length from size to size of the board, with the origin right in the middle
 
 #[derive(PartialEq, Clone, Data, Copy)]
 enum AppStateValue {
@@ -29,6 +33,24 @@ struct Hextile {
     z_hex: i32,
     c: Color,
     p: Option<i32>,
+}
+
+// helper methods to convert from hex coordinates to cartesian coordinates
+impl Hextile {
+    fn cartesian_x(&self) -> f64 {
+        let x: f64 = self.x_hex as f64;
+        let y: f64 = self.y_hex as f64;
+        let z: f64 = self.z_hex as f64;
+        return x + z / 2.0;
+    }
+
+    fn cartesian_y(&self) -> f64 {
+        let x: f64 = self.x_hex as f64;
+        let y: f64 = self.y_hex as f64;
+        let z: f64 = self.z_hex as f64;
+        let inner: f64 = 3.0;
+        return -z * (inner).sqrt() / 1.5;
+    }
 }
 
 // Stores which window we're in and the entire state of the game 
@@ -70,12 +92,12 @@ impl Widget<AppState> for CanvasWidget {
         // If bx.max() is used in a scrolling widget things will probably
         // not work correctly.
         if bc.is_width_bounded() | bc.is_height_bounded() {
-            println!("Min width = {}", bc.min().width);
-            println!("Min height = {}", bc.min().height);
-            println!("Max width = {}", bc.max().width);
-            println!("Max height = {}", bc.max().height);
+            //println!("Min width = {}", bc.min().width);
+            //println!("Min height = {}", bc.min().height);
+            //println!("Max width = {}", bc.max().width);
+            //println!("Max height = {}", bc.max().height);
 
-            let size = Size::new(600.0, 600.0);
+            let size = Size::new(BOARD_WIDTH, BOARD_HEIGHT);
             bc.constrain(size)
         } else {
             bc.max()
@@ -96,12 +118,47 @@ impl Widget<AppState> for CanvasWidget {
 
         ctx.fill(Rect::from_center_size(rect.center(), Size::new(rect.width() * 3.0 / 4.0, rect.height() * 3.0 / 4.0)).to_ellipse(), &Color::rgb8(255,248,220));
         
-        let board = Arc::try_unwrap(data.board.clone()).unwrap_or_default();
+        let data_copy = data.clone(); 
 
-        // loop through the board, draw each hextile
-       // for hextile in Arc::try_unwrap(data.board).unwrap_or_default().into_iter() {
+        ctx.paint_with_z_index(1, move |ctx| {
 
-        //}
+            unsafe {
+
+                //let board : Vec<Hextile> = Arc::try_unwrap(data.board.clone()).unwrap_or(Vec::new());
+                let board_unsafe_ptr : *const Vec<Hextile> = Arc::as_ptr(&data_copy.board);
+                let board_ref = board_unsafe_ptr.as_ref();
+                //if board_ref.is_none() {
+                //    panic!("ERROR, the board pointer is null, exiting immediately.");
+                //}
+                //if board_ref.unwrap().len() == 0 {
+                //    panic!("ERROR, the board has size 0, exiting immediately.");
+                //}
+                let board = board_ref.unwrap();
+                
+                let screen_x = |x: f64| -> f64 {
+                    return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0);
+                };
+                
+                let screen_y = |y: f64| -> f64 {
+                    return (BOARD_HEIGHT / 2.0) + (-(y / ABSTRACT_BOARD_HEIGHT / 2.0)) * (BOARD_HEIGHT / 2.0);
+                };    
+
+                // loop through the board, draw each hextile
+                let size_bounds = Size::new(10.0,10.0);
+
+                //println!("Size of board Vec = {}", board.len());
+
+                for hextile in board.into_iter() {
+                    //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
+                    //let bounding_rect = Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds);
+                    //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
+
+                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
+                }
+            }
+
+        });
+
 
         // We can paint with a Z index, this indicates that this code will be run
         // after the rest of the painting. Painting with z-index is done in order,
@@ -239,24 +296,14 @@ fn build_root_widget() -> impl Widget<AppState> {
 }
 
 fn create_board() -> Vec<Hextile> {
-    let H: f64 = 100.0; // hexagon side length
-    let C_x = 640.0 / 2.0;
-    let C_y = 480.0 / 2.0;
-    let angles = [0.0, 60.0, 120.0, 180.0, 240.0, 300.0];
+    // let angles = [0.0, 60.0, 120.0, 180.0, 240.0, 300.0];
 
-    let angles_rad: Vec<f64> = angles
-        .into_iter()
-        .map(|angle| {
-            return angle * std::f64::consts::PI / 180.0;
-        })
-        .collect::<Vec<f64>>();
-
-    let points: Vec<[f64; 2]> = angles_rad
-        .into_iter()
-        .map(|angle| {
-            return [C_x + H * angle.cos(), C_y + H * angle.sin()];
-        })
-        .collect::<Vec<[f64; 2]>>();
+    // let angles_rad: Vec<f64> = angles
+    //     .into_iter()
+    //     .map(|angle| {
+    //         return angle * std::f64::consts::PI / 180.0;
+    //     })
+    //     .collect::<Vec<f64>>();
 
     // furthest points of the board
     // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
@@ -425,6 +472,7 @@ fn create_board() -> Vec<Hextile> {
         z_max,
         &center_color_array.clone()
     );
+    println!("Being called from create_board, size of board Vec = {}", board.len());
     return board; 
 }
 
@@ -462,7 +510,7 @@ fn create_board() -> Vec<Hextile> {
 fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
-    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::<Hextile>::new()) };
+    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()) };
 
     AppLauncher::with_window(main_window)
         .launch(initial_state)
