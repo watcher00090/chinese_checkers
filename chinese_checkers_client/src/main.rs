@@ -9,8 +9,8 @@ use std::sync::Arc;
 use druid::kurbo::BezPath;
 use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
 
-static BOARD_WIDTH : f64 = 600.0;
-static BOARD_HEIGHT: f64 = 600.0;
+static CANVAS_WIDTH : f64 = 600.0;
+static CANVAS_HEIGHT: f64 = 600.0;
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
 //static ABSTRACT_BOARD_HEIGHT: f64 = 15.0; // vertical length from size to size of the board, with the origin right in the middle
@@ -104,7 +104,7 @@ impl Widget<AppState> for CanvasWidget {
             //println!("Max width = {}", bc.max().width);
             //println!("Max height = {}", bc.max().height);
 
-            let size = Size::new(BOARD_WIDTH, BOARD_HEIGHT);
+            let size = Size::new(CANVAS_WIDTH, CANVAS_HEIGHT);
             bc.constrain(size)
         } else {
             bc.max()
@@ -123,8 +123,14 @@ impl Widget<AppState> for CanvasWidget {
         let rect = size.to_rect();
         ctx.fill(rect, &Color::WHITE);
 
+        //ctx.fill(size.to_rect().to_ellipse(), &Color::rgb8(255,248,220));
+
+        // draw light brown outer circle of board
         ctx.fill(Rect::from_center_size(rect.center(), Size::new(rect.width() * 3.0 / 4.0, rect.height() * 3.0 / 4.0)).to_ellipse(), &Color::rgb8(255,248,220));
-        
+
+        let BOARD_WIDTH : f64= 400.0;
+        let BOARD_HEIGHT : f64 = 400.0;
+
         let data_copy = data.clone(); 
 
         ctx.paint_with_z_index(1, move |ctx| {
@@ -144,12 +150,12 @@ impl Widget<AppState> for CanvasWidget {
                 
                 let screen_x = |x: f64| -> f64 {
                     //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
-                    return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0);
+                    return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
                 };
                 
                 let screen_y = |y: f64| -> f64 {
                     //return (-1.0) * (y / ABSTRACT_BOARD_HEIGHT - 1.0/2.0) * BOARD_HEIGHT;
-                    return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0);
+                    return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
                 };    
 
                 // loop through the board, draw each hextile
