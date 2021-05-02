@@ -11,8 +11,13 @@ use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBu
 
 static BOARD_WIDTH : f64 = 600.0;
 static BOARD_HEIGHT: f64 = 600.0;
-static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
-static ABSTRACT_BOARD_HEIGHT: f64 = 25.0; // vertical length from size to size of the board, with the origin right in the middle
+//static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
+//static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
+//static ABSTRACT_BOARD_HEIGHT: f64 = 15.0; // vertical length from size to size of the board, with the origin right in the middle
+
+static SQRT_3: f64 = 1.732050808;
+static ABSTRACT_BOARD_WIDTH: f64 = SQRT_3 * 8.0; 
+static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 8.0;
 
 #[derive(PartialEq, Clone, Data, Copy)]
 enum AppStateValue {
@@ -41,8 +46,8 @@ impl Hextile {
         let x: f64 = self.x_hex as f64;
         let y: f64 = self.y_hex as f64;
         let z: f64 = self.z_hex as f64;
-        //return x + z / 2.0;
-        return -y - z / 2.0;
+        return x + z / 2.0;
+        //return -y - z / 2.0;
     }
 
     fn cartesian_y(&self) -> f64 {
@@ -50,8 +55,8 @@ impl Hextile {
         let y: f64 = self.y_hex as f64;
         let z: f64 = self.z_hex as f64;
         let inner: f64 = 3.0;
-        return -z * (inner).sqrt() / 0.6;
-        //return -z * inner.sqrt() / 2.0;
+        //return -z * (inner).sqrt() / 0.6;
+        return -z * inner.sqrt() / 2.0;
     }
 }
 
@@ -138,11 +143,13 @@ impl Widget<AppState> for CanvasWidget {
                 let board = board_ref.unwrap();
                 
                 let screen_x = |x: f64| -> f64 {
+                    //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
                     return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0);
                 };
                 
                 let screen_y = |y: f64| -> f64 {
-                    return (BOARD_HEIGHT / 2.0) + (-(y / ABSTRACT_BOARD_HEIGHT / 2.0)) * (BOARD_HEIGHT / 2.0);
+                    //return (-1.0) * (y / ABSTRACT_BOARD_HEIGHT - 1.0/2.0) * BOARD_HEIGHT;
+                    return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0);
                 };    
 
                 // loop through the board, draw each hextile
@@ -155,26 +162,25 @@ impl Widget<AppState> for CanvasWidget {
                     //let bounding_rect = Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds);
                     //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
+                    //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
+                    println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
                     ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
                 }
+                //panic!();
             }
 
         });
+    // add_appropriate_hextiles_to_board(
+    //     &mut board,
+    //     x_min,
+    //     x_max,
+    //     y_min,
+    //     y_max,
+    //     z_min,
+    //     z_max,
+    //     &yellow_color_array.clone(),
+    // );
 
-
-        // We can paint with a Z index, this indicates that this code will be run
-        // after the rest of the painting. Painting with z-index is done in order,
-        // so first everything with z-index 1 is painted and then with z-index 2 etc.
-        // As you can see this(red) curve is drawn on top of the green curve
-        // ctx.paint_with_z_index(1, move |ctx| {
-        //     let mut path = BezPath::new();
-        //     path.move_to((0.0, size.height));
-        //     path.quad_to((40.0, 50.0), (size.width, 0.0));
-        //     // Create a color
-        //     let stroke_color = Color::rgb8(128, 0, 0);
-        //     // Stroke the path with thickness 1.0
-        //     ctx.stroke(path, &stroke_color, 5.0);
-        // });
 
         // Create an arbitrary bezier path
         // let mut path = BezPath::new();
@@ -356,16 +362,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = -1;
     let z_min: i32 = 5;
     let z_max: i32 = 8;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-        &yellow_color_array.clone(),
-    );
+    // add_appropriate_hextiles_to_board(
+    //     &mut board,
+    //     x_min,
+    //     x_max,
+    //     y_min,
+    //     y_max,
+    //     z_min,
+    //     z_max,
+    //     &yellow_color_array.clone(),
+    // );
 
     // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
     let x_min: i32 = -8;
@@ -374,16 +380,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = 4;
     let z_min: i32 = 1;
     let z_max: i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-        &red_color_array.clone(),
-    );
+    // add_appropriate_hextiles_to_board(
+    //     &mut board,
+    //     x_min,
+    //     x_max,
+    //     y_min,
+    //     y_max,
+    //     z_min,
+    //     z_max,
+    //     &red_color_array.clone(),
+    // );
 
     // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
     let x_min: i32 = 1;
@@ -392,16 +398,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = -5;
     let z_min: i32 = 1;
     let z_max: i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-        &blue_color_array.clone(),
-    );
+    // add_appropriate_hextiles_to_board(
+    //     &mut board,
+    //     x_min,
+    //     x_max,
+    //     y_min,
+    //     y_max,
+    //     z_min,
+    //     z_max,
+    //     &blue_color_array.clone(),
+    // );
 
     // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
     let x_min: i32 = -4;
@@ -410,16 +416,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = 8;
     let z_min: i32 = -4;
     let z_max: i32 = -1;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-        &black_color_array.clone(),
-    );
+    // add_appropriate_hextiles_to_board(
+    //     &mut board,
+    //     x_min,
+    //     x_max,
+    //     y_min,
+    //     y_max,
+    //     z_min,
+    //     z_max,
+    //     &black_color_array.clone(),
+    // );
 
     // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
     let x_min: i32 = 5;
@@ -428,34 +434,34 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = -1;
     let z_min: i32 = -4;
     let z_max: i32 = -1;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-        &green_color_array.clone(),
-    );
+    // add_appropriate_hextiles_to_board(
+    //     &mut board,
+    //     x_min,
+    //     x_max,
+    //     y_min,
+    //     y_max,
+    //     z_min,
+    //     z_max,
+    //     &green_color_array.clone(),
+    // );
 
     // white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
-    let x_min: i32 = 1;
-    let x_max: i32 = 4;
-    let y_min: i32 = 1;
-    let y_max: i32 = 4;
-    let z_min: i32 = -8;
-    let z_max: i32 = -5;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-        &white_color_array.clone(),
-    );
+    // let x_min: i32 = 1;
+    // let x_max: i32 = 4;
+    // let y_min: i32 = 1;
+    // let y_max: i32 = 4;
+    // let z_min: i32 = -8;
+    // let z_max: i32 = -5;
+    // add_appropriate_hextiles_to_board(
+    //     &mut board,
+    //     x_min,
+    //     x_max,
+    //     y_min,
+    //     y_max,
+    //     z_min,
+    //     z_max,
+    //     &white_color_array.clone(),
+    // );
 
     // center squares
     let x_min : i32 = -4;
