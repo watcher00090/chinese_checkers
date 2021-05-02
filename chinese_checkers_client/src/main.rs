@@ -105,7 +105,8 @@ impl Widget<AppState> for CanvasWidget {
             //println!("Max height = {}", bc.max().height);
 
             let size = Size::new(CANVAS_WIDTH, CANVAS_HEIGHT);
-            bc.constrain(size)
+            //bc.constrain(size)
+            size
         } else {
             bc.max()
         }
