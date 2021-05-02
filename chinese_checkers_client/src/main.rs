@@ -362,16 +362,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = -1;
     let z_min: i32 = 5;
     let z_max: i32 = 8;
-    // add_appropriate_hextiles_to_board(
-    //     &mut board,
-    //     x_min,
-    //     x_max,
-    //     y_min,
-    //     y_max,
-    //     z_min,
-    //     z_max,
-    //     &yellow_color_array.clone(),
-    // );
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        &yellow_color_array.clone(),
+    );
 
     // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
     let x_min: i32 = -8;
@@ -380,16 +380,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = 4;
     let z_min: i32 = 1;
     let z_max: i32 = 4;
-    // add_appropriate_hextiles_to_board(
-    //     &mut board,
-    //     x_min,
-    //     x_max,
-    //     y_min,
-    //     y_max,
-    //     z_min,
-    //     z_max,
-    //     &red_color_array.clone(),
-    // );
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        &red_color_array.clone(),
+    );
 
     // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
     let x_min: i32 = 1;
@@ -398,16 +398,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = -5;
     let z_min: i32 = 1;
     let z_max: i32 = 4;
-    // add_appropriate_hextiles_to_board(
-    //     &mut board,
-    //     x_min,
-    //     x_max,
-    //     y_min,
-    //     y_max,
-    //     z_min,
-    //     z_max,
-    //     &blue_color_array.clone(),
-    // );
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        &blue_color_array.clone(),
+    );
 
     // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
     let x_min: i32 = -4;
@@ -416,16 +416,16 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = 8;
     let z_min: i32 = -4;
     let z_max: i32 = -1;
-    // add_appropriate_hextiles_to_board(
-    //     &mut board,
-    //     x_min,
-    //     x_max,
-    //     y_min,
-    //     y_max,
-    //     z_min,
-    //     z_max,
-    //     &black_color_array.clone(),
-    // );
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        &black_color_array.clone(),
+    );
 
     // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
     let x_min: i32 = 5;
@@ -434,34 +434,34 @@ fn create_board() -> Vec<Hextile> {
     let y_max: i32 = -1;
     let z_min: i32 = -4;
     let z_max: i32 = -1;
-    // add_appropriate_hextiles_to_board(
-    //     &mut board,
-    //     x_min,
-    //     x_max,
-    //     y_min,
-    //     y_max,
-    //     z_min,
-    //     z_max,
-    //     &green_color_array.clone(),
-    // );
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        &green_color_array.clone(),
+    );
 
-    // white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
-    // let x_min: i32 = 1;
-    // let x_max: i32 = 4;
-    // let y_min: i32 = 1;
-    // let y_max: i32 = 4;
-    // let z_min: i32 = -8;
-    // let z_max: i32 = -5;
-    // add_appropriate_hextiles_to_board(
-    //     &mut board,
-    //     x_min,
-    //     x_max,
-    //     y_min,
-    //     y_max,
-    //     z_min,
-    //     z_max,
-    //     &white_color_array.clone(),
-    // );
+    //white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
+    let x_min: i32 = 1;
+    let x_max: i32 = 4;
+    let y_min: i32 = 1;
+    let y_max: i32 = 4;
+    let z_min: i32 = -8;
+    let z_max: i32 = -5;
+    add_appropriate_hextiles_to_board(
+        &mut board,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        z_min,
+        z_max,
+        &white_color_array.clone(),
+    );
 
     // center squares
     let x_min : i32 = -4;
