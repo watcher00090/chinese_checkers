@@ -159,7 +159,7 @@ impl Widget<AppState> for CanvasWidget {
                 };    
 
                 // loop through the board, draw each hextile
-                let size_bounds = Size::new(5.0,5.0);
+                let size_bounds = Size::new(20.0,20.0);
 
                 //println!("Size of board Vec = {}", board.len());
 
