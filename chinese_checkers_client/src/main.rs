@@ -170,7 +170,7 @@ impl Widget<AppState> for CanvasWidget {
                     //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
                     //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
-                    println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
+                    // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
                     ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
                 }
                 //panic!();
@@ -294,7 +294,8 @@ impl Widget<AppState> for MainWidget<AppState> {
         if data.window_type == AppStateValue::START {
             self.main_container.update(ctx,old_data,data,env)
         } else if data.window_type == AppStateValue::SINGLE_PLAYER {    
-            self.main_container =  Container::new(Flex::column().with_child(Label::new("SINGLE-PLAYER-MODE-ENTERED")).with_child(SizedBox::new(CanvasWidget {})));
+            //self.main_container =  Container::new(Flex::column().with_child(Label::new("SINGLE-PLAYER-MODE-ENTERED")).with_child(SizedBox::new(CanvasWidget {})));
+            self.main_container =  Container::new(Flex::column().with_child(Flex::row().with_flex_child(Container::new(Align::centered(Button::new("New Game"))),1.0).with_flex_child(Container::new(Align::centered(Button::new("Quit"))),1.0)).with_child(SizedBox::new(CanvasWidget {})));
             ctx.children_changed();
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
             self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
@@ -311,31 +312,6 @@ fn build_root_widget() -> impl Widget<AppState> {
 }
 
 fn create_board() -> Vec<Hextile> {
-    // let angles = [0.0, 60.0, 120.0, 180.0, 240.0, 300.0];
-
-    // let angles_rad: Vec<f64> = angles
-    //     .into_iter()
-    //     .map(|angle| {
-    //         return angle * std::f64::consts::PI / 180.0;
-    //     })
-    //     .collect::<Vec<f64>>();
-
-    // furthest points of the board
-    // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
-    // let top_left : Hextile = Hextile{y_hex : 8, x_hex : -4, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let top_right : Hextile = Hextile{y_hex : -4, x_hex : 8, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let bottom : Hextile = Hextile{y_hex : -4, x_hex : -4, z_hex : 8, c : [0.0,0.0,0.0,0.0], p : None};
-    // let bottom_left : Hextile = Hextile{y_hex : 4, x_hex : -8, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let bottom_right : Hextile = Hextile{y_hex : -8, x_hex : 4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
-
-    // points at the edges of the hexagon
-    // let hex_top_left : Hextile = Hextile{y_hex : 4, x_hex : 0, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_top_right : Hextile = Hextile{y_hex : 0, x_hex : 4, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_left : Hextile = Hextile{y_hex : 4, x_hex : -4, z_hex : 0, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_right : Hextile = Hextile{y_hex : -4, x_hex : 4, z_hex : 0, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_bottom_left : Hextile = Hextile{y_hex : 0, x_hex : -4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_bottom_right : Hextile = Hextile{y_hex : -4, x_hex : 0, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
-
     let mut board: Vec<Hextile> = Vec::new();
 
     // furthest points of the board
