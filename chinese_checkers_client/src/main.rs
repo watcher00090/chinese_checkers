@@ -5,10 +5,19 @@ use rand::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash,Hasher};
 use druid::widget::prelude::*;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use druid::kurbo::BezPath;
 use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
 use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
+
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static! {
+    // Global mutable variable storing the WidgetId of the root widget. 
+    static ref root_widget_id_guard : Mutex::<WidgetId> = Mutex::<WidgetId>::new(WidgetId::next());  // global variable always storing the widget id of the root widget
+    static ref start_game_selector : Selector<u32> = Selector::new("START_GAME");
+}
 
 static CANVAS_WIDTH : f64 = 600.0;
 static CANVAS_HEIGHT: f64 = 600.0;
@@ -272,7 +281,7 @@ impl MainWidget<AppState> {
         return Container::new(Align::centered(column_layout));
     }
 
-    fn new() -> Self {
+    fn new() -> IdentityWrapper<Self> {
         // let padding_dp = (0.0, 10.0); // 4dp of vertical padding, 0dp of horizontal padding 
 
         // let column_layout = Flex::column()
@@ -291,8 +300,10 @@ impl MainWidget<AppState> {
         let main_widget = MainWidget::<AppState> {
             main_container: MainWidget::make_start_menu()
         };
-            
-        main_widget
+
+        let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
+        main_widget.with_id(*widget_id_holder)
+        // the mutex will be unlocked here because 'widget_id_holder' is scoped to this block
     } 
 }
 
@@ -326,31 +337,32 @@ impl AppDelegate<AppState> for ApplicationCommandHandler {
         env: &Env
     ) -> Handled
     {
-        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_2_PLAYERS")) {
-            println!("command to start a new game with 2 players received");
-            data.board = Arc::<Vec::<Hextile>>::new(Vec::new());
-            return Handled::Yes;
-        }
-        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
-            println!("command to start a new game with 3 players received");
-            return Handled::Yes;
-        }
-        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
-            println!("command to start a new game with 3 players received");
-            return Handled::Yes;
-        }
-        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_4_PLAYERS")) {
-            println!("command to start a new game with 4 players received");
-            return Handled::Yes;
-        }
-        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_5_PLAYERS")) {
-            println!("command to start a new game with 5 players received");
-            return Handled::Yes;
-        }
-        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_6_PLAYERS")) {
-            println!("command to start a new game with 6 players received");
-            return Handled::Yes;
-        }
+        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_2_PLAYERS")) {
+        //     println!("command to start a new game with 2 players received");
+        //     data.board = Arc::<Vec::<Hextile>>::new(Vec::new());
+        //     data.in_game = true;
+        //     return Handled::Yes;
+        // }
+        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+        //     println!("command to start a new game with 3 players received");
+        //     return Handled::Yes;
+        // }
+        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+        //     println!("command to start a new game with 3 players received");
+        //     return Handled::Yes;
+        // }
+        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_4_PLAYERS")) {
+        //     println!("command to start a new game with 4 players received");
+        //     return Handled::Yes;
+        // }
+        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_5_PLAYERS")) {
+        //     println!("command to start a new game with 5 players received");
+        //     return Handled::Yes;
+        // }
+        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_6_PLAYERS")) {
+        //     println!("command to start a new game with 6 players received");
+        //     return Handled::Yes;
+        // }
 
         return Handled::No;
     }
@@ -381,6 +393,15 @@ impl MainWidget<AppState> {
 impl Widget<AppState> for MainWidget<AppState> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut AppState, _env: &Env) {
+        match event {
+            Event::Command(command) => {
+                if command.is::<u32>(*start_game_selector) {
+                    let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
+                    println!("Received a start game command for {} players", num_players);
+                }   
+            }
+            _ => {} // handle the event as normal
+        }
         self.main_container.event(ctx,event,_data,_env)
     }
 
@@ -421,11 +442,22 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     let location = Point::new(0.0,0.0);
 
                                                     let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
-                                                    let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Selector::new("START_NEW_GAME_WITH_2_PLAYERS"));
-                                                    let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Selector::new("START_NEW_GAME_WITH_3_PLAYERS"));
-                                                    let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Selector::new("START_NEW_GAME_WITH_4_PLAYERS"));
-                                                    let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Selector::new("START_NEW_GAME_WITH_5_PLAYERS"));
-                                                    let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Selector::new("START_NEW_GAME_WITH_6_PLAYERS"));
+                                                    //let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Selector::new("START_NEW_GAME_WITH_2_PLAYERS"));
+                                                    //let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Selector::new("START_NEW_GAME_WITH_3_PLAYERS"));
+                                                    //let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Selector::new("START_NEW_GAME_WITH_4_PLAYERS"));
+                                                    //let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Selector::new("START_NEW_GAME_WITH_5_PLAYERS"));
+                                                    //let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Selector::new("START_NEW_GAME_WITH_6_PLAYERS"));
+
+                                                    // dereference this to get the widget id of the root widget
+                                                    let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
+
+                                                    let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
+                                                    let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
+                                                    let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
+                                                    let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
+                                                    let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
+
+                                                    // let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
 
                                                     let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
                                                     //let mut context_menu = Menu::new_for_popup();
@@ -453,10 +485,11 @@ impl Widget<AppState> for MainWidget<AppState> {
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
             self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
             ctx.children_changed();
-        } else if data.window_type == AppStateValue::SINGLE_PLAYER {
-            println!("in single-player mode, starting game...");
-            ctx.children_changed();
-        } else {
+        } 
+        //else if data.window_type == AppStateValue::SINGLE_PLAYER {
+        //    println!("in single-player mode, starting game...");
+        //} 
+        else {
             println!("data.window_type == {:?}", data.window_type);
             panic!("ERROR: Internal error, unrecognized window type, exiting immediately....");
         }
@@ -660,10 +693,10 @@ fn main() {
 
     let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
 
-    let command_handler = ApplicationCommandHandler::new();
+    //let command_handler = ApplicationCommandHandler::new();
 
     AppLauncher::with_window(main_window)
-        .delegate(command_handler)
+        //.delegate(command_handler)
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
 }
