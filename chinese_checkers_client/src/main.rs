@@ -289,7 +289,14 @@ impl MainWidget<AppState> {
     } 
 }
 
+impl MainWidget<AppState> {
+    fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
+        return Label::<AppState>::new("Select how many players");
+    }
+}
+
 impl Widget<AppState> for MainWidget<AppState> {
+
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut AppState, _env: &Env) {
         self.main_container.event(ctx,event,_data,_env)
@@ -320,7 +327,11 @@ impl Widget<AppState> for MainWidget<AppState> {
                                     Flex::column()
                                         .with_child(
                                             Flex::row()
-                                                .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game")))),1.0)
+                                                .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game").on_click(|ctx, _data: &mut AppState, _env| {
+                                                    println!("New game button pressed in single-player mode....");
+                                                    let popup_window_descrip = WindowDesc::new(MainWidget::<AppState>::create_start_game_popup_window_layout);
+                                                    ctx.new_window(popup_window_descrip);
+                                                })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
                                                     data.window_type = AppStateValue::START;
                                                     println!("Quit button pressed in single-player mode....");                                    
