@@ -26,7 +26,7 @@ static START_NEW_GAME_4_PLAYERS_ID : u32 = 1002;
 static START_NEW_GAME_5_PLAYERS_ID : u32 = 1003;
 static START_NEW_GAME_6_PLAYERS_ID : u32 = 1004;
 
-#[derive(PartialEq, Clone, Data, Copy)]
+#[derive(PartialEq, Clone, Data, Copy, Debug)]
 enum AppStateValue {
     START,
     SINGLE_PLAYER,
@@ -71,7 +71,8 @@ impl Hextile {
 #[derive(PartialEq, Clone, Data, Lens)]
 struct AppState {
     window_type : AppStateValue,
-    board : Arc::<Vec::<Hextile>>
+    board : Arc::<Vec::<Hextile>>,
+    in_game : bool
 }
 
 struct MainWidget<T: Data> {
@@ -109,7 +110,7 @@ impl Widget<AppState> for CanvasWidget {
             //println!("Min width = {}", bc.min().width);
             //println!("Min height = {}", bc.min().height);
             //println!("Max width = {}", bc.max().width);
-            //println!("Max height = {}", bc.max().height);
+            //println!("Max height = {}", bc.max()data.height);
 
             let size = Size::new(CANVAS_WIDTH, CANVAS_HEIGHT);
             //bc.constrain(size)
@@ -180,7 +181,6 @@ impl Widget<AppState> for CanvasWidget {
                     // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
                     ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
                 }
-                //panic!();
             }
 
         });
@@ -326,9 +326,9 @@ impl AppDelegate<AppState> for ApplicationCommandHandler {
         env: &Env
     ) -> Handled
     {
-
         if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_2_PLAYERS")) {
             println!("command to start a new game with 2 players received");
+            data.board = Arc::<Vec::<Hextile>>::new(Vec::new());
             return Handled::Yes;
         }
         if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
@@ -380,7 +380,6 @@ impl MainWidget<AppState> {
 
 impl Widget<AppState> for MainWidget<AppState> {
 
-
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut AppState, _env: &Env) {
         self.main_container.event(ctx,event,_data,_env)
     }
@@ -398,6 +397,9 @@ impl Widget<AppState> for MainWidget<AppState> {
     }
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
+        if data.window_type == AppStateValue::SINGLE_PLAYER && data.in_game == true && old_data.in_game == false {
+            // game has been started....
+        }
         if data.window_type == AppStateValue::START && old_data.window_type == AppStateValue::SINGLE_PLAYER {
             self.main_container = MainWidget::make_start_menu();
             ctx.children_changed();
@@ -451,7 +453,11 @@ impl Widget<AppState> for MainWidget<AppState> {
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
             self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
             ctx.children_changed();
+        } else if data.window_type == AppStateValue::SINGLE_PLAYER {
+            println!("in single-player mode, starting game...");
+            ctx.children_changed();
         } else {
+            println!("data.window_type == {:?}", data.window_type);
             panic!("ERROR: Internal error, unrecognized window type, exiting immediately....");
         }
     }
@@ -652,7 +658,7 @@ fn create_board() -> Vec<Hextile> {
 fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
-    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()) };
+    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
 
     let command_handler = ApplicationCommandHandler::new();
 
