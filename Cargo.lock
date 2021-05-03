@@ -122,6 +122,7 @@ name = "chinese_checkers_client"
 version = "0.1.0"
 dependencies = [
  "druid",
+ "druid-shell",
  "rand",
 ]
 

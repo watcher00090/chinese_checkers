@@ -1,6 +1,6 @@
-use druid::widget::{SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
-use druid::{Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
+use druid::{MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
 use rand::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash,Hasher};
@@ -8,6 +8,7 @@ use druid::widget::prelude::*;
 use std::sync::Arc;
 use druid::kurbo::BezPath;
 use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
+use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 
 static CANVAS_WIDTH : f64 = 600.0;
 static CANVAS_HEIGHT: f64 = 600.0;
@@ -291,7 +292,7 @@ impl MainWidget<AppState> {
 
 impl MainWidget<AppState> {
     fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
-        return Label::<AppState>::new("Select how many players");
+        return Label::<AppState>::new("Enter a number, between 1 and 6");
     }
 }
 
@@ -328,9 +329,28 @@ impl Widget<AppState> for MainWidget<AppState> {
                                         .with_child(
                                             Flex::row()
                                                 .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game").on_click(|ctx, _data: &mut AppState, _env| {
-                                                    println!("New game button pressed in single-player mode....");
-                                                    let popup_window_descrip = WindowDesc::new(MainWidget::<AppState>::create_start_game_popup_window_layout);
-                                                    ctx.new_window(popup_window_descrip);
+                                                    //let popup_window_descrip = WindowDesc::new(MainWidget::<AppState>::create_start_game_popup_window_layout);
+                                                    //ctx.new_window(popup_window_descrip);
+                                                    let window_handle = ctx.window();
+                                                    let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
+                                                    // let location = Rect::from_origin_size(Point::new(0.0,0.0),window_handle.get_size()).center(); // center of the winodw
+                                                    let location = Point::new(0.0,0.0);
+
+                                                    let item = MenuItem::<AppState>::new(LocalizedString::new("My Menu Item"), Selector::new("My Selector"));
+                                                    //let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item), Point::new(0.0,0.0));
+                                                    let mut context_menu = Menu::new_for_popup();
+                                                    //let mut number_of_players_list = Menu::new_for_popup();
+                                                    context_menu.add_item(1, "How many players:", None, false, false);
+                                                    context_menu.add_item(2, "2", None, true, true);
+                                                    context_menu.add_item(3, "3", None, true, true);
+                                                    context_menu.add_item(4, "4", None, true, true);
+                                                    context_menu.add_item(5, "5", None, true, true);
+                                                    context_menu.add_item(6, "6", None, true, true);
+
+                                                    //context_menu.add_dropdown(number_of_players_list, "How many players:", true);
+                                                    let id : u32 = 10;
+                                                    window_handle.show_context_menu(context_menu, location);
+                                                    println!("new game buttton pressed!!");
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
                                                     data.window_type = AppStateValue::START;
