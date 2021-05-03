@@ -122,7 +122,7 @@ impl Widget<AppState> for CanvasWidget {
         // and we only want to clear this widget's area.
         let size = ctx.size();
         let rect = size.to_rect();
-        ctx.fill(rect, &Color::WHITE);
+        //ctx.fill(rect, &Color::WHITE);
 
         //ctx.fill(size.to_rect().to_ellipse(), &Color::rgb8(255,248,220));
 
@@ -246,26 +246,43 @@ impl Widget<AppState> for CanvasWidget {
 }
 
 impl MainWidget<AppState> {
-    fn new<'a>() -> Self {
-        let padding_dp = (0.0, 10.0); // 4dp of vertical padding, 0dp of horizontal padding 
 
+    fn make_start_menu() -> Container<AppState> {
+        let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
         let column_layout = Flex::column()
-            .with_child(Padding::new(padding_dp, Button::new("Single-Player").on_click(|ctx, data : &mut AppState, env| {
-                data.window_type = AppStateValue::SINGLE_PLAYER;
-                println!("Single-player button pressed....");
-            })))
-            .with_child(Padding::new(padding_dp, Button::new("Multi-Player").on_click(|ctx, data : &mut AppState, env| {
-                data.window_type = AppStateValue::MULTI_PLAYER;
-                println!("Multi-player button pressed....");
-            })))
-            .with_child(Padding::new(padding_dp, Button::new("Settings")))
-            .with_child(Padding::new(padding_dp, Button::new("Feedback")))
-            .with_child(Padding::new(padding_dp, Button::new("Quit")));
-             
-        let initial_layout = Align::centered(column_layout);
-        
+        .with_child(Padding::new(padding_dp, Button::new("Single-Player").on_click(|ctx, data : &mut AppState, env| {
+            data.window_type = AppStateValue::SINGLE_PLAYER;
+            println!("Single-player button pressed....");
+        })))
+        .with_child(Padding::new(padding_dp, Button::new("Multi-Player").on_click(|ctx, data : &mut AppState, env| {
+            data.window_type = AppStateValue::MULTI_PLAYER;
+            println!("Multi-player button pressed....");
+        })))
+        .with_child(Padding::new(padding_dp, Button::new("Settings")))
+        .with_child(Padding::new(padding_dp, Button::new("Feedback")))
+        .with_child(Padding::new(padding_dp, Button::new("Quit")));
+
+        return Container::new(Align::centered(column_layout));
+    }
+
+    fn new() -> Self {
+        // let padding_dp = (0.0, 10.0); // 4dp of vertical padding, 0dp of horizontal padding 
+
+        // let column_layout = Flex::column()
+        //     .with_child(Padding::new(padding_dp, Button::new("Single-Player").on_click(|ctx, data : &mut AppState, env| {
+        //         data.window_type = AppStateValue::SINGLE_PLAYER;
+        //         println!("Single-player button pressed....");
+        //     })))
+        //     .with_child(Padding::new(padding_dp, Button::new("Multi-Player").on_click(|ctx, data : &mut AppState, env| {
+        //         data.window_type = AppStateValue::MULTI_PLAYER;
+        //         println!("Multi-player button pressed....");
+        //     })))
+        //     .with_child(Padding::new(padding_dp, Button::new("Settings")))
+        //     .with_child(Padding::new(padding_dp, Button::new("Feedback")))
+        //     .with_child(Padding::new(padding_dp, Button::new("Quit")));
+                     
         let main_widget = MainWidget::<AppState> {
-            main_container: Container::new(initial_layout),
+            main_container: MainWidget::make_start_menu()
         };
             
         main_widget
@@ -291,11 +308,25 @@ impl Widget<AppState> for MainWidget<AppState> {
     }
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
-        if data.window_type == AppStateValue::START {
+        if data.window_type == AppStateValue::START && old_data.window_type == AppStateValue::SINGLE_PLAYER {
+            self.main_container = MainWidget::make_start_menu();
+            ctx.children_changed();
+        }
+        else if data.window_type == AppStateValue::START {
             self.main_container.update(ctx,old_data,data,env)
-        } else if data.window_type == AppStateValue::SINGLE_PLAYER {    
+        } else if data.window_type == AppStateValue::SINGLE_PLAYER && old_data.window_type == AppStateValue::START {    
             //self.main_container =  Container::new(Flex::column().with_child(Label::new("SINGLE-PLAYER-MODE-ENTERED")).with_child(SizedBox::new(CanvasWidget {})));
-            self.main_container =  Container::new(Flex::column().with_child(Flex::row().with_flex_child(Container::new(Align::centered(Button::new("New Game"))),1.0).with_flex_child(Container::new(Align::centered(Button::new("Quit"))),1.0)).with_child(SizedBox::new(CanvasWidget {})));
+            self.main_container =  Container::new(
+                                    Flex::column()
+                                        .with_child(
+                                            Flex::row()
+                                                .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game")))),1.0)
+                                                .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
+                                                    data.window_type = AppStateValue::START;
+                                                    println!("Quit button pressed in single-player mode....");                                    
+                                                }))),1.0)
+                                        )
+                                        .with_child(SizedBox::new(CanvasWidget {})));
             ctx.children_changed();
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
             self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
