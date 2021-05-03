@@ -1,6 +1,6 @@
 use druid::widget::{ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
-use druid::{MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
+use druid::{WindowId, MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
 use rand::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash,Hasher};
@@ -19,6 +19,12 @@ static CANVAS_HEIGHT: f64 = 600.0;
 static SQRT_3: f64 = 1.732050808;
 static ABSTRACT_BOARD_WIDTH: f64 = SQRT_3 * 8.0; 
 static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 8.0;
+
+static START_NEW_GAME_2_PLAYERS_ID : u32 = 1000;
+static START_NEW_GAME_3_PLAYERS_ID : u32 = 1001;
+static START_NEW_GAME_4_PLAYERS_ID : u32 = 1002;
+static START_NEW_GAME_5_PLAYERS_ID : u32 = 1003;
+static START_NEW_GAME_6_PLAYERS_ID : u32 = 1004;
 
 #[derive(PartialEq, Clone, Data, Copy)]
 enum AppStateValue {
@@ -290,6 +296,82 @@ impl MainWidget<AppState> {
     } 
 }
 
+struct ApplicationCommandHandler {}
+
+impl ApplicationCommandHandler {
+    fn new() -> Self {
+        ApplicationCommandHandler {}
+    }
+}
+
+impl AppDelegate<AppState> for ApplicationCommandHandler {
+    fn event(
+        &mut self,
+        ctx: &mut DelegateCtx<'_>,
+        window_id: WindowId,
+        event: Event,
+        data: &mut AppState,
+        env: &Env
+    ) -> Option<Event> 
+    {
+        return Some(event)
+    }
+
+    fn command(
+        &mut self,
+        ctx: &mut DelegateCtx,
+        target: Target,
+        cmd: &Command,
+        data: &mut AppState,
+        env: &Env
+    ) -> Handled
+    {
+
+        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_2_PLAYERS")) {
+            println!("command to start a new game with 2 players received");
+            return Handled::Yes;
+        }
+        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+            println!("command to start a new game with 3 players received");
+            return Handled::Yes;
+        }
+        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+            println!("command to start a new game with 3 players received");
+            return Handled::Yes;
+        }
+        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_4_PLAYERS")) {
+            println!("command to start a new game with 4 players received");
+            return Handled::Yes;
+        }
+        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_5_PLAYERS")) {
+            println!("command to start a new game with 5 players received");
+            return Handled::Yes;
+        }
+        if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_6_PLAYERS")) {
+            println!("command to start a new game with 6 players received");
+            return Handled::Yes;
+        }
+
+        return Handled::No;
+    }
+
+    fn window_added(
+        &mut self,
+        id: WindowId,
+        data: &mut AppState,
+        env: &Env,
+        ctx: &mut DelegateCtx
+    ) {}
+
+    fn window_removed(
+        &mut self,
+        id: WindowId,
+        data: &mut AppState,
+        env: &Env,
+        ctx: &mut DelegateCtx
+    ) {}
+}
+
 impl MainWidget<AppState> {
     fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
         return Label::<AppState>::new("Enter a number, between 1 and 6");
@@ -336,20 +418,27 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     // let location = Rect::from_origin_size(Point::new(0.0,0.0),window_handle.get_size()).center(); // center of the winodw
                                                     let location = Point::new(0.0,0.0);
 
-                                                    let item = MenuItem::<AppState>::new(LocalizedString::new("My Menu Item"), Selector::new("My Selector"));
-                                                    //let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item), Point::new(0.0,0.0));
-                                                    let mut context_menu = Menu::new_for_popup();
-                                                    //let mut number_of_players_list = Menu::new_for_popup();
-                                                    context_menu.add_item(1, "How many players:", None, false, false);
-                                                    context_menu.add_item(2, "2", None, true, true);
-                                                    context_menu.add_item(3, "3", None, true, true);
-                                                    context_menu.add_item(4, "4", None, true, true);
-                                                    context_menu.add_item(5, "5", None, true, true);
-                                                    context_menu.add_item(6, "6", None, true, true);
+                                                    let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
+                                                    let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Selector::new("START_NEW_GAME_WITH_2_PLAYERS"));
+                                                    let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Selector::new("START_NEW_GAME_WITH_3_PLAYERS"));
+                                                    let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Selector::new("START_NEW_GAME_WITH_4_PLAYERS"));
+                                                    let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Selector::new("START_NEW_GAME_WITH_5_PLAYERS"));
+                                                    let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Selector::new("START_NEW_GAME_WITH_6_PLAYERS"));
+
+                                                    let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
+                                                    //let mut context_menu = Menu::new_for_popup();
+                                                    // let mut number_of_players_list = Menu::new_for_popup();
+                                                    // context_menu.add_item(1, "How many players:", None, false, false);
+                                                    // context_menu.add_item(START_NEW_GAME_2_PLAYERS_ID, "2", None, true, true);
+                                                    // context_menu.add_item(START_NEW_GAME_3_PLAYERS_ID, "3", None, true, true);
+                                                    // context_menu.add_item(START_NEW_GAME_4_PLAYERS_ID, "4", None, true, true);
+                                                    // context_menu.add_item(START_NEW_GAME_5_PLAYERS_ID, "5", None, true, true);
+                                                    // context_menu.add_item(START_NEW_GAME_6_PLAYERS_ID, "6", None, true, true);
 
                                                     //context_menu.add_dropdown(number_of_players_list, "How many players:", true);
-                                                    let id : u32 = 10;
-                                                    window_handle.show_context_menu(context_menu, location);
+                                                    //let id : u32 = 10;
+                                                    //window_handle.show_context_menu(context_menu, location);
+                                                    ctx.show_context_menu(new_game_context_menu);
                                                     println!("new game buttton pressed!!");
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
@@ -565,7 +654,10 @@ fn main() {
 
     let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()) };
 
+    let command_handler = ApplicationCommandHandler::new();
+
     AppLauncher::with_window(main_window)
+        .delegate(command_handler)
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
 }
