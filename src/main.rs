@@ -35,6 +35,18 @@ static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 8.0;
 // static START_NEW_GAME_5_PLAYERS_ID : u32 = 1003;
 // static START_NEW_GAME_6_PLAYERS_ID : u32 = 1004;
 
+static BOARD_CIRCLE_COLOR_r : u8 = 238;
+static BOARD_CIRCLE_COLOR_g : u8 = 206;
+static BOARD_CIRCLE_COLOR_b : u8 = 166;
+
+// static BOARD_CIRCLE_COLOR_r : u8 = 212;
+// static BOARD_CIRCLE_COLOR_g : u8 = 179;
+// static BOARD_CIRCLE_COLOR_b : u8 = 137;
+
+// static BOARD_CIRCLE_COLOR_r : u8 = 255;
+// static BOARD_CIRLCE_COLOR_g : u8 = 248;
+// static BOARD_CIRCLE_COLOR_b : u8 = 220;
+
 #[derive(PartialEq, Clone, Data, Copy, Debug)]
 enum AppStateValue {
     START,
@@ -146,7 +158,7 @@ impl Widget<AppState> for CanvasWidget {
         //ctx.fill(size.to_rect().to_ellipse(), &Color::rgb8(255,248,220));
 
         // draw light brown outer circle of board
-        ctx.fill(Rect::from_center_size(rect.center(), Size::new(rect.width() * 3.0 / 4.0, rect.height() * 3.0 / 4.0)).to_ellipse(), &Color::rgb8(255,248,220));
+        ctx.fill(Rect::from_center_size(rect.center(), Size::new(rect.width() * 3.0 / 4.0, rect.height() * 3.0 / 4.0)).to_ellipse(), &Color::rgb8(BOARD_CIRCLE_COLOR_r,BOARD_CIRCLE_COLOR_g,BOARD_CIRCLE_COLOR_b));
 
         let BOARD_WIDTH : f64= 400.0;
         let BOARD_HEIGHT : f64 = 400.0;
