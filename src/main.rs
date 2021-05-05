@@ -29,11 +29,11 @@ static SQRT_3: f64 = 1.732050808;
 static ABSTRACT_BOARD_WIDTH: f64 = SQRT_3 * 8.0; 
 static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 8.0;
 
-static START_NEW_GAME_2_PLAYERS_ID : u32 = 1000;
-static START_NEW_GAME_3_PLAYERS_ID : u32 = 1001;
-static START_NEW_GAME_4_PLAYERS_ID : u32 = 1002;
-static START_NEW_GAME_5_PLAYERS_ID : u32 = 1003;
-static START_NEW_GAME_6_PLAYERS_ID : u32 = 1004;
+// static START_NEW_GAME_2_PLAYERS_ID : u32 = 1000;
+// static START_NEW_GAME_3_PLAYERS_ID : u32 = 1001;
+// static START_NEW_GAME_4_PLAYERS_ID : u32 = 1002;
+// static START_NEW_GAME_5_PLAYERS_ID : u32 = 1003;
+// static START_NEW_GAME_6_PLAYERS_ID : u32 = 1004;
 
 #[derive(PartialEq, Clone, Data, Copy, Debug)]
 enum AppStateValue {
@@ -278,7 +278,10 @@ impl MainWidget<AppState> {
         })))
         .with_child(Padding::new(padding_dp, Button::new("Settings")))
         .with_child(Padding::new(padding_dp, Button::new("Feedback")))
-        .with_child(Padding::new(padding_dp, Button::new("Quit")));
+        .with_child(Padding::new(padding_dp, Button::new("Quit").on_click(|ctx, data: &mut AppState, env| {
+            println!("closing the application....");
+            ctx.window().close();
+        })));
 
         return Container::new(Align::centered(column_layout));
     }
@@ -387,24 +390,29 @@ impl MainWidget<AppState> {
 // }
 
 impl MainWidget<AppState> {
-    fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
-        return Label::<AppState>::new("Enter a number, between 1 and 6");
-    }
+    // fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
+    //     return Label::<AppState>::new("Enter a number, between 1 and 6");
+    // }
 }
 
 impl Widget<AppState> for MainWidget<AppState> {
 
-    fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut AppState, _env: &Env) {
+    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
         match event {
             Event::Command(command) => {
                 if command.is::<u32>(*start_game_selector) {
                     let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
                     println!("Received a start game command for {} players", num_players);
+                    if num_players == 6 {
+                       data.board = Arc::<Vec<Hextile>>::new(create_board());
+                       data.in_game = true;
+                       ctx.request_paint();
+                    }
                 }   
             }
             _ => {} // handle the event as normal
         }
-        self.main_container.event(ctx,event,_data,_env)
+        self.main_container.event(ctx,event, data,_env)
     }
 
     fn layout(&mut self,  layout_ctx: &mut LayoutCtx, bc: &BoxConstraints, _window_type: &AppState, _env: &Env) -> Size {
@@ -420,9 +428,12 @@ impl Widget<AppState> for MainWidget<AppState> {
     }
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
-        if data.window_type == AppStateValue::SINGLE_PLAYER && data.in_game == true && old_data.in_game == false {
-            // game has been started....
-        }
+        // if old_data.window_type == AppStateValue::START && data.window_type == AppStateValue::SINGLE_PLAYER {
+
+        // }
+        // if data.window_type == AppStateValue::SINGLE_PLAYER && data.in_game == true && old_data.in_game == false {
+        //     // game has been started....
+        // }
         if data.window_type == AppStateValue::START && old_data.window_type == AppStateValue::SINGLE_PLAYER {
             self.main_container = MainWidget::make_start_menu();
             ctx.children_changed();
@@ -444,11 +455,6 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     let location = Point::new(0.0,0.0);
 
                                                     let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
-                                                    //let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Selector::new("START_NEW_GAME_WITH_2_PLAYERS"));
-                                                    //let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Selector::new("START_NEW_GAME_WITH_3_PLAYERS"));
-                                                    //let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Selector::new("START_NEW_GAME_WITH_4_PLAYERS"));
-                                                    //let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Selector::new("START_NEW_GAME_WITH_5_PLAYERS"));
-                                                    //let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Selector::new("START_NEW_GAME_WITH_6_PLAYERS"));
 
                                                     // dereference this to get the widget id of the root widget
                                                     let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
@@ -459,26 +465,15 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
                                                     let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
 
-                                                    // let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
-
                                                     let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
-                                                    //let mut context_menu = Menu::new_for_popup();
-                                                    // let mut number_of_players_list = Menu::new_for_popup();
-                                                    // context_menu.add_item(1, "How many players:", None, false, false);
-                                                    // context_menu.add_item(START_NEW_GAME_2_PLAYERS_ID, "2", None, true, true);
-                                                    // context_menu.add_item(START_NEW_GAME_3_PLAYERS_ID, "3", None, true, true);
-                                                    // context_menu.add_item(START_NEW_GAME_4_PLAYERS_ID, "4", None, true, true);
-                                                    // context_menu.add_item(START_NEW_GAME_5_PLAYERS_ID, "5", None, true, true);
-                                                    // context_menu.add_item(START_NEW_GAME_6_PLAYERS_ID, "6", None, true, true);
 
-                                                    //context_menu.add_dropdown(number_of_players_list, "How many players:", true);
-                                                    //let id : u32 = 10;
-                                                    //window_handle.show_context_menu(context_menu, location);
                                                     ctx.show_context_menu(new_game_context_menu);
                                                     println!("new game buttton pressed!!");
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
                                                     data.window_type = AppStateValue::START;
+                                                    data.board = Arc::new(Vec::new());
+                                                    data.in_game = false;
                                                     println!("Quit button pressed in single-player mode....");                                    
                                                 }))),1.0)
                                         )
@@ -491,10 +486,10 @@ impl Widget<AppState> for MainWidget<AppState> {
         //else if data.window_type == AppStateValue::SINGLE_PLAYER {
         //    println!("in single-player mode, starting game...");
         //} 
-        else {
-            println!("data.window_type == {:?}", data.window_type);
-            panic!("ERROR: Internal error, unrecognized window type, exiting immediately....");
-        }
+        // else {
+        //     println!("data.window_type == {:?}", data.window_type);
+        //     panic!("ERROR: Internal error, unrecognized window type, exiting immediately....");
+        // }
     }
 }
 
@@ -693,7 +688,8 @@ fn create_board() -> Vec<Hextile> {
 fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
-    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
+    //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
+    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false};
 
     //let command_handler = ApplicationCommandHandler::new();
 
