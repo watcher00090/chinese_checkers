@@ -461,10 +461,10 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                 .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game").on_click(|ctx, _data: &mut AppState, _env| {
                                                     //let popup_window_descrip = WindowDesc::new(MainWidget::<AppState>::create_start_game_popup_window_layout);
                                                     //ctx.new_window(popup_window_descrip);
-                                                    let window_handle = ctx.window();
+                                                    // let window_handle = ctx.window();
                                                     let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
                                                     // let location = Rect::from_origin_size(Point::new(0.0,0.0),window_handle.get_size()).center(); // center of the winodw
-                                                    let location = Point::new(0.0,0.0);
+                                                    // let location = Point::new(0.0,0.0);
 
                                                     let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
 
