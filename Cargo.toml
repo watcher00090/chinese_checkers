@@ -1,2 +1,13 @@
-[workspace]
-members = ["chinese_checkers_client", "chinese_checkers_server"]
+[package]
+name = "chinese_checkers"
+version = "0.1.0"
+authors = ["James Pedersen", "Daniel Milanovich"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+druid = "0.7.0"
+druid-shell = "0.7.0"
+rand = "0.8.3"
+lazy_static = "1.4.0"
