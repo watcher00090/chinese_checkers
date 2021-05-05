@@ -91,7 +91,9 @@ struct MainWidget<T: Data> {
 struct CanvasWidget {}
 
 impl Widget<AppState> for CanvasWidget {
-    fn event(&mut self, _ctx: &mut EventCtx, _event: &Event, _data: &mut AppState, _env: &Env) {}
+    fn event(&mut self, _ctx: &mut EventCtx, event: &Event, _data: &mut AppState, env: &Env) {
+        
+    }
 
     fn lifecycle(&mut self, _ctx: &mut LifeCycleCtx, _event: &LifeCycle, _data: &AppState, _env: &Env) {}
 
@@ -307,82 +309,82 @@ impl MainWidget<AppState> {
     } 
 }
 
-struct ApplicationCommandHandler {}
+// struct ApplicationCommandHandler {}
 
-impl ApplicationCommandHandler {
-    fn new() -> Self {
-        ApplicationCommandHandler {}
-    }
-}
+// impl ApplicationCommandHandler {
+//     fn new() -> Self {
+//         ApplicationCommandHandler {}
+//     }
+// }
 
-impl AppDelegate<AppState> for ApplicationCommandHandler {
-    fn event(
-        &mut self,
-        ctx: &mut DelegateCtx<'_>,
-        window_id: WindowId,
-        event: Event,
-        data: &mut AppState,
-        env: &Env
-    ) -> Option<Event> 
-    {
-        return Some(event)
-    }
+// impl AppDelegate<AppState> for ApplicationCommandHandler {
+//     fn event(
+//         &mut self,
+//         ctx: &mut DelegateCtx<'_>,
+//         window_id: WindowId,
+//         event: Event,
+//         data: &mut AppState,
+//         env: &Env
+//     ) -> Option<Event> 
+//     {
+//         return Some(event)
+//     }
 
-    fn command(
-        &mut self,
-        ctx: &mut DelegateCtx,
-        target: Target,
-        cmd: &Command,
-        data: &mut AppState,
-        env: &Env
-    ) -> Handled
-    {
-        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_2_PLAYERS")) {
-        //     println!("command to start a new game with 2 players received");
-        //     data.board = Arc::<Vec::<Hextile>>::new(Vec::new());
-        //     data.in_game = true;
-        //     return Handled::Yes;
-        // }
-        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
-        //     println!("command to start a new game with 3 players received");
-        //     return Handled::Yes;
-        // }
-        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
-        //     println!("command to start a new game with 3 players received");
-        //     return Handled::Yes;
-        // }
-        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_4_PLAYERS")) {
-        //     println!("command to start a new game with 4 players received");
-        //     return Handled::Yes;
-        // }
-        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_5_PLAYERS")) {
-        //     println!("command to start a new game with 5 players received");
-        //     return Handled::Yes;
-        // }
-        // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_6_PLAYERS")) {
-        //     println!("command to start a new game with 6 players received");
-        //     return Handled::Yes;
-        // }
+//     fn command(
+//         &mut self,
+//         ctx: &mut DelegateCtx,
+//         target: Target,
+//         cmd: &Command,
+//         data: &mut AppState,
+//         env: &Env
+//     ) -> Handled
+//     {
+//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_2_PLAYERS")) {
+//         //     println!("command to start a new game with 2 players received");
+//         //     data.board = Arc::<Vec::<Hextile>>::new(Vec::new());
+//         //     data.in_game = true;
+//         //     return Handled::Yes;
+//         // }
+//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+//         //     println!("command to start a new game with 3 players received");
+//         //     return Handled::Yes;
+//         // }
+//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+//         //     println!("command to start a new game with 3 players received");
+//         //     return Handled::Yes;
+//         // }
+//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_4_PLAYERS")) {
+//         //     println!("command to start a new game with 4 players received");
+//         //     return Handled::Yes;
+//         // }
+//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_5_PLAYERS")) {
+//         //     println!("command to start a new game with 5 players received");
+//         //     return Handled::Yes;
+//         // }
+//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_6_PLAYERS")) {
+//         //     println!("command to start a new game with 6 players received");
+//         //     return Handled::Yes;
+//         // }
 
-        return Handled::No;
-    }
+//         return Handled::No;
+//     }
 
-    fn window_added(
-        &mut self,
-        id: WindowId,
-        data: &mut AppState,
-        env: &Env,
-        ctx: &mut DelegateCtx
-    ) {}
+//     fn window_added(
+//         &mut self,
+//         id: WindowId,
+//         data: &mut AppState,
+//         env: &Env,
+//         ctx: &mut DelegateCtx
+//     ) {}
 
-    fn window_removed(
-        &mut self,
-        id: WindowId,
-        data: &mut AppState,
-        env: &Env,
-        ctx: &mut DelegateCtx
-    ) {}
-}
+//     fn window_removed(
+//         &mut self,
+//         id: WindowId,
+//         data: &mut AppState,
+//         env: &Env,
+//         ctx: &mut DelegateCtx
+//     ) {}
+// }
 
 impl MainWidget<AppState> {
     fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
