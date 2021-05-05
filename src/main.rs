@@ -93,7 +93,8 @@ impl Hextile {
 struct AppState {
     window_type : AppStateValue,
     board : Arc::<Vec::<Hextile>>,
-    in_game : bool
+    in_game : bool,
+    mouse_location_in_window : Point
 }
 
 struct MainWidget<T: Data> {
@@ -411,6 +412,9 @@ impl Widget<AppState> for MainWidget<AppState> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
         match event {
+            Event::MouseMove(mouse_event) => {
+                data.mouse_location_in_window = mouse_event.window_pos;
+            },
             Event::Command(command) => {
                 if command.is::<u32>(*start_game_selector) {
                     let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
@@ -458,10 +462,29 @@ impl Widget<AppState> for MainWidget<AppState> {
                                     Flex::column()
                                         .with_child(
                                             Flex::row()
-                                                .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game").on_click(|ctx, _data: &mut AppState, _env| {
+                                                .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game").on_click(|ctx, data: &mut AppState, _env| {
                                                     //let popup_window_descrip = WindowDesc::new(MainWidget::<AppState>::create_start_game_popup_window_layout);
                                                     //ctx.new_window(popup_window_descrip);
                                                     // let window_handle = ctx.window();
+                                                    // let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
+                                                    // // let location = Rect::from_origin_size(Point::new(0.0,0.0),window_handle.get_size()).center(); // center of the winodw
+                                                    // // let location = Point::new(0.0,0.0);
+
+                                                    // let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
+
+                                                    // // dereference this to get the widget id of the root widget
+                                                    // let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
+
+                                                    // let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
+                                                    // let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
+                                                    // let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
+                                                    // let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
+                                                    // let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
+
+                                                    // let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
+
+                                                    // ctx.show_context_menu(new_game_context_menu);
+
                                                     let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
                                                     // let location = Rect::from_origin_size(Point::new(0.0,0.0),window_handle.get_size()).center(); // center of the winodw
                                                     // let location = Point::new(0.0,0.0);
@@ -477,9 +500,12 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
                                                     let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
 
-                                                    let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
+                                                    // let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
+                                                    let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), data.mouse_location_in_window.clone());
 
+                                                    //ctx.show_context_menu(new_game_context_menu);
                                                     ctx.show_context_menu(new_game_context_menu);
+
                                                     println!("new game buttton pressed!!");
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
@@ -701,7 +727,7 @@ fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
     //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
-    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false};
+    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false, mouse_location_in_window : Point::new(0.0, 0.0)};
 
     //let command_handler = ApplicationCommandHandler::new();
 
