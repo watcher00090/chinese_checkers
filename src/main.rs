@@ -446,12 +446,6 @@ impl Widget<AppState> for MainWidget<AppState> {
     }
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
-        // if old_data.window_type == AppStateValue::START && data.window_type == AppStateValue::SINGLE_PLAYER {
-
-        // }
-        // if data.window_type == AppStateValue::SINGLE_PLAYER && data.in_game == true && old_data.in_game == false {
-        //     // game has been started....
-        // }
         if data.window_type == AppStateValue::START && old_data.window_type == AppStateValue::SINGLE_PLAYER {
             self.main_container = MainWidget::make_start_menu();
             ctx.children_changed();
@@ -459,55 +453,21 @@ impl Widget<AppState> for MainWidget<AppState> {
         else if data.window_type == AppStateValue::START {
             self.main_container.update(ctx,old_data,data,env)
         } else if data.window_type == AppStateValue::SINGLE_PLAYER && old_data.window_type == AppStateValue::START {    
-            //self.main_container =  Container::new(Flex::column().with_child(Label::new("SINGLE-PLAYER-MODE-ENTERED")).with_child(SizedBox::new(CanvasWidget {})));
             self.main_container =  Container::new(
                                     Flex::column()
                                         .with_child(
                                             Flex::row()
                                                 .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game").on_click(|ctx, data: &mut AppState, _env| {
-                                                    //let popup_window_descrip = WindowDesc::new(MainWidget::<AppState>::create_start_game_popup_window_layout);
-                                                    //ctx.new_window(popup_window_descrip);
-                                                    // let window_handle = ctx.window();
-                                                    // let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
-                                                    // // let location = Rect::from_origin_size(Point::new(0.0,0.0),window_handle.get_size()).center(); // center of the winodw
-                                                    // // let location = Point::new(0.0,0.0);
-
-                                                    // let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
-
-                                                    // // dereference this to get the widget id of the root widget
-                                                    // let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
-
-                                                    // let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
-                                                    // let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
-                                                    // let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
-                                                    // let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
-                                                    // let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
-
-                                                    // let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
-
-                                                    // ctx.show_context_menu(new_game_context_menu);
-
                                                     let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
-                                                    // let location = Rect::from_origin_size(Point::new(0.0,0.0),window_handle.get_size()).center(); // center of the winodw
-                                                    // let location = Point::new(0.0,0.0);
-
                                                     let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
-
-                                                    // dereference this to get the widget id of the root widget
                                                     let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
-
                                                     let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
                                                     let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
                                                     let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
                                                     let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
                                                     let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
-
-                                                    // let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), Point::new(0.0,0.0));
                                                     let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), data.mouse_location_in_window.clone());
-
-                                                    //ctx.show_context_menu(new_game_context_menu);
                                                     ctx.show_context_menu(new_game_context_menu);
-
                                                     println!("new game buttton pressed!!");
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
@@ -522,14 +482,7 @@ impl Widget<AppState> for MainWidget<AppState> {
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
             self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
             ctx.children_changed();
-        } 
-        //else if data.window_type == AppStateValue::SINGLE_PLAYER {
-        //    println!("in single-player mode, starting game...");
-        //} 
-        // else {
-        //     println!("data.window_type == {:?}", data.window_type);
-        //     panic!("ERROR: Internal error, unrecognized window type, exiting immediately....");
-        // }
+        }
     }
 }
 
