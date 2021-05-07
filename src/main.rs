@@ -193,6 +193,7 @@ impl Widget<AppState> for CanvasWidget {
 
                 // loop through the board, draw each hextile
                 let size_bounds = Size::new(20.0,20.0);
+                let edge_bounds = Size::new(22.0,22.0);
 
                 //println!("Size of board Vec = {}", board.len());
 
@@ -203,7 +204,8 @@ impl Widget<AppState> for CanvasWidget {
 
                     //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
                     // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
-                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
+                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c);
+                    ctx.stroke(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),edge_bounds).to_ellipse(), &Color::rgb8(96,54,15), 3.5);
                 }
             }
 
