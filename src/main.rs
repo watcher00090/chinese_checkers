@@ -17,6 +17,8 @@ lazy_static! {
     // Global mutable variable storing the WidgetId of the root widget. 
     static ref root_widget_id_guard : Mutex::<WidgetId> = Mutex::<WidgetId>::new(WidgetId::next());  // global variable always storing the widget id of the root widget
     static ref start_game_selector : Selector<u32> = Selector::new("START_GAME");
+    static ref piece_size_bounds : Size = Size::new(20.0,20.0);
+    static ref square_edge_bounds : Size = Size::new(22.0,22.0);
 }
 
 static CANVAS_WIDTH : f64 = 600.0;
@@ -28,6 +30,9 @@ static CANVAS_HEIGHT: f64 = 600.0;
 static SQRT_3: f64 = 1.732050808;
 static ABSTRACT_BOARD_WIDTH: f64 = SQRT_3 * 8.0; 
 static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 8.0;
+
+static BOARD_WIDTH : f64= 400.0;
+static BOARD_HEIGHT : f64 = 400.0;
 
 // static START_NEW_GAME_2_PLAYERS_ID : u32 = 1000;
 // static START_NEW_GAME_3_PLAYERS_ID : u32 = 1001;
@@ -101,16 +106,66 @@ struct MainWidget<T: Data> {
     main_container: Container<T>,
 }
 
-struct CanvasWidget {}
+struct CanvasWidget {
+    piece_is_being_dragged : bool,
+    piece_being_dragged : Option<Hextile>
+}
+
+impl CanvasWidget {
+    fn cartesian_x_to_screen_x(x: f64) -> f64 {
+        return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
+    }
+    
+    fn cartesian_y_to_screen_y(y: f64) -> f64 {
+        return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
+    }
+
+    // returns true iff p, the Point where the user clicked in Canvas screen coordinates, is inside of a Hextile location drawn on the screen
+    fn is_within_a_hextile(&self, board_wrapper: &mut Arc::<Vec<Hextile>>, p: Point) -> bool {
+        println!("calling is_within_a_hextile!");
+        // let screen_x = |x: f64| -> f64 {
+        //     //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
+        //     return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
+        // };
+        
+        // let screen_y = |y: f64| -> f64 {
+        //     //return (-1.0) * (y / ABSTRACT_BOARD_HEIGHT - 1.0/2.0) * BOARD_HEIGHT;
+        //     return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
+        // };    
+
+        // On the screen each hextile is contained in a 20px x 20px rectangle, so the radius is 10px
+        let board : &Vec<Hextile> = &*Arc::make_mut(board_wrapper);
+
+        for hextile in (*board).iter() {
+            let dist = ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt();
+            // println!("dist = {dist}, x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", dist = dist, x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
+            if ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt() < 10.0 {
+                println!("returning true from is_within_a_hextile!");
+                return true;
+            } 
+        }
+        return false;
+    }
+    
+}
 
 impl Widget<AppState> for CanvasWidget {
+
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
         match event {
+            Event::MouseDown(mouse_event) => {
+                if self.is_within_a_hextile(&mut data.board.clone(), mouse_event.pos) {
+                    self.piece_is_being_dragged = true; 
+                }
+            },
+            Event::MouseUp(_mouse_event) => {
+                self.piece_is_being_dragged = false;
+            }
             Event::MouseMove(mouse_event) => {
                 //println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.window_pos.x, mouse_y = mouse_event.window_pos.y);
-                println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.pos.x, mouse_y = mouse_event.pos.y);
+                // println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.pos.x, mouse_y = mouse_event.pos.y);
                 data.mouse_location_in_canvas = mouse_event.pos;
-                println!("================================================");
+                // println!("================================================");
                 ctx.request_paint();
             },
             _ => {}
@@ -170,8 +225,9 @@ impl Widget<AppState> for CanvasWidget {
         // draw light brown outer circle of board
         ctx.fill(Rect::from_center_size(rect.center(), Size::new(rect.width() * 3.0 / 4.0, rect.height() * 3.0 / 4.0)).to_ellipse(), &Color::rgb8(BOARD_CIRCLE_COLOR_r,BOARD_CIRCLE_COLOR_g,BOARD_CIRCLE_COLOR_b));
 
-        let BOARD_WIDTH : f64= 400.0;
-        let BOARD_HEIGHT : f64 = 400.0;
+        // loop through the board, draw each hextile
+        // let size_bounds = Size::new(20.0,20.0);
+        // let edge_bounds = Size::new(22.0,22.0);
 
         let data_copy = data.clone(); 
 
@@ -200,13 +256,7 @@ impl Widget<AppState> for CanvasWidget {
                     return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
                 };    
 
-                // loop through the board, draw each hextile
-                let size_bounds = Size::new(20.0,20.0);
-                let edge_bounds = Size::new(22.0,22.0);
-
                 //println!("Size of board Vec = {}", board.len());
-
-                ctx.fill(Rect::from_center_size(Point::new(data_copy.mouse_location_in_canvas.x, data_copy.mouse_location_in_canvas.y), Size::new(5.0,5.0)).to_ellipse(), &Color::rgb8(255,124,124));
 
                 for hextile in board.into_iter() {
                     //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
@@ -215,8 +265,8 @@ impl Widget<AppState> for CanvasWidget {
 
                     //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
                     // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
-                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c);
-                    ctx.stroke(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),edge_bounds).to_ellipse(), &Color::rgb8(96,54,15), 3.5);
+                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *piece_size_bounds).to_ellipse(), &hextile.c);
+                    ctx.stroke(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15), 3.5);
                 }
             }
 
@@ -485,7 +535,7 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     println!("Quit button pressed in single-player mode....");                                    
                                                 }))),1.0)
                                         )
-                                        .with_child(SizedBox::new(CanvasWidget {})));
+                                        .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None})));
             ctx.children_changed();
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
             self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
