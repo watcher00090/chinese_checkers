@@ -17,8 +17,8 @@ lazy_static! {
     // Global mutable variable storing the WidgetId of the root widget. 
     static ref root_widget_id_guard : Mutex::<WidgetId> = Mutex::<WidgetId>::new(WidgetId::next());  // global variable always storing the widget id of the root widget
     static ref start_game_selector : Selector<u32> = Selector::new("START_GAME");
-    static ref piece_size_bounds : Size = Size::new(20.0,20.0);
-    static ref square_edge_bounds : Size = Size::new(22.0,22.0);
+    static ref piece_size_bounds : Size = Size::new(20.0, 20.0);
+    static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
 }
 
 static CANVAS_WIDTH : f64 = 600.0;
@@ -91,6 +91,23 @@ impl Hextile {
         //return -z * (inner).sqrt() / 0.6;
         return -z * inner.sqrt() / 2.0;
     }
+
+    fn get_cartesian_x(x_hex: i32, y_hex: i32, z_hex: i32) -> f64 {
+        let x: f64 = x_hex as f64;
+        let y: f64 = y_hex as f64;
+        let z: f64 = z_hex as f64;
+        return x + z / 2.0;
+        //return -y - z / 2.0;
+    }
+
+    fn get_cartesian_y(x_hex: i32, y_hex: i32, z_hex: i32) -> f64 {
+        let x: f64 = x_hex as f64;
+        let y: f64 = y_hex as f64;
+        let z: f64 = z_hex as f64;
+        let inner: f64 = 3.0;
+        //return -z * (inner).sqrt() / 0.6;
+        return -z * inner.sqrt() / 2.0;
+    }
 }
 
 // Stores which window we're in and the entire state of the game 
@@ -106,12 +123,12 @@ struct MainWidget<T: Data> {
     main_container: Container<T>,
 }
 
-struct CanvasWidget {
+struct CanvasWidget<'a> {
     piece_is_being_dragged : bool,
-    piece_being_dragged : Option<Hextile>
+    piece_being_dragged : Option<&'a Hextile>
 }
 
-impl CanvasWidget {
+impl<'a> CanvasWidget<'a> {
     fn cartesian_x_to_screen_x(x: f64) -> f64 {
         return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
     }
@@ -120,46 +137,42 @@ impl CanvasWidget {
         return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
     }
 
-    // returns true iff p, the Point where the user clicked in Canvas screen coordinates, is inside of a Hextile location drawn on the screen
-    fn is_within_a_hextile(&self, board_wrapper: &mut Arc::<Vec<Hextile>>, p: Point) -> bool {
+    // Returns true iff the Point on the Canvas where the user clicked is inside of a piece
+    fn is_within_a_hextile(&mut self, board_wrapper: Arc::<Vec<Hextile>>, p: Point) -> bool {
         println!("calling is_within_a_hextile!");
-        // let screen_x = |x: f64| -> f64 {
-        //     //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
-        //     return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
-        // };
-        
-        // let screen_y = |y: f64| -> f64 {
-        //     //return (-1.0) * (y / ABSTRACT_BOARD_HEIGHT - 1.0/2.0) * BOARD_HEIGHT;
-        //     return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
-        // };    
 
         // On the screen each hextile is contained in a 20px x 20px rectangle, so the radius is 10px
-        let board : &Vec<Hextile> = &*Arc::make_mut(board_wrapper);
-
-        for hextile in (*board).iter() {
-            let dist = ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt();
-            // println!("dist = {dist}, x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", dist = dist, x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
-            if ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt() < 10.0 {
-                println!("returning true from is_within_a_hextile!");
-                return true;
-            } 
+        unsafe {
+            for hextile in (*Arc::as_ptr(&board_wrapper)).iter() {
+                if ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt() < 10.0 {
+                    self.piece_being_dragged = Some(hextile);
+                    println!("success!");
+                    return true;
+                }
+            }
         }
         return false;
     }
     
 }
 
-impl Widget<AppState> for CanvasWidget {
+impl<'a> Widget<AppState> for CanvasWidget<'a> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
         match event {
             Event::MouseDown(mouse_event) => {
-                if self.is_within_a_hextile(&mut data.board.clone(), mouse_event.pos) {
+                let board_data_copy : Arc::<Vec<Hextile>> = data.board.clone(); 
+
+                if self.is_within_a_hextile(board_data_copy, mouse_event.pos) {
                     self.piece_is_being_dragged = true; 
+                } else {
+                    self.piece_is_being_dragged = false;
+                    self.piece_being_dragged = None;
                 }
             },
             Event::MouseUp(_mouse_event) => {
                 self.piece_is_being_dragged = false;
+                self.piece_being_dragged = None;
             }
             Event::MouseMove(mouse_event) => {
                 //println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.window_pos.x, mouse_y = mouse_event.window_pos.y);
@@ -231,7 +244,7 @@ impl Widget<AppState> for CanvasWidget {
 
         let data_copy = data.clone(); 
 
-        ctx.paint_with_z_index(1, move |ctx| {
+        //ctx.paint_with_z_index(1, move |ctx| {
 
             unsafe {
 
@@ -258,19 +271,47 @@ impl Widget<AppState> for CanvasWidget {
 
                 //println!("Size of board Vec = {}", board.len());
 
+                let mut x_hex_saved : i32 = 0;
+                let mut y_hex_saved : i32 = 0;
+                let mut z_hex_saved : i32 = 0;
+                let mut will_draw_piece_later : bool = false;
+                let mut saved_piece_color : Option<Color> = None;
+
                 for hextile in board.into_iter() {
                     //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
                     //let bounding_rect = Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds);
                     //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
+                    // draw the square beneath the piece
+                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15));
+
                     //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
                     // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
-                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *piece_size_bounds).to_ellipse(), &hextile.c);
-                    ctx.stroke(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15), 3.5);
+                    if self.piece_being_dragged.is_some() 
+                            && hextile.x_hex == self.piece_being_dragged.unwrap().x_hex 
+                                && hextile.y_hex == self.piece_being_dragged.unwrap().y_hex 
+                                    && hextile.z_hex == self.piece_being_dragged.unwrap().z_hex {
+                            
+                            // skip over drawing the piece for now, we will draw it later
+                            will_draw_piece_later = true;
+                            saved_piece_color = Some(hextile.c.clone());
+                            println!("will draw some hextile later!");
+
+                    } else {
+                        // draw the piece in its resting state spot
+                        ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *piece_size_bounds).to_ellipse(), &hextile.c);
+                    }
+
+                }
+
+                if will_draw_piece_later {
+                    println!("x_hex_saved = {x_hex_saved}, y_hex_saved = {y_hex_saved}, z_hex_saved = {z_hex_saved}", x_hex_saved = x_hex_saved, y_hex_saved = y_hex_saved, z_hex_saved = z_hex_saved);
+                    println!("DRAWING THE PIECE!!!");
+                    ctx.fill(Rect::from_center_size(Point::new(data.mouse_location_in_canvas.x, data.mouse_location_in_canvas.y), *piece_size_bounds).to_ellipse(), &(saved_piece_color.unwrap()));
                 }
             }
 
-        });
+       // });
     // add_appropriate_hextiles_to_board(
     //     &mut board,
     //     x_min,
@@ -574,7 +615,7 @@ fn create_board() -> Vec<Hextile> {
     let green_color_array: Color = Color::rgba(0.059, 0.600, 0.239, 1.0);
     let black_color_array: Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
     let white_color_array: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
-    let center_color_array: Color = Color::rgba(0.5, 0.5, 0.5, 0.5);
+    let center_color_array: Color = Color::rgba(0.5, 0.5, 0.5, 1.0);
 
     // yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
     let x_min: i32 = -4;
