@@ -94,7 +94,7 @@ struct AppState {
     window_type : AppStateValue,
     board : Arc::<Vec::<Hextile>>,
     in_game : bool,
-    mouse_location_in_window : Point
+    mouse_location_in_canvas : Point
 }
 
 struct MainWidget<T: Data> {
@@ -104,8 +104,17 @@ struct MainWidget<T: Data> {
 struct CanvasWidget {}
 
 impl Widget<AppState> for CanvasWidget {
-    fn event(&mut self, _ctx: &mut EventCtx, event: &Event, _data: &mut AppState, env: &Env) {
-        
+    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
+        match event {
+            Event::MouseMove(mouse_event) => {
+                //println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.window_pos.x, mouse_y = mouse_event.window_pos.y);
+                println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.pos.x, mouse_y = mouse_event.pos.y);
+                data.mouse_location_in_canvas = mouse_event.pos;
+                println!("================================================");
+                ctx.request_paint();
+            },
+            _ => {}
+        }
     }
 
     fn lifecycle(&mut self, _ctx: &mut LifeCycleCtx, _event: &LifeCycle, _data: &AppState, _env: &Env) {}
@@ -196,6 +205,8 @@ impl Widget<AppState> for CanvasWidget {
                 let edge_bounds = Size::new(22.0,22.0);
 
                 //println!("Size of board Vec = {}", board.len());
+
+                ctx.fill(Rect::from_center_size(Point::new(data_copy.mouse_location_in_canvas.x, data_copy.mouse_location_in_canvas.y), Size::new(5.0,5.0)).to_ellipse(), &Color::rgb8(255,124,124));
 
                 for hextile in board.into_iter() {
                     //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
@@ -414,9 +425,6 @@ impl Widget<AppState> for MainWidget<AppState> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
         match event {
-            Event::MouseMove(mouse_event) => {
-                data.mouse_location_in_window = mouse_event.window_pos;
-            },
             Event::Command(command) => {
                 if command.is::<u32>(*start_game_selector) {
                     let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
@@ -466,7 +474,7 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
                                                     let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
                                                     let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
-                                                    let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), data.mouse_location_in_window.clone());
+                                                    let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), data.mouse_location_in_canvas.clone());
                                                     ctx.show_context_menu(new_game_context_menu);
                                                     println!("new game buttton pressed!!");
                                                 })))),1.0)
@@ -682,7 +690,7 @@ fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
     //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
-    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false, mouse_location_in_window : Point::new(0.0, 0.0)};
+    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0)};
 
     //let command_handler = ApplicationCommandHandler::new();
 
