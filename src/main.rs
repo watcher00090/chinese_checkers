@@ -9,6 +9,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use druid::kurbo::BezPath;
 use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
 use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
+use druid::im;
+use druid::im::vector;
 
 #[macro_use]
 extern crate lazy_static;
@@ -52,11 +54,127 @@ static BOARD_CIRCLE_COLOR_b : u8 = 166;
 // static BOARD_CIRLCE_COLOR_g : u8 = 248;
 // static BOARD_CIRCLE_COLOR_b : u8 = 220;
 
+lazy_static! {
+    static ref YELLOW_COLOR:   Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
+    static ref RED_COLOR:      Color = Color::rgba(0.902, 0.110, 0.110, 1.0);
+    static ref BLUE_COLOR:     Color = Color::rgba(0.110, 0.110, 0.902, 1.0);
+    static ref GREEN_COLOR:    Color = Color::rgba(0.059, 0.600, 0.239, 1.0);
+    static ref BLACK_COLOR:    Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
+    static ref WHITE_COLOR:    Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
+    static ref GREY_COLOR:     Color = Color::rgba(0.5, 0.5, 0.5, 1.0);    
+}
+
+static PLAYER_ONE_NUMBER : i32 = 0;
+static PLAYER_TWO_NUMBER : i32 = 1;
+static PLAYER_THREE_NUMBER: i32 = 2;
+static PLAYER_FOUR_NUMBER: i32 = 3;
+static PLAYER_FIVE_NUMBER : i32 = 4;
+static PLAYER_SIX_NUMBER : i32 = 5;
+static NO_PLAYER : i32 = i32::MIN;
+
+#[derive(Clone, Copy)]
+struct BoardRegionBoundaryHexCoords {
+    x_min: i32,
+    x_max: i32,
+    y_min: i32,
+    y_max: i32,
+    z_min: i32,
+    z_max: i32,
+}
+
+// yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
+static BOTTOM_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+BoardRegionBoundaryHexCoords {
+    x_min : -4,
+    x_max : -1,
+    y_min : -4,
+    y_max : -1,
+    z_min : 5,
+    z_max : 8,
+};
+
+// red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
+static BOTTOM_LEFT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+BoardRegionBoundaryHexCoords {    
+    x_min: -8,
+    x_max: -5,
+    y_min: 1,
+    y_max: 4,
+    z_min: 1,
+    z_max: 4,
+};
+
+// blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
+static BOTTOM_RIGHT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+BoardRegionBoundaryHexCoords {    
+    x_min: 1,
+    x_max: 4,
+    y_min: -8,
+    y_max: -5,
+    z_min: 1,
+    z_max: 4,
+};
+
+// black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
+static TOP_LEFT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+BoardRegionBoundaryHexCoords {    
+    x_min: -4,
+    x_max: -1,
+    y_min: 5,
+    y_max: 8,
+    z_min: -4,
+    z_max: -1,
+};
+
+// green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
+static TOP_RIGHT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+BoardRegionBoundaryHexCoords {    
+    x_min: 5,
+    x_max: 8,
+    y_min: -4,
+    y_max: -1,
+    z_min: -4,
+    z_max: -1,
+};
+
+    // //white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
+static TOP_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+BoardRegionBoundaryHexCoords {    
+    x_min: 1,
+    x_max: 4,
+    y_min: 1,
+    y_max: 4,
+    z_min: -8,
+    z_max: -5,
+};
+
+    // center squares
+static CENTER_REGION_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+BoardRegionBoundaryHexCoords {    
+    // // center squares
+    x_min : -4,
+    x_max : 4,
+    y_min : -4,
+    y_max : 4,
+    z_min : -4,
+    z_max : 4,
+};
+
 #[derive(PartialEq, Clone, Data, Copy, Debug)]
 enum AppStateValue {
     START,
     SINGLE_PLAYER,
     MULTI_PLAYER,
+}
+
+#[derive(Clone, Copy)]
+enum StartingRegion {
+    TOP,
+    TOP_LEFT,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT,
+    BOTTOM,
 }
 
 #[derive(PartialEq, Clone, Data, Lens, Copy)]
@@ -70,7 +188,15 @@ struct Hextile {
     x_hex: i32,
     z_hex: i32,
     c: Color,
-    p: Option<i32>,
+    // p: Option<i32>,
+    piece: Option<Arc<Piece>>,
+}
+
+// use the same pieces over and over again if the user starts a second game
+#[derive(PartialEq, Data, Clone)]
+struct Piece {
+    player_num: i32,
+    hextile: Arc<Hextile>,
 }
 
 // helper methods to convert from hex coordinates to cartesian coordinates
@@ -115,6 +241,7 @@ impl Hextile {
 struct AppState {
     window_type : AppStateValue,
     board : Arc::<Vec::<Hextile>>,
+    pieces: druid::im::Vector<Piece>,
     in_game : bool,
     mouse_location_in_canvas : Point
 }
@@ -510,7 +637,103 @@ impl MainWidget<AppState> {
     // fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
     //     return Label::<AppState>::new("Enter a number, between 1 and 6");
     // }
+
+    // 1. Create the pieces for the board
+    // 2. Link the pieces to the board
+    // fn initialize_pieces_for_board(board: Arc<Vec<Hextile>>, pieces: im::Vector<Piece>, num_players: u32) {
+    //     if num_players == 6 {
+
+    //     }
+    // }   
 }
+
+fn get_boundary_coords_struct_for_region(region: StartingRegion) -> BoardRegionBoundaryHexCoords {
+    match region {
+        StartingRegion::TOP => {
+            return TOP_TRIANGLE_BOUNDARY_COORDS;
+        }, 
+        StartingRegion::TOP_RIGHT => {
+            return TOP_RIGHT_TRIANGLE_BOUNDARY_COORDS;
+        }, 
+        StartingRegion::BOTTOM_RIGHT => {
+            return BOTTOM_RIGHT_TRIANGLE_BOUNDARY_COORDS;
+        }, 
+        StartingRegion::BOTTOM => {
+            return BOTTOM_TRIANGLE_BOUNDARY_COORDS;
+        },
+        StartingRegion::BOTTOM_LEFT => {
+            return BOTTOM_LEFT_TRIANGLE_BOUNDARY_COORDS;
+        },
+        StartingRegion::TOP_LEFT => {
+            return TOP_LEFT_TRIANGLE_BOUNDARY_COORDS;
+        },
+        _ => {
+            panic!("Internal Error: get_boundary_coords_struct_for_region(): unrecognized StartingRegion value, exiting immediately....");
+        }
+    }
+}
+
+unsafe fn get_hextile_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board_arc: Arc<Vec<Hextile>>) -> Option<Arc::<Hextile>> {
+    let board_ptr : *const Vec<Hextile> = Arc::as_ptr(&board_arc);
+    let board : Vec<Hextile> = *board_ptr;
+    for hextile in board.iter() {
+        if hextile.x_hex == x_hex && hextile.y_hex == y_hex && hextile.z_hex == z_hex {
+            // return Some(Arc::<Hextile>::new(hextile));
+        }
+    }
+    return None;
+}
+
+fn initialize_pieces_for_board(board: Arc<Vec<Hextile>>, mut pieces: im::Vector<Piece>, num_players: u32) {
+    if num_players == 6 {
+
+        let regions_to_players : [(StartingRegion, i32); 6] = [
+            // turns proceed clockwise
+            (StartingRegion::TOP, PLAYER_ONE_NUMBER),
+            (StartingRegion::TOP_RIGHT, PLAYER_TWO_NUMBER),
+            (StartingRegion::BOTTOM_RIGHT, PLAYER_THREE_NUMBER),
+            (StartingRegion::BOTTOM, PLAYER_FOUR_NUMBER),
+            (StartingRegion::BOTTOM_LEFT, PLAYER_FIVE_NUMBER),
+            (StartingRegion::TOP_LEFT, PLAYER_FIVE_NUMBER),
+        ];
+
+        unsafe {
+            for i in 0..6 {
+                let pair : &(StartingRegion, i32) = &regions_to_players[i];
+                let starting_region = (*pair).0;
+                let num = (*pair).1;
+
+                if num != NO_PLAYER {
+                    let player_number = num;
+
+                    let boundary_coords = get_boundary_coords_struct_for_region(starting_region);
+                    
+                    for x in boundary_coords.x_min..boundary_coords.x_max+1 {
+                        for y in boundary_coords.y_min..boundary_coords.y_max+1 {
+                            for z in boundary_coords.z_min..boundary_coords.z_max+1 {
+
+                                let hextile_at_coordinates = get_hextile_at_coordinates(x,y,z,board);
+
+                                if hextile_at_coordinates.is_none() {
+                                    panic!("Internal Error: initialize_pieces_for_board(): Unable to find a square on the board with the given hex coordinates. Exiting immediately....");
+                                }
+                                let piece : Piece = Piece {
+                                    player_num: player_number,
+                                    hextile: hextile_at_coordinates.unwrap(),
+                                };
+                                pieces.push_back(piece);
+
+                                hextile_at_coordinates.unwrap().piece = Some(Arc::new(piece));
+                            }
+                        }
+                    }
+                    
+                }
+            }
+        }
+    }
+}   
+
 
 impl Widget<AppState> for MainWidget<AppState> {
 
@@ -522,6 +745,10 @@ impl Widget<AppState> for MainWidget<AppState> {
                     println!("Received a start game command for {} players", num_players);
                     if num_players == 6 {
                        data.board = Arc::<Vec<Hextile>>::new(create_board());
+                       data.pieces.clear();
+
+                       //initialize_pieces_for_board(data.board, data.pieces , num_players);
+
                        data.in_game = true;
                        ctx.request_paint();
                     }
@@ -768,7 +995,8 @@ fn create_board() -> Vec<Hextile> {
                             x_hex: x,
                             z_hex: z,
                             c: (*hex_color).clone(),
-                            p: None,
+                            // p: None,
+                            piece: None,
                         };
                         (*board).push(tile)
                     }
@@ -781,7 +1009,7 @@ fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
     //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
-    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0)};
+    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![]};
 
     //let command_handler = ApplicationCommandHandler::new();
 
