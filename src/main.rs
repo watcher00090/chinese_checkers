@@ -682,7 +682,7 @@ unsafe fn get_hextile_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board_a
     let board : &Vec<Hextile> = &*board_ptr;
     for hextile in board.iter() {
         if hextile.x_hex == x_hex && hextile.y_hex == y_hex && hextile.z_hex == z_hex {
-            return Some(Arc::<Hextile>::new((*hextile).clone()));
+            return Some(Arc::<Hextile>::new(hextile.clone()));
         }
     }
     return None;
