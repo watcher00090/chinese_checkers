@@ -189,7 +189,7 @@ struct Hextile {
     z_hex: i32,
     c: Color,
     // p: Option<i32>,
-    piece: Option<Arc<Piece>>,
+    piece: Arc<Option<Piece>>,
 }
 
 // use the same pieces over and over again if the user starts a second game
@@ -233,6 +233,10 @@ impl Hextile {
         let inner: f64 = 3.0;
         //return -z * (inner).sqrt() / 0.6;
         return -z * inner.sqrt() / 2.0;
+    }
+
+    fn assign_piece(&mut self, p: Piece) {
+        *Arc::make_mut(&mut self.piece) = Some(p);
     }
 }
 
@@ -673,18 +677,22 @@ fn get_boundary_coords_struct_for_region(region: StartingRegion) -> BoardRegionB
     }
 }
 
-unsafe fn get_hextile_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board_arc: Arc<Vec<Hextile>>) -> Option<Arc::<Hextile>> {
-    let board_ptr : *const Vec<Hextile> = Arc::as_ptr(&board_arc);
-    let board : Vec<Hextile> = *board_ptr;
+unsafe fn get_hextile_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board_arc: &mut Arc<Vec<Hextile>>) -> Option<Arc::<Hextile>> {
+    let board_ptr : *const Vec<Hextile> = Arc::as_ptr(board_arc);
+    let board : &Vec<Hextile> = &*board_ptr;
     for hextile in board.iter() {
         if hextile.x_hex == x_hex && hextile.y_hex == y_hex && hextile.z_hex == z_hex {
-            // return Some(Arc::<Hextile>::new(hextile));
+            return Some(Arc::<Hextile>::new((*hextile).clone()));
         }
     }
     return None;
 }
 
-fn initialize_pieces_for_board(board: Arc<Vec<Hextile>>, mut pieces: im::Vector<Piece>, num_players: u32) {
+unsafe fn arc_to_hextile(arc_ref: &mut Arc<Hextile>) -> Hextile {
+    return (*Arc::make_mut(arc_ref)).clone();
+}
+
+fn initialize_pieces_for_board(mut board: Arc<Vec<Hextile>>, mut pieces: im::Vector<Piece>, num_players: u32) {
     if num_players == 6 {
 
         let regions_to_players : [(StartingRegion, i32); 6] = [
@@ -712,18 +720,21 @@ fn initialize_pieces_for_board(board: Arc<Vec<Hextile>>, mut pieces: im::Vector<
                         for y in boundary_coords.y_min..boundary_coords.y_max+1 {
                             for z in boundary_coords.z_min..boundary_coords.z_max+1 {
 
-                                let hextile_at_coordinates = get_hextile_at_coordinates(x,y,z,board);
-
-                                if hextile_at_coordinates.is_none() {
+                                if get_hextile_at_coordinates(x,y,z,&mut board).is_none() {
                                     panic!("Internal Error: initialize_pieces_for_board(): Unable to find a square on the board with the given hex coordinates. Exiting immediately....");
                                 }
+                                let mut hextile_at_coordinates = arc_to_hextile(&mut get_hextile_at_coordinates(x,y,z,&mut board).unwrap());
+
+                                
                                 let piece : Piece = Piece {
                                     player_num: player_number,
-                                    hextile: hextile_at_coordinates.unwrap(),
+                                    hextile: Arc::new(hextile_at_coordinates.clone()),
                                 };
-                                pieces.push_back(piece);
+                                pieces.push_back(piece.clone());
+                                //let arc_ref : &mut Arc<Option<Piece>> = &hextile_at_coordinates.unwrap().piece.clone();
 
-                                hextile_at_coordinates.unwrap().piece = Some(Arc::new(piece));
+                                //*Arc::make_mut(arc_ref) = Some(piece.clone());//Some(Arc::new(piece.clone()));
+                                hextile_at_coordinates.assign_piece(piece);
                             }
                         }
                     }
@@ -996,7 +1007,7 @@ fn create_board() -> Vec<Hextile> {
                             z_hex: z,
                             c: (*hex_color).clone(),
                             // p: None,
-                            piece: None,
+                            piece: Arc::new(None),//Arc::new(Piece),
                         };
                         (*board).push(tile)
                     }
