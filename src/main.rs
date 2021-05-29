@@ -23,6 +23,10 @@ lazy_static! {
     static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
 }
 
+// the number of squares on the board
+const N_SQUARES : usize = 121;
+const MAX_NUM_PIECES : usize = 60;
+
 static CANVAS_WIDTH : f64 = 600.0;
 static CANVAS_HEIGHT: f64 = 600.0;
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
@@ -177,6 +181,19 @@ enum StartingRegion {
     BOTTOM,
 }
 
+enum PieceColor {
+    RED,
+    YELLOW,
+    GREEN,
+    BLUE,
+    BLACK,
+    WHITE,
+    // optional colors below: 
+    PURPLE,
+    ORANGE,
+    GREY
+}
+
 #[derive(PartialEq, Clone, Data, Lens, Copy)]
 struct WindowType {
     window_type : AppStateValue
@@ -187,16 +204,16 @@ struct Hextile {
     y_hex: i32,
     x_hex: i32,
     z_hex: i32,
-    c: Color,
+    //c: Color,
     // p: Option<i32>,
-    piece: Arc<Option<Piece>>,
+    piece_idx: Option<u32>, // the index into the im::Vector<Piece> of the piece that's sitting on this square, if this square is occupied by a piece
 }
 
 // use the same pieces over and over again if the user starts a second game
 #[derive(PartialEq, Data, Clone)]
 struct Piece {
     player_num: i32,
-    hextile: Arc<Hextile>,
+    hextile_idx: u32, // the index into the im::Vector<Hextile> of the square that this piece is sitting on
 }
 
 // helper methods to convert from hex coordinates to cartesian coordinates
@@ -235,19 +252,20 @@ impl Hextile {
         return -z * inner.sqrt() / 2.0;
     }
 
-    fn assign_piece(&mut self, p: Piece) {
-        *Arc::make_mut(&mut self.piece) = Some(p);
-    }
+    // fn assign_piece(&mut self, p: Piece) {
+    //     *Arc::make_mut(&mut self.piece) = Some(p);
+    // }
 }
 
 // Stores which window we're in and the entire state of the game 
 #[derive(PartialEq, Clone, Data, Lens)]
 struct AppState {
     window_type : AppStateValue,
-    board : Arc::<Vec::<Hextile>>,
-    pieces: druid::im::Vector<Piece>,
+    board : im::Vector<Hextile>,
+    pieces: im::Vector<Piece>,
     in_game : bool,
-    mouse_location_in_canvas : Point
+    mouse_location_in_canvas : Point,
+    player_piece_colors : im::Vector<Color> // player_piece_colors[i] = piece color of player i 
 }
 
 struct MainWidget<T: Data> {
@@ -269,17 +287,15 @@ impl<'a> CanvasWidget<'a> {
     }
 
     // Returns true iff the Point on the Canvas where the user clicked is inside of a piece
-    fn is_within_a_hextile(&mut self, board_wrapper: Arc::<Vec<Hextile>>, p: Point) -> bool {
+    fn is_within_a_hextile(&mut self, board: im::Vector<Hextile>, p: Point) -> bool {
         println!("calling is_within_a_hextile!");
 
         // On the screen each hextile is contained in a 20px x 20px rectangle, so the radius is 10px
-        unsafe {
-            for hextile in (*Arc::as_ptr(&board_wrapper)).iter() {
-                if ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt() < 10.0 {
-                    self.piece_being_dragged = Some(hextile);
-                    println!("success!");
-                    return true;
-                }
+        for hextile in board.iter() {
+            if ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt() < 10.0 {
+                self.piece_being_dragged = Some(hextile);
+                println!("success!");
+                return true;
             }
         }
         return false;
@@ -292,9 +308,7 @@ impl<'a> Widget<AppState> for CanvasWidget<'a> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
         match event {
             Event::MouseDown(mouse_event) => {
-                let board_data_copy : Arc::<Vec<Hextile>> = data.board.clone(); 
-
-                if self.is_within_a_hextile(board_data_copy, mouse_event.pos) {
+                if self.is_within_a_hextile(data.board, mouse_event.pos) {
                     self.piece_is_being_dragged = true; 
                 } else {
                     self.piece_is_being_dragged = false;
@@ -377,70 +391,58 @@ impl<'a> Widget<AppState> for CanvasWidget<'a> {
 
         //ctx.paint_with_z_index(1, move |ctx| {
 
-            unsafe {
+        let board : im::Vector<Hextile> = data.board;
+        
+        let screen_x = |x: f64| -> f64 {
+            //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
+            return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
+        };
+        
+        let screen_y = |y: f64| -> f64 {
+            //return (-1.0) * (y / ABSTRACT_BOARD_HEIGHT - 1.0/2.0) * BOARD_HEIGHT;
+            return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
+        };    
 
-                //let board : Vec<Hextile> = Arc::try_unwrap(data.board.clone()).unwrap_or(Vec::new());
-                let board_unsafe_ptr : *const Vec<Hextile> = Arc::as_ptr(&data_copy.board);
-                let board_ref = board_unsafe_ptr.as_ref();
-                //if board_ref.is_none() {
-                //    panic!("ERROR, the board pointer is null, exiting immediately.");
-                //}
-                //if board_ref.unwrap().len() == 0 {
-                //    panic!("ERROR, the board has size 0, exiting immediately.");
-                //}
-                let board = board_ref.unwrap();
-                
-                let screen_x = |x: f64| -> f64 {
-                    //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
-                    return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
-                };
-                
-                let screen_y = |y: f64| -> f64 {
-                    //return (-1.0) * (y / ABSTRACT_BOARD_HEIGHT - 1.0/2.0) * BOARD_HEIGHT;
-                    return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
-                };    
+        //println!("Size of board Vec = {}", board.len());
 
-                //println!("Size of board Vec = {}", board.len());
+        let mut x_hex_saved : i32 = 0;
+        let mut y_hex_saved : i32 = 0;
+        let mut z_hex_saved : i32 = 0;
+        let mut will_draw_piece_later : bool = false;
+        let mut saved_piece_color : Option<Color> = None;
 
-                let mut x_hex_saved : i32 = 0;
-                let mut y_hex_saved : i32 = 0;
-                let mut z_hex_saved : i32 = 0;
-                let mut will_draw_piece_later : bool = false;
-                let mut saved_piece_color : Option<Color> = None;
+        for hextile in board.into_iter() {
+            //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
+            //let bounding_rect = Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds);
+            //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
-                for hextile in board.into_iter() {
-                    //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
-                    //let bounding_rect = Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds);
-                    //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
+            // draw the square beneath the piece
+            ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15));
 
-                    // draw the square beneath the piece
-                    ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15));
+            //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
+            // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
+            if self.piece_being_dragged.is_some() 
+                    && hextile.x_hex == self.piece_being_dragged.unwrap().x_hex 
+                        && hextile.y_hex == self.piece_being_dragged.unwrap().y_hex 
+                            && hextile.z_hex == self.piece_being_dragged.unwrap().z_hex {
+                    
+                    // skip over drawing the piece for now, we will draw it later
+                    will_draw_piece_later = true;
+                    saved_piece_color = Some(data.player_piece_colors[hextile.piece_idx].clone());
+                    println!("will draw some hextile later!");
 
-                    //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
-                    // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
-                    if self.piece_being_dragged.is_some() 
-                            && hextile.x_hex == self.piece_being_dragged.unwrap().x_hex 
-                                && hextile.y_hex == self.piece_being_dragged.unwrap().y_hex 
-                                    && hextile.z_hex == self.piece_being_dragged.unwrap().z_hex {
-                            
-                            // skip over drawing the piece for now, we will draw it later
-                            will_draw_piece_later = true;
-                            saved_piece_color = Some(hextile.c.clone());
-                            println!("will draw some hextile later!");
-
-                    } else {
-                        // draw the piece in its resting state spot
-                        ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *piece_size_bounds).to_ellipse(), &hextile.c);
-                    }
-
-                }
-
-                if will_draw_piece_later {
-                    println!("x_hex_saved = {x_hex_saved}, y_hex_saved = {y_hex_saved}, z_hex_saved = {z_hex_saved}", x_hex_saved = x_hex_saved, y_hex_saved = y_hex_saved, z_hex_saved = z_hex_saved);
-                    println!("DRAWING THE PIECE!!!");
-                    ctx.fill(Rect::from_center_size(Point::new(data.mouse_location_in_canvas.x, data.mouse_location_in_canvas.y), *piece_size_bounds).to_ellipse(), &(saved_piece_color.unwrap()));
-                }
+            } else {
+                // draw the piece in its resting state spot
+                ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *piece_size_bounds).to_ellipse(), data.player_piece_colors[hextile.p]);
             }
+
+        }
+
+        if will_draw_piece_later {
+            println!("x_hex_saved = {x_hex_saved}, y_hex_saved = {y_hex_saved}, z_hex_saved = {z_hex_saved}", x_hex_saved = x_hex_saved, y_hex_saved = y_hex_saved, z_hex_saved = z_hex_saved);
+            println!("DRAWING THE PIECE!!!");
+            ctx.fill(Rect::from_center_size(Point::new(data.mouse_location_in_canvas.x, data.mouse_location_in_canvas.y), *piece_size_bounds).to_ellipse(), &(saved_piece_color.unwrap()));
+        }
 
        // });
     // add_appropriate_hextiles_to_board(
@@ -509,6 +511,7 @@ impl<'a> Widget<AppState> for CanvasWidget<'a> {
         // // The image is automatically scaled to fit the rect you pass to draw_image
         // ctx.draw_image(&image, size.to_rect(), InterpolationMode::Bilinear);
     }
+
 }
 
 impl MainWidget<AppState> {
