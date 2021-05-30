@@ -485,73 +485,6 @@ impl Widget<AppState> for CanvasWidget {
             // println!("DRAWING THE PIECE!!!");
             ctx.fill(Rect::from_center_size(Point::new(data.mouse_location_in_canvas.x, data.mouse_location_in_canvas.y), *piece_size_bounds).to_ellipse(), saved_piece_color.unwrap());
         }
-
-       // });
-    // add_appropriate_hextiles_to_board(
-    //     &mut board,
-    //     x_min,
-    //     x_max,
-    //     y_min,
-    //     y_max,
-    //     z_min,
-    //     z_max,
-    //     &yellow_color_array.clone(),
-    // );
-
-
-        // Create an arbitrary bezier path
-        // let mut path = BezPath::new();
-        // path.move_to(Point::ORIGIN);
-        // path.quad_to((40.0, 50.0), (size.width, size.height));
-        // // Create a color
-        // let stroke_color = Color::rgb8(0, 128, 0);
-        // // Stroke the path with thickness 5.0
-        // ctx.stroke(path, &stroke_color, 5.0);
-
-        // Rectangles: the path for practical people
-        // let rect = Rect::from_origin_size((10.0, 10.0), (100.0, 100.0));
-        // // Note the Color:rgba8 which includes an alpha channel (7F in this case)
-        // let fill_color = Color::rgba8(0x00, 0x00, 0x00, 0x7F);
-        // ctx.fill(rect, &fill_color);
-
-        // Text is easy; in real use TextLayout should either be stored in the
-        // widget and reused, or a label child widget to manage it all.
-        // This is one way of doing it, you can also use a builder-style way.
-        // let mut layout = TextLayout::<String>::from_text("SINGLE-PLAYER-MODE");
-        // layout.set_font(FontDescriptor::new(FontFamily::SERIF).with_size(24.0));
-        // layout.set_text_color(fill_color);
-        // layout.rebuild_if_needed(ctx.text(), env);
-
-        // Let's rotate our text slightly. First we save our current (default) context:
-        // ctx.with_save(|ctx| {
-        //     // Now we can rotate the context (or set a clip path, for instance):
-        //     // This makes it so that anything drawn after this (in the closure) is
-        //     // transformed.
-        //     // The transformation is in radians, but be aware it transforms the canvas,
-        //     // not just the part you are drawing. So we draw at (80.0, 40.0) on the rotated
-        //     // canvas, this is NOT the same position as (80.0, 40.0) on the original canvas.
-        //     ctx.transform(Affine::rotate(std::f64::consts::FRAC_PI_4));
-        //     layout.draw(ctx, (80.0, 40.0));
-        // });
-        // When we exit with_save, the original context's rotation is restored
-
-        // This is the builder-style way of drawing text.
-        // let text = ctx.text();
-        // let layout = text
-        //     .new_text_layout("SINGLE-PLAYER-MODE")
-        //     .font(FontFamily::SERIF, 24.0)
-        //     .text_color(Color::rgb8(128, 0, 0))
-        //     .build()
-        //     .unwrap();
-        // ctx.draw_text(&layout, (100.0, 25.0));
-
-        // Let's burn some CPU to make a (partially transparent) image buffer
-        // let image_data = make_image_data(256, 256);
-        // let image = ctx
-        //     .make_image(256, 256, &image_data, ImageFormat::RgbaSeparate)
-        //     .unwrap();
-        // // The image is automatically scaled to fit the rect you pass to draw_image
-        // ctx.draw_image(&image, size.to_rect(), InterpolationMode::Bilinear);
     }
 
 }
@@ -560,21 +493,21 @@ impl MainWidget<AppState> {
 
     fn make_start_menu() -> Container<AppState> {
         let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
-        let column_layout = Flex::column()
-        .with_child(Padding::new(padding_dp, Button::new("Single-Player").on_click(|ctx, data : &mut AppState, env| {
+        let column_layout = SizedBox::new(Flex::column()
+        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Single-Player").on_click(|ctx, data : &mut AppState, env| {
             data.window_type = AppStateValue::SINGLE_PLAYER;
             println!("Single-player button pressed....");
-        })))
-        .with_child(Padding::new(padding_dp, Button::new("Multi-Player").on_click(|ctx, data : &mut AppState, env| {
+        })).expand_width()))
+        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Multi-Player").on_click(|ctx, data : &mut AppState, env| {
             data.window_type = AppStateValue::MULTI_PLAYER;
             println!("Multi-player button pressed....");
-        })))
-        .with_child(Padding::new(padding_dp, Button::new("Settings")))
-        .with_child(Padding::new(padding_dp, Button::new("Feedback")))
-        .with_child(Padding::new(padding_dp, Button::new("Quit").on_click(|ctx, data: &mut AppState, env| {
+        })).expand_width()))
+        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Settings")).expand_width()))
+        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Feedback")).expand_width()))
+        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Quit").on_click(|ctx, data: &mut AppState, env| {
             println!("closing the application....");
             ctx.window().close();
-        })));
+        })).expand_width()))).width(300.0);
 
         return Container::new(Align::centered(column_layout));
     }
