@@ -199,34 +199,34 @@ enum PieceColor {
 }
 
 impl PieceColor {
-    fn to_druid_color(&self) -> druid::Color {
+    fn to_druid_color(&self) -> &druid::Color {
         match self {
             PieceColor::RED => {
-                return (*RED_COLOR).clone();
+                return &*RED_COLOR;
             }, 
             PieceColor::YELLOW => {
-                return (*YELLOW_COLOR).clone();
+                return &*YELLOW_COLOR;
             },
             PieceColor::BLUE => {
-                return (*BLUE_COLOR).clone();
+                return &*BLUE_COLOR;
             },
             PieceColor::GREEN => {
-                return (*GREEN_COLOR).clone();
+                return &*GREEN_COLOR;
             }, 
             PieceColor::BLACK => {
-                return (*BLACK_COLOR).clone();
+                return &*BLACK_COLOR;
             },
             PieceColor::WHITE => {  
-                return (*WHITE_COLOR).clone();
+                return &*WHITE_COLOR;
             }, 
             PieceColor::PURPLE => {
-                return (*PURPLE_COLOR).clone();
+                return &*PURPLE_COLOR;
             }, 
             PieceColor::ORANGE => {
-                return (*ORANGE_COLOR).clone();
+                return &*ORANGE_COLOR;
             },
             PieceColor::GREY => {  
-                return (*GREY_COLOR).clone();
+                return &*GREY_COLOR;
             },
             _ => {
                 panic!("ERROR: unrecognized piece color passed in to to_druid_color(), exiting immediately...");
@@ -307,7 +307,8 @@ struct AppState {
     pieces: im::Vector<Piece>,
     in_game : bool,
     mouse_location_in_canvas : Point,
-    player_piece_colors : im::Vector<PieceColor> // player_piece_colors[i] = piece color of player i 
+    player_piece_colors : im::Vector<PieceColor>, // player_piece_colors[i] = piece color of player i,
+    whos_turn : Option<usize>,
 }
 
 struct MainWidget<T: Data> {
@@ -447,7 +448,7 @@ impl Widget<AppState> for CanvasWidget {
         let mut y_hex_saved : i32 = 0;
         let mut z_hex_saved : i32 = 0;
         let mut will_draw_piece_later : bool = false;
-        let mut saved_piece_color : Option<Color> = None;
+        let mut saved_piece_color : Option<&Color> = None;
 
         for hextile in data.board.iter() {
             //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
@@ -470,19 +471,19 @@ impl Widget<AppState> for CanvasWidget {
                     will_draw_piece_later = true;
                     saved_piece_color = Some(data.player_piece_colors[piece.player_num].to_druid_color());
 
-                    println!("will draw some hextile later!");
+                    // println!("will draw some hextile later!");
 
             } else {
                 // draw the piece in its resting state spot
-                println!("from inside paint(): piece.hextile_idx = {0}, data.board.len() = {1}", piece.hextile_idx, data.board.len());
-                ctx.fill(Rect::from_center_size(Point::new(screen_x(data.board[piece.hextile_idx].cartesian_x()), screen_y(data.board[piece.hextile_idx].cartesian_y())), *piece_size_bounds).to_ellipse(), &data.player_piece_colors[piece.player_num].to_druid_color());
+                // println!("from inside paint(): piece.hextile_idx = {0}, data.board.len() = {1}", piece.hextile_idx, data.board.len());
+                ctx.fill(Rect::from_center_size(Point::new(screen_x(data.board[piece.hextile_idx].cartesian_x()), screen_y(data.board[piece.hextile_idx].cartesian_y())), *piece_size_bounds).to_ellipse(), data.player_piece_colors[piece.player_num].to_druid_color());
             }
         }
 
         if will_draw_piece_later {
-            println!("x_hex_saved = {x_hex_saved}, y_hex_saved = {y_hex_saved}, z_hex_saved = {z_hex_saved}", x_hex_saved = x_hex_saved, y_hex_saved = y_hex_saved, z_hex_saved = z_hex_saved);
-            println!("DRAWING THE PIECE!!!");
-            ctx.fill(Rect::from_center_size(Point::new(data.mouse_location_in_canvas.x, data.mouse_location_in_canvas.y), *piece_size_bounds).to_ellipse(), &(saved_piece_color.unwrap()));
+            // println!("x_hex_saved = {x_hex_saved}, y_hex_saved = {y_hex_saved}, z_hex_saved = {z_hex_saved}", x_hex_saved = x_hex_saved, y_hex_saved = y_hex_saved, z_hex_saved = z_hex_saved);
+            // println!("DRAWING THE PIECE!!!");
+            ctx.fill(Rect::from_center_size(Point::new(data.mouse_location_in_canvas.x, data.mouse_location_in_canvas.y), *piece_size_bounds).to_ellipse(), saved_piece_color.unwrap());
         }
 
        // });
@@ -818,6 +819,9 @@ impl Widget<AppState> for MainWidget<AppState> {
                         ];
 
                         data.in_game = true;
+
+                        data.whos_turn = Some(0);
+
                         ctx.request_paint();
                     }
                 }   
@@ -1069,7 +1073,7 @@ fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
     //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
-    let initial_state = AppState {window_type : AppStateValue::START, board: im::Vector::new(), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], player_piece_colors: im::Vector::new()};
+    let initial_state = AppState {whos_turn : None, window_type : AppStateValue::START, board: im::Vector::new(), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], player_piece_colors: im::Vector::new()};
 
     //let command_handler = ApplicationCommandHandler::new();
 
