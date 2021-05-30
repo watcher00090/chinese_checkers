@@ -217,7 +217,6 @@ impl PieceColor {
                 return (*BLACK_COLOR).clone();
             },
             PieceColor::WHITE => {  
-                println!("in to_druid_color() with PieceColor::WHITE");
                 return (*WHITE_COLOR).clone();
             }, 
             PieceColor::PURPLE => {
