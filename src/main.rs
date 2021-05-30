@@ -217,6 +217,7 @@ impl PieceColor {
                 return (*BLACK_COLOR).clone();
             },
             PieceColor::WHITE => {  
+                println!("in to_druid_color() with PieceColor::WHITE");
                 return (*WHITE_COLOR).clone();
             }, 
             PieceColor::PURPLE => {
@@ -425,8 +426,6 @@ impl Widget<AppState> for CanvasWidget {
         // loop through the board, draw each hextile
         // let size_bounds = Size::new(20.0,20.0);
         // let edge_bounds = Size::new(22.0,22.0);
-
-        let data_copy = data.clone(); 
 
         //ctx.paint_with_z_index(1, move |ctx| {
         
@@ -738,58 +737,52 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
 
     if num_players == 6 {
 
-        let regions_to_players : [(StartingRegion, usize); 6] = [
+        let regions_to_players : [StartingRegion; 6] = [
             // turns proceed clockwise
-            (StartingRegion::TOP, PLAYER_ONE_NUMBER),
-            (StartingRegion::TOP_RIGHT, PLAYER_TWO_NUMBER),
-            (StartingRegion::BOTTOM_RIGHT, PLAYER_THREE_NUMBER),
-            (StartingRegion::BOTTOM, PLAYER_FOUR_NUMBER),
-            (StartingRegion::BOTTOM_LEFT, PLAYER_FIVE_NUMBER),
-            (StartingRegion::TOP_LEFT, PLAYER_FIVE_NUMBER),
+            StartingRegion::TOP,
+            StartingRegion::TOP_RIGHT,
+            StartingRegion::BOTTOM_RIGHT,
+            StartingRegion::BOTTOM,
+            StartingRegion::BOTTOM_LEFT,
+            StartingRegion::TOP_LEFT,
         ];
 
         for i in 0..6 {
-            let pair : &(StartingRegion, usize) = &regions_to_players[i];
-            let starting_region = (*pair).0;
-            let num : usize = (*pair).1;
+            let starting_region : StartingRegion = regions_to_players[i];
 
-            if num != NO_PLAYER {
-                let player_number = num;
+            let player_num = i;
 
-                let boundary_coords = get_boundary_coords_struct_for_region(starting_region);
-                
-                for x in boundary_coords.x_min..boundary_coords.x_max+1 {
-                    for y in boundary_coords.y_min..boundary_coords.y_max+1 {
-                        for z in boundary_coords.z_min..boundary_coords.z_max+1 {
-                            if x + y + z == 0 {
-                                // println!("from inside initialize_pieces_for_board(): x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
+            let boundary_coords = get_boundary_coords_struct_for_region(starting_region);
+            
+            for x in boundary_coords.x_min..boundary_coords.x_max+1 {
+                for y in boundary_coords.y_min..boundary_coords.y_max+1 {
+                    for z in boundary_coords.z_min..boundary_coords.z_max+1 {
+                        if x + y + z == 0 {
+                            // println!("from inside initialize_pieces_for_board(): x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
 
-                                let hextile_idx_wrapper : Option<usize> = hextile_idx_at_coordinates(x,y,z,board);
+                            let hextile_idx_wrapper : Option<usize> = hextile_idx_at_coordinates(x,y,z,board);
 
-                                if hextile_idx_wrapper.is_none() {
-                                    println!("from inside initialize_pieces_for_board(), prior to panicking: x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
-                                    panic!("Internal Error: initialize_pieces_for_board(): Unable to find a square on the board with the given hex coordinates. Exiting immediately....");
-                                }
-
-                                let hextile_idx = hextile_idx_wrapper.unwrap();
-                                
-                                let piece : Piece = Piece {
-                                    player_num: player_number,
-                                    hextile_idx: hextile_idx,
-                                };
-
-                                let piece_idx : usize = pieces.len();
-
-                                pieces.push_back(piece);
-
-                                board[hextile_idx].piece_idx = Some(piece_idx);
+                            if hextile_idx_wrapper.is_none() {
+                                println!("from inside initialize_pieces_for_board(), prior to panicking: x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
+                                panic!("Internal Error: initialize_pieces_for_board(): Unable to find a square on the board with the given hex coordinates. Exiting immediately....");
                             }
+
+                            let hextile_idx = hextile_idx_wrapper.unwrap();
+                            
+                            let piece : Piece = Piece {
+                                player_num: player_num,
+                                hextile_idx: hextile_idx,
+                            };
+
+                            let piece_idx : usize = pieces.len();
+
+                            pieces.push_back(piece);
+
+                            board[hextile_idx].piece_idx = Some(piece_idx);
                         }
                     }
                 }
-                
-            }
-            
+            }            
         }
     }
 }   
