@@ -66,15 +66,17 @@ lazy_static! {
     static ref BLACK_COLOR:    Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
     static ref WHITE_COLOR:    Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
     static ref GREY_COLOR:     Color = Color::rgba(0.5, 0.5, 0.5, 1.0);    
+    static ref ORANGE_COLOR:   Color = Color::rgba(0.94, 0.55, 0.05, 1.0);
+    static ref PURPLE_COLOR:   Color = Color::rgba(0.62, 0.05, 0.94, 1.0);
 }
 
-static PLAYER_ONE_NUMBER : i32 = 0;
-static PLAYER_TWO_NUMBER : i32 = 1;
-static PLAYER_THREE_NUMBER: i32 = 2;
-static PLAYER_FOUR_NUMBER: i32 = 3;
-static PLAYER_FIVE_NUMBER : i32 = 4;
-static PLAYER_SIX_NUMBER : i32 = 5;
-static NO_PLAYER : i32 = i32::MIN;
+static PLAYER_ONE_NUMBER : usize = 0;
+static PLAYER_TWO_NUMBER : usize = 1;
+static PLAYER_THREE_NUMBER: usize = 2;
+static PLAYER_FOUR_NUMBER: usize = 3;
+static PLAYER_FIVE_NUMBER : usize = 4;
+static PLAYER_SIX_NUMBER : usize = 5;
+static NO_PLAYER : usize = usize::MAX;
 
 #[derive(Clone, Copy)]
 struct BoardRegionBoundaryHexCoords {
@@ -181,6 +183,8 @@ enum StartingRegion {
     BOTTOM,
 }
 
+
+#[derive(PartialEq, Data, Clone, Copy)]
 enum PieceColor {
     RED,
     YELLOW,
@@ -194,26 +198,61 @@ enum PieceColor {
     GREY
 }
 
+impl PieceColor {
+    fn to_druid_color(&self) -> druid::Color {
+        match self {
+            PieceColor::RED => {
+                return (*RED_COLOR).clone();
+            }, 
+            PieceColor::YELLOW => {
+                return (*YELLOW_COLOR).clone();
+            },
+            PieceColor::BLUE => {
+                return (*BLUE_COLOR).clone();
+            },
+            PieceColor::GREEN => {
+                return (*GREEN_COLOR).clone();
+            }, 
+            PieceColor::BLACK => {
+                return (*BLACK_COLOR).clone();
+            },
+            PieceColor::WHITE => {  
+                return (*WHITE_COLOR).clone();
+            }, 
+            PieceColor::PURPLE => {
+                return (*PURPLE_COLOR).clone();
+            }, 
+            PieceColor::ORANGE => {
+                return (*ORANGE_COLOR).clone();
+            },
+            PieceColor::GREY => {  
+                return (*GREY_COLOR).clone();
+            },
+            _ => {
+                panic!("ERROR: unrecognized piece color passed in to to_druid_color(), exiting immediately...");
+            }
+        }
+    }
+}
+
 #[derive(PartialEq, Clone, Data, Lens, Copy)]
 struct WindowType {
     window_type : AppStateValue
 }
 
-#[derive(PartialEq, Data, Clone)]
+#[derive(PartialEq, Data, Clone, Copy)]
 struct Hextile {
     y_hex: i32,
     x_hex: i32,
     z_hex: i32,
-    //c: Color,
-    // p: Option<i32>,
-    piece_idx: Option<u32>, // the index into the im::Vector<Piece> of the piece that's sitting on this square, if this square is occupied by a piece
+    piece_idx: Option<usize>, // the index into the im::Vector<Piece> of the piece that's sitting on this square, if this square is occupied by a piece
 }
 
 // use the same pieces over and over again if the user starts a second game
-#[derive(PartialEq, Data, Clone)]
+#[derive(PartialEq, Data, Clone, Copy)]
 struct Piece {
-    player_num: i32,
-    hextile_idx: u32, // the index into the im::Vector<Hextile> of the square that this piece is sitting on
+    player_num: usize,
+    hextile_idx: usize, // the index into the im::Vector<Hextile> of the square that this piece is sitting on
 }
 
 // helper methods to convert from hex coordinates to cartesian coordinates
@@ -265,19 +304,19 @@ struct AppState {
     pieces: im::Vector<Piece>,
     in_game : bool,
     mouse_location_in_canvas : Point,
-    player_piece_colors : im::Vector<Color> // player_piece_colors[i] = piece color of player i 
+    player_piece_colors : im::Vector<PieceColor> // player_piece_colors[i] = piece color of player i 
 }
 
 struct MainWidget<T: Data> {
     main_container: Container<T>,
 }
 
-struct CanvasWidget<'a> {
+struct CanvasWidget {
     piece_is_being_dragged : bool,
-    piece_being_dragged : Option<&'a Hextile>
+    piece_being_dragged : Option<Hextile>
 }
 
-impl<'a> CanvasWidget<'a> {
+impl CanvasWidget {
     fn cartesian_x_to_screen_x(x: f64) -> f64 {
         return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
     }
@@ -287,13 +326,13 @@ impl<'a> CanvasWidget<'a> {
     }
 
     // Returns true iff the Point on the Canvas where the user clicked is inside of a piece
-    fn is_within_a_hextile(&mut self, board: im::Vector<Hextile>, p: Point) -> bool {
+    fn is_within_a_hextile(&mut self, data: &AppState, p: Point) -> bool {
         println!("calling is_within_a_hextile!");
 
         // On the screen each hextile is contained in a 20px x 20px rectangle, so the radius is 10px
-        for hextile in board.iter() {
+        for hextile in data.board.iter() {
             if ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt() < 10.0 {
-                self.piece_being_dragged = Some(hextile);
+                self.piece_being_dragged = Some(*hextile);
                 println!("success!");
                 return true;
             }
@@ -303,12 +342,12 @@ impl<'a> CanvasWidget<'a> {
     
 }
 
-impl<'a> Widget<AppState> for CanvasWidget<'a> {
+impl Widget<AppState> for CanvasWidget {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
         match event {
             Event::MouseDown(mouse_event) => {
-                if self.is_within_a_hextile(data.board, mouse_event.pos) {
+                if self.is_within_a_hextile(data, mouse_event.pos) {
                     self.piece_is_being_dragged = true; 
                 } else {
                     self.piece_is_being_dragged = false;
@@ -390,8 +429,6 @@ impl<'a> Widget<AppState> for CanvasWidget<'a> {
         let data_copy = data.clone(); 
 
         //ctx.paint_with_z_index(1, move |ctx| {
-
-        let board : im::Vector<Hextile> = data.board;
         
         let screen_x = |x: f64| -> f64 {
             //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
@@ -411,31 +448,33 @@ impl<'a> Widget<AppState> for CanvasWidget<'a> {
         let mut will_draw_piece_later : bool = false;
         let mut saved_piece_color : Option<Color> = None;
 
-        for hextile in board.into_iter() {
+        for hextile in data.board.iter() {
             //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
             //let bounding_rect = Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds);
             //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
             // draw the square beneath the piece
             ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15));
+        }
 
+        for piece in data.pieces.iter() {
             //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
             // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
             if self.piece_being_dragged.is_some() 
-                    && hextile.x_hex == self.piece_being_dragged.unwrap().x_hex 
-                        && hextile.y_hex == self.piece_being_dragged.unwrap().y_hex 
-                            && hextile.z_hex == self.piece_being_dragged.unwrap().z_hex {
+                    && data.board[piece.hextile_idx].x_hex == self.piece_being_dragged.unwrap().x_hex 
+                        && data.board[piece.hextile_idx].y_hex == self.piece_being_dragged.unwrap().y_hex 
+                            && data.board[piece.hextile_idx].z_hex == self.piece_being_dragged.unwrap().z_hex {
                     
                     // skip over drawing the piece for now, we will draw it later
                     will_draw_piece_later = true;
-                    saved_piece_color = Some(data.player_piece_colors[hextile.piece_idx].clone());
+                    saved_piece_color = Some(data.player_piece_colors[piece.player_num].to_druid_color());
+
                     println!("will draw some hextile later!");
 
             } else {
                 // draw the piece in its resting state spot
-                ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *piece_size_bounds).to_ellipse(), data.player_piece_colors[hextile.p]);
+                ctx.fill(Rect::from_center_size(Point::new(screen_x(data.board[piece.hextile_idx].cartesian_x()), screen_y(data.board[piece.hextile_idx].cartesian_y())), *piece_size_bounds).to_ellipse(), &data.player_piece_colors[piece.player_num].to_druid_color());
             }
-
         }
 
         if will_draw_piece_later {
@@ -680,25 +719,26 @@ fn get_boundary_coords_struct_for_region(region: StartingRegion) -> BoardRegionB
     }
 }
 
-unsafe fn get_hextile_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board_arc: &mut Arc<Vec<Hextile>>) -> Option<Arc::<Hextile>> {
-    let board_ptr : *const Vec<Hextile> = Arc::as_ptr(board_arc);
-    let board : &Vec<Hextile> = &*board_ptr;
-    for hextile in board.iter() {
+// returns the index in the board vector of the hextile with coordinates x_hex, y_hex, z_hex, or none if no such hextile with those coordinates exists on the board
+fn hextile_idx_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board: &im::Vector<Hextile>) -> Option<usize> {
+    let mut hextile : &Hextile;
+
+    for i in 0..board.len() {
+        hextile = &board[i];
         if hextile.x_hex == x_hex && hextile.y_hex == y_hex && hextile.z_hex == z_hex {
-            return Some(Arc::<Hextile>::new(hextile.clone()));
+            return Some(i);
         }
     }
     return None;
 }
 
-unsafe fn arc_to_hextile(arc_ref: &mut Arc<Hextile>) -> Hextile {
-    return (*Arc::make_mut(arc_ref)).clone();
-}
+fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: u32) {
 
-fn initialize_pieces_for_board(mut board: Arc<Vec<Hextile>>, mut pieces: im::Vector<Piece>, num_players: u32) {
+    println!("From inside initialize_pieces_for_board(): size of board Vec = {x}", x = board.len());
+
     if num_players == 6 {
 
-        let regions_to_players : [(StartingRegion, i32); 6] = [
+        let regions_to_players : [(StartingRegion, usize); 6] = [
             // turns proceed clockwise
             (StartingRegion::TOP, PLAYER_ONE_NUMBER),
             (StartingRegion::TOP_RIGHT, PLAYER_TWO_NUMBER),
@@ -708,42 +748,48 @@ fn initialize_pieces_for_board(mut board: Arc<Vec<Hextile>>, mut pieces: im::Vec
             (StartingRegion::TOP_LEFT, PLAYER_FIVE_NUMBER),
         ];
 
-        unsafe {
-            for i in 0..6 {
-                let pair : &(StartingRegion, i32) = &regions_to_players[i];
-                let starting_region = (*pair).0;
-                let num = (*pair).1;
+        for i in 0..6 {
+            let pair : &(StartingRegion, usize) = &regions_to_players[i];
+            let starting_region = (*pair).0;
+            let num : usize = (*pair).1;
 
-                if num != NO_PLAYER {
-                    let player_number = num;
+            if num != NO_PLAYER {
+                let player_number = num;
 
-                    let boundary_coords = get_boundary_coords_struct_for_region(starting_region);
-                    
-                    for x in boundary_coords.x_min..boundary_coords.x_max+1 {
-                        for y in boundary_coords.y_min..boundary_coords.y_max+1 {
-                            for z in boundary_coords.z_min..boundary_coords.z_max+1 {
+                let boundary_coords = get_boundary_coords_struct_for_region(starting_region);
+                
+                for x in boundary_coords.x_min..boundary_coords.x_max+1 {
+                    for y in boundary_coords.y_min..boundary_coords.y_max+1 {
+                        for z in boundary_coords.z_min..boundary_coords.z_max+1 {
+                            if x + y + z == 0 {
+                                // println!("from inside initialize_pieces_for_board(): x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
 
-                                if get_hextile_at_coordinates(x,y,z,&mut board).is_none() {
+                                let hextile_idx_wrapper : Option<usize> = hextile_idx_at_coordinates(x,y,z,board);
+
+                                if hextile_idx_wrapper.is_none() {
+                                    println!("from inside initialize_pieces_for_board(), prior to panicking: x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
                                     panic!("Internal Error: initialize_pieces_for_board(): Unable to find a square on the board with the given hex coordinates. Exiting immediately....");
                                 }
-                                let mut hextile_at_coordinates = arc_to_hextile(&mut get_hextile_at_coordinates(x,y,z,&mut board).unwrap());
 
+                                let hextile_idx = hextile_idx_wrapper.unwrap();
                                 
                                 let piece : Piece = Piece {
                                     player_num: player_number,
-                                    hextile: Arc::new(hextile_at_coordinates.clone()),
+                                    hextile_idx: hextile_idx,
                                 };
-                                pieces.push_back(piece.clone());
-                                //let arc_ref : &mut Arc<Option<Piece>> = &hextile_at_coordinates.unwrap().piece.clone();
 
-                                //*Arc::make_mut(arc_ref) = Some(piece.clone());//Some(Arc::new(piece.clone()));
-                                hextile_at_coordinates.assign_piece(piece);
+                                let piece_idx : usize = pieces.len();
+
+                                pieces.push_back(piece);
+
+                                board[hextile_idx].piece_idx = Some(piece_idx);
                             }
                         }
                     }
-                    
                 }
+                
             }
+            
         }
     }
 }   
@@ -758,13 +804,22 @@ impl Widget<AppState> for MainWidget<AppState> {
                     let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
                     println!("Received a start game command for {} players", num_players);
                     if num_players == 6 {
-                       data.board = Arc::<Vec<Hextile>>::new(create_board());
-                       data.pieces.clear();
+                        data.board = create_board();
+                        data.pieces.clear();
 
-                       //initialize_pieces_for_board(data.board, data.pieces , num_players);
+                        initialize_pieces_for_board(&mut data.board, &mut data.pieces , num_players);
 
-                       data.in_game = true;
-                       ctx.request_paint();
+                        data.player_piece_colors = vector![
+                            PieceColor::RED, 
+                            PieceColor::YELLOW,
+                            PieceColor::GREEN,
+                            PieceColor::BLUE,
+                            PieceColor::BLACK,
+                            PieceColor::WHITE            
+                        ];
+
+                        data.in_game = true;
+                        ctx.request_paint();
                     }
                 }   
             }
@@ -812,7 +867,7 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
                                                     data.window_type = AppStateValue::START;
-                                                    data.board = Arc::new(Vec::new());
+                                                    data.board = im::Vector::new();
                                                     data.in_game = false;
                                                     println!("Quit button pressed in single-player mode....");                                    
                                                 }))),1.0)
@@ -831,8 +886,8 @@ fn build_root_widget() -> impl Widget<AppState> {
     MainWidget::<AppState>::new()
 }
 
-fn create_board() -> Vec<Hextile> {
-    let mut board: Vec<Hextile> = Vec::new();
+fn create_board() -> im::Vector<Hextile> {
+    let mut board: im::Vector<Hextile> = im::Vector::new();
 
     // furthest points of the board
     // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
@@ -873,7 +928,6 @@ fn create_board() -> Vec<Hextile> {
         y_max,
         z_min,
         z_max,
-        &yellow_color_array.clone(),
     );
 
     // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
@@ -891,7 +945,6 @@ fn create_board() -> Vec<Hextile> {
         y_max,
         z_min,
         z_max,
-        &red_color_array.clone(),
     );
 
     // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
@@ -909,7 +962,6 @@ fn create_board() -> Vec<Hextile> {
         y_max,
         z_min,
         z_max,
-        &blue_color_array.clone(),
     );
 
     // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
@@ -927,7 +979,6 @@ fn create_board() -> Vec<Hextile> {
         y_max,
         z_min,
         z_max,
-        &black_color_array.clone(),
     );
 
     // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
@@ -945,7 +996,6 @@ fn create_board() -> Vec<Hextile> {
         y_max,
         z_min,
         z_max,
-        &green_color_array.clone(),
     );
 
     //white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
@@ -963,7 +1013,6 @@ fn create_board() -> Vec<Hextile> {
         y_max,
         z_min,
         z_max,
-        &white_color_array.clone(),
     );
 
     // center squares
@@ -981,7 +1030,6 @@ fn create_board() -> Vec<Hextile> {
         y_max, 
         z_min, 
         z_max,
-        &center_color_array.clone()
     );
     println!("Being called from create_board, size of board Vec = {}", board.len());
     return board; 
@@ -990,14 +1038,13 @@ fn create_board() -> Vec<Hextile> {
 // add the valid tiles in the given range to the board
 //fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x_max: i32, y_min: i32, y_max: i32, z_min: i32, z_max: i32) {
     fn add_appropriate_hextiles_to_board(
-        mut board: &mut Vec<Hextile>,
+        board: &mut im::Vector<Hextile>,
         x_min: i32,
         x_max: i32,
         y_min: i32,
         y_max: i32,
         z_min: i32,
         z_max: i32,
-        hex_color: &Color,
     ) {
         for x in x_min..(x_max + 1) {
             for y in y_min..(y_max + 1) {
@@ -1008,11 +1055,9 @@ fn create_board() -> Vec<Hextile> {
                             y_hex: y,
                             x_hex: x,
                             z_hex: z,
-                            c: (*hex_color).clone(),
-                            // p: None,
-                            piece: Arc::new(None),//Arc::new(Piece),
+                            piece_idx: None,
                         };
-                        (*board).push(tile)
+                        board.push_back(tile);
                     }
                 }
             }
@@ -1023,7 +1068,7 @@ fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
     //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
-    let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(Vec::new()), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![]};
+    let initial_state = AppState {window_type : AppStateValue::START, board: im::Vector::new(), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], player_piece_colors: im::Vector::new()};
 
     //let command_handler = ApplicationCommandHandler::new();
 
