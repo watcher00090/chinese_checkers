@@ -253,6 +253,9 @@ struct Hextile {
 struct Piece {
     player_num: usize,
     hextile_idx: usize, // the index into the im::Vector<Hextile> of the square that this piece is sitting on
+    x_hex: i32, // hex coordinates of the square the piece is currently on
+    y_hex: i32,
+    z_hex: i32
 }
 
 // helper methods to convert from hex coordinates to cartesian coordinates
@@ -459,9 +462,9 @@ impl Widget<AppState> for CanvasWidget {
             //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
             // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
             if self.piece_being_dragged.is_some() 
-                    && data.board[piece.hextile_idx].x_hex == self.piece_being_dragged.unwrap().x_hex 
-                        && data.board[piece.hextile_idx].y_hex == self.piece_being_dragged.unwrap().y_hex 
-                            && data.board[piece.hextile_idx].z_hex == self.piece_being_dragged.unwrap().z_hex {
+                    && piece.x_hex == self.piece_being_dragged.unwrap().x_hex 
+                        && piece.y_hex == self.piece_being_dragged.unwrap().y_hex 
+                            && piece.z_hex == self.piece_being_dragged.unwrap().z_hex {
                     
                     // skip over drawing the piece for now, we will draw it later
                     will_draw_piece_later = true;
@@ -471,6 +474,7 @@ impl Widget<AppState> for CanvasWidget {
 
             } else {
                 // draw the piece in its resting state spot
+                println!("from inside paint(): piece.hextile_idx = {0}, data.board.len() = {1}", piece.hextile_idx, data.board.len());
                 ctx.fill(Rect::from_center_size(Point::new(screen_x(data.board[piece.hextile_idx].cartesian_x()), screen_y(data.board[piece.hextile_idx].cartesian_y())), *piece_size_bounds).to_ellipse(), &data.player_piece_colors[piece.player_num].to_druid_color());
             }
         }
@@ -771,6 +775,9 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
                             let piece : Piece = Piece {
                                 player_num: player_num,
                                 hextile_idx: hextile_idx,
+                                x_hex: board[hextile_idx].x_hex,
+                                y_hex: board[hextile_idx].y_hex,
+                                z_hex: board[hextile_idx].z_hex,
                             };
 
                             let piece_idx : usize = pieces.len();
@@ -859,7 +866,9 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
                                                     data.window_type = AppStateValue::START;
-                                                    data.board = im::Vector::new();
+                                                    data.board.clear();
+                                                    data.pieces.clear();
+                                                    data.player_piece_colors.clear();
                                                     data.in_game = false;
                                                     println!("Quit button pressed in single-player mode....");                                    
                                                 }))),1.0)
