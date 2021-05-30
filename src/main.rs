@@ -1,6 +1,6 @@
 use druid::widget::{ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
-use druid::{WindowId, MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
+use druid::{WidgetPod, WindowId, MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
 use rand::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash,Hasher};
@@ -731,6 +731,8 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
 impl Widget<AppState> for MainWidget<AppState> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
+        self.main_container.event(ctx, event, data, _env);
+
         match event {
             Event::Command(command) => {
                 if command.is::<u32>(*start_game_selector) {
@@ -761,15 +763,14 @@ impl Widget<AppState> for MainWidget<AppState> {
             }
             _ => {} // handle the event as normal
         }
-        self.main_container.event(ctx,event, data,_env)
     }
 
-    fn layout(&mut self,  layout_ctx: &mut LayoutCtx, bc: &BoxConstraints, _window_type: &AppState, _env: &Env) -> Size {
-        self.main_container.layout(layout_ctx,bc,_window_type,_env)
+    fn layout(&mut self,  layout_ctx: &mut LayoutCtx, bc: &BoxConstraints, window_type: &AppState, env: &Env) -> Size {
+        self.main_container.layout(layout_ctx, bc, window_type, env)
     }
 
-    fn lifecycle(&mut self, _ctx: &mut LifeCycleCtx, _event: &LifeCycle, _window_type: &AppState, _env: &Env) {
-        self.main_container.lifecycle(_ctx,_event,_window_type,_env);
+    fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, window_type: &AppState, env: &Env) {
+        self.main_container.lifecycle(ctx, event, window_type, env)
     }
 
     fn paint(&mut self, ctx: &mut PaintCtx<'_, '_, '_>, data: &AppState, env: &Env) {
@@ -777,6 +778,8 @@ impl Widget<AppState> for MainWidget<AppState> {
     }
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
+        self.main_container.update(ctx, old_data, data, env);
+
         if data.window_type == AppStateValue::START && old_data.window_type == AppStateValue::SINGLE_PLAYER {
             self.main_container = MainWidget::make_start_menu();
             ctx.children_changed();
@@ -788,28 +791,42 @@ impl Widget<AppState> for MainWidget<AppState> {
                                     Flex::column()
                                         .with_child(
                                             Flex::row()
-                                                .with_flex_child(Padding::new(20.0, Container::new(Align::centered(Button::new("New Game").on_click(|ctx, data: &mut AppState, _env| {
-                                                    let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
-                                                    let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new("My Selector"));
-                                                    let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
-                                                    let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
-                                                    let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
-                                                    let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
-                                                    let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
-                                                    let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
-                                                    let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), data.mouse_location_in_canvas.clone());
-                                                    ctx.show_context_menu(new_game_context_menu);
-                                                    println!("new game buttton pressed!!");
+                                                .with_flex_child(Padding::new(20.0, 
+                                                    Container::new(Align::centered(
+                                                        Button::new("New Game").on_click(|ctx, data: &mut AppState, _env| {
+                                                            let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
+                                                            let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new(""));
+                                                            let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
+                                                            let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
+                                                            let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
+                                                            let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
+                                                            let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
+                                                            let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
+                                                            let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), data.mouse_location_in_canvas.clone());
+                                                            ctx.show_context_menu(new_game_context_menu);
+                                                    // println!("new game buttton pressed!!");
                                                 })))),1.0)
-                                                .with_flex_child(Container::new(Align::centered(Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
-                                                    data.window_type = AppStateValue::START;
-                                                    data.board.clear();
-                                                    data.pieces.clear();
-                                                    data.player_piece_colors.clear();
-                                                    data.in_game = false;
-                                                    println!("Quit button pressed in single-player mode....");                                    
-                                                }))),1.0)
+                                                .with_flex_child(Container::new(Align::centered(
+                                                    Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
+                                                        data.window_type = AppStateValue::START;
+                                                        data.board.clear();
+                                                        data.pieces.clear();
+                                                        data.player_piece_colors.clear();
+                                                        data.in_game = false;
+                                                        data.whos_turn = None;
+                                                        println!("Quit button pressed in single-player mode....");                                    
+                                                    })
+                                                )),1.0)
                                         )
+                                        .with_child(Flex::row().with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
+                                            //if !data.in_game {
+                                                // return format!("");
+                                            //} else { // a game is in progress
+                                                println!("Here");
+                                                if data.whos_turn.is_none() { return format!(""); }
+                                                return format!("Player {} to move", data.whos_turn.unwrap() + 1);
+                                            //}
+                                        })))
                                         .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None})));
             ctx.children_changed();
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
@@ -817,6 +834,7 @@ impl Widget<AppState> for MainWidget<AppState> {
             ctx.children_changed();
         }
     }
+
 }
 
 // Create the main (root) Widget 
