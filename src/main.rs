@@ -307,9 +307,76 @@ impl Hextile {
         return -z * inner.sqrt() / 2.0;
     }
 
-    // fn assign_piece(&mut self, p: Piece) {
-    //     *Arc::make_mut(&mut self.piece) = Some(p);
-    // }
+    fn get_tl(&self, data: &AppState) -> Option<usize> {
+        for i in 0..data.board.len() {
+            let spot = data.board[i];
+            if spot.x_hex == self.x_hex && spot.y_hex == self.y_hex + 1 && spot.z_hex == self.z_hex -1 {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+
+    fn get_tr<'a>(&self, data: &AppState) -> Option<usize> {
+        for i in 0..data.board.len() {
+            let spot = data.board[i];
+            if spot.x_hex == self.x_hex + 1 && spot.y_hex == self.y_hex && spot.z_hex == self.z_hex -1 {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+
+    fn get_rt<'a>(&self, data: &AppState) -> Option<usize> {
+        for i in 0..data.board.len() {
+            let spot = data.board[i];
+            if spot.x_hex == self.x_hex + 1&& spot.y_hex == self.y_hex - 1 && spot.z_hex == self.z_hex {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+
+    fn get_lf<'a>(&self, data: &AppState) -> Option<usize> {
+        for i in 0..data.board.len() {
+            let spot = data.board[i];
+            if spot.x_hex == self.x_hex - 1 && spot.y_hex == self.y_hex + 1 && spot.z_hex == self.z_hex {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+
+    fn get_bl<'a>(&self, data: &AppState) -> Option<usize> {
+        for i in 0..data.board.len() {
+            let spot = data.board[i];
+            if spot.x_hex == self.x_hex - 1 && spot.y_hex == self.y_hex && spot.z_hex == self.z_hex + 1 {
+                return Some(i);
+            }
+        }
+        return None;
+    }       
+
+    fn get_br<'a>(&self, data: &AppState) -> Option<usize> {
+        for i in 0..data.board.len() {
+            let spot = data.board[i];
+            if spot.x_hex == self.x_hex && spot.y_hex == self.y_hex - 1 && spot.z_hex == self.z_hex + 1 {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+
+    fn same_hex_coords(&self, tile: Hextile) -> bool {
+        return self.x_hex == tile.x_hex && self.y_hex == tile.y_hex && self.z_hex == tile.z_hex;
+    }
+
+}
+
+impl Piece {
+    fn same_hex_coords(&self, tile: Hextile) -> bool {
+        return self.x_hex == tile.x_hex && self.y_hex == tile.y_hex && self.z_hex == tile.z_hex;
+    }
 }
 
 // Stores which window we're in and the entire state of the game 
@@ -330,7 +397,8 @@ struct MainWidget<T: Data> {
 
 struct CanvasWidget {
     piece_is_being_dragged : bool,
-    piece_being_dragged : Option<Hextile>
+    piece_being_dragged : Option<Piece>,
+    hextile_over_which_mouse_event_happened : Option<Hextile> // always set to the hextile of the latest mouse event, if it happened within a hextile
 }
 
 fn cartesian_x_to_canvas_x(x: f64) -> f64 {
@@ -342,21 +410,159 @@ fn cartesian_y_to_canvas_y(y: f64) -> f64 {
 }
 
 impl CanvasWidget {
-    // Returns true iff the Point on the Canvas where the user clicked is inside of a piece
-    fn is_within_a_hextile(&mut self, data: &AppState, mouse_click_canvas_coords: Point) -> bool {
-        println!("calling is_within_a_hextile!");
-
-        // On the screen each hextile is contained in a 20px x 20px rectangle, so the radius is 10px
+    // Returns true iff the Point on the Canvas where a mouse event was triggered inside of a Hextile
+    // On the screen each hextile is contained in a 20px x 20px rectangle, so the radius 
+    // on the canvas of the circles for the hextiles is 10px
+    fn is_within_a_hextile(&mut self, data: &AppState, mouse_event_canvas_coords: Point) -> bool {
         for hextile in data.board.iter() {
-            if ((cartesian_x_to_canvas_x(hextile.cartesian_x()) - mouse_click_canvas_coords.x).powi(2) + (cartesian_y_to_canvas_y(hextile.cartesian_y()) - mouse_click_canvas_coords.y).powi(2)).sqrt() < 10.0 {
-                self.piece_being_dragged = Some(*hextile);
-                println!("success!");
+            if ((cartesian_x_to_canvas_x(hextile.cartesian_x()) - mouse_event_canvas_coords.x).powi(2) + (cartesian_y_to_canvas_y(hextile.cartesian_y()) - mouse_event_canvas_coords.y).powi(2)).sqrt() < 10.0 {
+
+                self.hextile_over_which_mouse_event_happened = Some(*hextile);
+
                 return true;
             }
         }
         return false;
     }
-    
+}
+ 
+// Is 'dest' a tile that can be moved to a single move, and can we move from 'piece' to 'dest' in a single move
+fn check_step(start: Hextile, dest: Hextile, data: &AppState) -> bool {
+    let mut tmp_var_tl : Option<usize> = None;
+    tmp_var_tl = start.get_tl(data);
+    if tmp_var_tl.is_some() && data.board[tmp_var_tl.unwrap()].same_hex_coords(dest) {
+        return true
+    }
+
+    let mut tmp_var_tr : Option<usize> = None;
+    tmp_var_tr = start.get_tr(data);
+    if tmp_var_tr.is_some() && data.board[tmp_var_tr.unwrap()].same_hex_coords(dest) {
+            return true 
+    }
+
+    let mut tmp_var_lf : Option<usize> = None;
+    tmp_var_lf = start.get_lf(data);
+    if tmp_var_lf.is_some() && data.board[tmp_var_lf.unwrap()].same_hex_coords(dest) {
+        return true
+    }
+
+    let mut tmp_var_rt : Option<usize> = None;
+    tmp_var_rt = start.get_rt(data);
+    if tmp_var_rt.is_some() && data.board[tmp_var_rt.unwrap()].same_hex_coords(dest) {
+            return true 
+    }
+
+    let mut tmp_var_bl : Option<usize> = None;
+    tmp_var_bl = start.get_bl(data);
+    if tmp_var_bl.is_some() && data.board[tmp_var_bl.unwrap()].same_hex_coords(dest) {
+        return true 
+    }
+
+    let mut tmp_var_br : Option<usize> = None;
+    tmp_var_br = start.get_br(data);
+    if tmp_var_br.is_some() && data.board[tmp_var_br.unwrap()].same_hex_coords(dest) {
+        return true 
+    }
+
+    return false;
+}
+
+// Dir::top_left -> get_tl()
+// Dir::top_right -> get_tr()
+// Dir::left -> get_lf()
+// ....... 
+// fn get_method_handle_for_direction(dir: Direction) -> i32 {
+//     return 0;
+// }
+
+fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
+    let mut tmp_var_tl = start.get_tl(data);
+    if tmp_var_tl.is_some() && data.board[tmp_var_tl.unwrap()].piece_idx.is_some() {
+        tmp_var_tl = data.board[tmp_var_tl.unwrap()].get_tl(data);
+        if tmp_var_tl.is_some() && data.board[tmp_var_tl.unwrap()].same_hex_coords(dest) {
+            // println!("hop through tl");
+            return true;
+        }
+    }
+    let mut tmp_var_tr = start.get_tr(data);
+    if tmp_var_tr.is_some() && data.board[tmp_var_tr.unwrap()].piece_idx.is_some() {
+        tmp_var_tr = data.board[tmp_var_tr.unwrap()].get_tr(data);
+        if tmp_var_tr.is_some() && data.board[tmp_var_tr.unwrap()].same_hex_coords(dest) {
+            // println!("hop through tr");
+            return true; 
+        }
+    }
+    let mut tmp_var_lf = start.get_lf(data);
+    if tmp_var_lf.is_some() && data.board[tmp_var_lf.unwrap()].piece_idx.is_some() {
+        tmp_var_lf = data.board[tmp_var_lf.unwrap()].get_lf(data);
+        if tmp_var_lf.is_some() && data.board[tmp_var_lf.unwrap()].same_hex_coords(dest) {
+            // println!("hop through lf");
+            return true;
+        }
+    }
+    let mut tmp_var_br = start.get_br(data);
+    if tmp_var_br.is_some() && data.board[tmp_var_br.unwrap()].piece_idx.is_some() {
+        tmp_var_br = data.board[tmp_var_br.unwrap()].get_br(data);
+        if tmp_var_br.is_some() && data.board[tmp_var_br.unwrap()].same_hex_coords(dest) {
+            // println!("hop through br");
+            return true;
+        }
+    }
+    let mut tmp_var_bl = start.get_bl(data);
+    if tmp_var_bl.is_some() && data.board[tmp_var_bl.unwrap()].piece_idx.is_some() {
+        tmp_var_bl = data.board[tmp_var_bl.unwrap()].get_bl(data);
+        if tmp_var_bl.is_some() && data.board[tmp_var_bl.unwrap()].same_hex_coords(dest) {
+            // println!("hop through bl");
+            return true;
+        }
+    }
+    let mut tmp_var_rt = start.get_rt(data);
+    if tmp_var_rt.is_some() && data.board[tmp_var_rt.unwrap()].piece_idx.is_some() {
+        tmp_var_rt = data.board[tmp_var_rt.unwrap()].get_rt(data);
+        if tmp_var_rt.is_some() && data.board[tmp_var_rt.unwrap()].same_hex_coords(dest) {
+            // println!("hop through rt");
+            return true;
+        }
+    }
+    return false;
+}
+
+fn is_within_region(x: i32, y: i32, z: i32, region: BoardRegionBoundaryHexCoords) -> bool {
+    return x + y + z == 0 &&
+        region.x_min <= x && x <= region.x_max &&
+        region.y_min <= y && y <= region.y_max &&
+        region.z_min <= z && z <= region.z_max
+}
+
+fn is_within_board(x: i32, y: i32, z: i32) -> bool {
+    return x + y + z == 0 && (is_within_region(x,y,z,BOTTOM_LEFT_TRIANGLE_BOUNDARY_COORDS) ||
+    is_within_region(x, y, z, BOTTOM_RIGHT_TRIANGLE_BOUNDARY_COORDS) ||
+    is_within_region(x, y, z, TOP_LEFT_TRIANGLE_BOUNDARY_COORDS) ||
+    is_within_region(x, y, z, TOP_RIGHT_TRIANGLE_BOUNDARY_COORDS) || 
+    is_within_region(x, y, z, BOTTOM_TRIANGLE_BOUNDARY_COORDS) ||
+    is_within_region(x, y, z, TOP_TRIANGLE_BOUNDARY_COORDS) ||
+    is_within_region(x, y, z, CENTER_REGION_BOUNDARY_COORDS))
+}
+
+fn get_adjacent(x: i32, y: i32, z: i32) -> Vec<[i32; 3]> {
+    let mut neighbors: Vec<[i32; 3]> = Vec::new();
+    neighbors.push([x, y+1, z-1]); // top left
+    neighbors.push([x+1, y, z-1]); // top right
+    neighbors.push([x, y-1, z+1]); // bottom right
+    neighbors.push([x-1, y+1, z]); // left
+    neighbors.push([x+1, y-1, z]); // right
+    neighbors.push([x-1, y, z+1]); // bottom left
+
+    let mut i : usize = neighbors.len();
+    while i >= 0 {
+        let pos : [i32; 3] = neighbors[i];
+        if !is_within_board(pos[0], pos[1], pos[2]) {
+            neighbors.remove(i);
+        }
+        i = i - 1;
+    }
+
+    return neighbors;
 }
 
 impl Widget<AppState> for CanvasWidget {
@@ -364,16 +570,66 @@ impl Widget<AppState> for CanvasWidget {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
         match event {
             Event::MouseDown(mouse_event) => {
+                println!("in event::MouseDown...");
                 if self.is_within_a_hextile(data, mouse_event.pos) {
-                    self.piece_is_being_dragged = true;  
+                    if self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.is_some() {
+                        if data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()].player_num == data.whos_turn.unwrap() {
+                            self.piece_being_dragged = Some(data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()]);
+                            self.piece_is_being_dragged = true;  
+                        } else {
+                            self.piece_is_being_dragged = false;
+                            self.piece_being_dragged = None;
+                        }
+                    } else {
+                        self.piece_is_being_dragged = false;
+                        self.piece_being_dragged = None;                            
+                    }
                 } else {
+                    self.hextile_over_which_mouse_event_happened = None;
                     self.piece_is_being_dragged = false;
                     self.piece_being_dragged = None;
                 }
             },
-            Event::MouseUp(_mouse_event) => {
+            Event::MouseUp(mouse_event) => {
+                if self.piece_is_being_dragged && self.is_within_a_hextile(data, mouse_event.pos) {
+                    let starting_square : Hextile;
+                    let target_square : Hextile;
+                    
+                    starting_square = data.board[self.piece_being_dragged.unwrap().hextile_idx]; 
+                    target_square = self.hextile_over_which_mouse_event_happened.unwrap();
 
+                    if target_square.piece_idx.is_some() {
 
+                        println!("Error: Square already occupied: please move to an occupied square instead");
+
+                    } else if check_step(starting_square, target_square, data) || check_hop(starting_square, target_square, data) {
+                        
+                        let making_hop_move : bool = check_hop(starting_square, target_square, data);
+
+                        println!("making hop move : {} ", making_hop_move);
+
+                        let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
+                        let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
+                        let piece_idx : usize = data.pieces.iter().position(|&piece| piece.same_hex_coords(starting_square)).unwrap();
+
+                        let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
+
+                        data.board[starting_square_idx].piece_idx = None;
+                        data.board[target_square_idx].piece_idx = Some(piece_idx);
+
+                        data.pieces[piece_idx].x_hex = target_square.x_hex;
+                        data.pieces[piece_idx].y_hex = target_square.y_hex;
+                        data.pieces[piece_idx].z_hex = target_square.z_hex;
+
+                        data.pieces[piece_idx].hextile_idx = dest_square_idx;
+
+                        if ! making_hop_move {
+                            data.whos_turn = Some((data.whos_turn.unwrap() + 1usize) % data.player_piece_colors.len())
+                        }
+
+                    } 
+                
+                } 
 
                 self.piece_is_being_dragged = false;
                 self.piece_being_dragged = None;
@@ -774,7 +1030,8 @@ impl Widget<AppState> for MainWidget<AppState> {
 
                         data.in_game = true;
 
-                        data.whos_turn = Some(0);
+                        // data.whos_turn = Some(0);
+                        data.whos_turn = Some(4);
 
                         ctx.request_paint();
                     }
@@ -844,7 +1101,7 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                 }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
                                             )
                                         )
-                                        .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None})));
+                                        .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None})));
             ctx.children_changed();
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
             self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
