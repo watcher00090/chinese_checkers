@@ -25,6 +25,8 @@ lazy_static! {
     static ref start_game_selector : Selector<u32> = Selector::new("START_GAME");
     static ref piece_size_bounds : Size = Size::new(20.0, 20.0);
     static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
+    static ref SQUARE_COLOR : Color = Color::rgb8(96,54,15);
+    static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8(189, 143, 64);
 }
 
 static BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS : f64 = 20f64;
@@ -39,6 +41,8 @@ static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 10.0;
 
 static BOARD_WIDTH : f64 = 500.0;
 static BOARD_HEIGHT : f64 = 500.0;
+
+static ABSTRACT_INNER_CIRCLE_OFFSET : f64 = SQRT_3 / 2.0;
 
 static CANVAS_WIDTH : f64 = 600.0;
 static CANVAS_HEIGHT: f64 = BOARD_WIDTH + (2f64)*BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS;
@@ -439,6 +443,13 @@ impl Widget<AppState> for CanvasWidget {
         // draw light brown outer circle of board
         ctx.fill(Circle::new(Point::new(CANVAS_WIDTH / 2.0, CANVAS_HEIGHT / 2.0), BOARD_WIDTH / 2f64), &Color::rgb8(BOARD_CIRCLE_COLOR_r,BOARD_CIRCLE_COLOR_g,BOARD_CIRCLE_COLOR_b));
 
+        // draw an intermediate circle between the outer circle and the pieces
+        ctx.stroke(Rect::from_center_size(Point::new(CANVAS_WIDTH/2.0, CANVAS_HEIGHT/2.0)
+            , Size::new(cartesian_x_to_canvas_x(ABSTRACT_BOARD_WIDTH / 2.0 - ABSTRACT_INNER_CIRCLE_OFFSET) - cartesian_x_to_canvas_x(-ABSTRACT_BOARD_WIDTH / 2.0 + ABSTRACT_INNER_CIRCLE_OFFSET),
+                        cartesian_y_to_canvas_y(-ABSTRACT_BOARD_HEIGHT / 2.0 + ABSTRACT_INNER_CIRCLE_OFFSET) - cartesian_y_to_canvas_y(ABSTRACT_BOARD_HEIGHT / 2.0 - ABSTRACT_INNER_CIRCLE_OFFSET)),
+            ).to_ellipse(), &*INTERMEDIATE_CIRCLE_COLOR, 2.0
+        );
+
         // loop through the board, draw each hextile
         // let size_bounds = Size::new(20.0,20.0);
         // let edge_bounds = Size::new(22.0,22.0);
@@ -459,7 +470,7 @@ impl Widget<AppState> for CanvasWidget {
             //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
             // draw the square beneath the piece
-            ctx.fill(Rect::from_center_size(Point::new(cartesian_x_to_canvas_x(hextile.cartesian_x()), cartesian_y_to_canvas_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15));
+            ctx.fill(Rect::from_center_size(Point::new(cartesian_x_to_canvas_x(hextile.cartesian_x()), cartesian_y_to_canvas_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &*SQUARE_COLOR);
         }
 
         for piece in data.pieces.iter() {
