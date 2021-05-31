@@ -25,8 +25,10 @@ lazy_static! {
     static ref start_game_selector : Selector<u32> = Selector::new("START_GAME");
     static ref piece_size_bounds : Size = Size::new(20.0, 20.0);
     static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
-    static ref SQUARE_COLOR : Color = Color::rgb8(96,54,15);
-    static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8(189, 143, 64);
+    // static ref SQUARE_COLOR : Color = Color::rgb8(96,54,15);
+    //static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8(189, 143, 64);
+    static ref SQUARE_COLOR : Color = Color::rgb8( 200, 144, 103 );    
+    static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8( 200, 144, 103 );   
 }
 
 static BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS : f64 = 20f64;
@@ -363,13 +365,16 @@ impl Widget<AppState> for CanvasWidget {
         match event {
             Event::MouseDown(mouse_event) => {
                 if self.is_within_a_hextile(data, mouse_event.pos) {
-                    self.piece_is_being_dragged = true; 
+                    self.piece_is_being_dragged = true;  
                 } else {
                     self.piece_is_being_dragged = false;
                     self.piece_being_dragged = None;
                 }
             },
             Event::MouseUp(_mouse_event) => {
+
+
+
                 self.piece_is_being_dragged = false;
                 self.piece_being_dragged = None;
             }
