@@ -6,14 +6,18 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash,Hasher};
 use druid::widget::prelude::*;
 use std::sync::{Arc, Mutex, MutexGuard};
-use druid::kurbo::BezPath;
-use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
+use druid::kurbo::{Circle, Shape, BezPath};
+use druid::piet::{FontFamily, FontWeight, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
 use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 use druid::im;
 use druid::im::vector;
 
 #[macro_use]
 extern crate lazy_static;
+
+lazy_static! {
+    static ref WHOS_TURN_FONT : FontDescriptor = FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0);
+}
 
 lazy_static! {
     // Global mutable variable storing the WidgetId of the root widget. 
@@ -23,22 +27,25 @@ lazy_static! {
     static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
 }
 
+static BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS : f64 = 20f64;
+
 // the number of squares on the board
 const N_SQUARES : usize = 121;
 const MAX_NUM_PIECES : usize = 60;
 
+static SQRT_3: f64 = 1.732050808;
+static ABSTRACT_BOARD_WIDTH: f64 = SQRT_3 * 10.0; 
+static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 10.0;
+
+static BOARD_WIDTH : f64 = 500.0;
+static BOARD_HEIGHT : f64 = 500.0;
+
 static CANVAS_WIDTH : f64 = 600.0;
-static CANVAS_HEIGHT: f64 = 600.0;
+static CANVAS_HEIGHT: f64 = BOARD_WIDTH + (2f64)*BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS;
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
 //static ABSTRACT_BOARD_HEIGHT: f64 = 15.0; // vertical length from size to size of the board, with the origin right in the middle
 
-static SQRT_3: f64 = 1.732050808;
-static ABSTRACT_BOARD_WIDTH: f64 = SQRT_3 * 8.0; 
-static ABSTRACT_BOARD_HEIGHT: f64 = SQRT_3 * 8.0;
-
-static BOARD_WIDTH : f64= 400.0;
-static BOARD_HEIGHT : f64 = 400.0;
 
 // static START_NEW_GAME_2_PLAYERS_ID : u32 = 1000;
 // static START_NEW_GAME_3_PLAYERS_ID : u32 = 1001;
@@ -320,22 +327,22 @@ struct CanvasWidget {
     piece_being_dragged : Option<Hextile>
 }
 
-impl CanvasWidget {
-    fn cartesian_x_to_screen_x(x: f64) -> f64 {
-        return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
-    }
-    
-    fn cartesian_y_to_screen_y(y: f64) -> f64 {
-        return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
-    }
+fn cartesian_x_to_canvas_x(x: f64) -> f64 {
+    return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
+}
 
+fn cartesian_y_to_canvas_y(y: f64) -> f64 {
+    return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS;
+}
+
+impl CanvasWidget {
     // Returns true iff the Point on the Canvas where the user clicked is inside of a piece
-    fn is_within_a_hextile(&mut self, data: &AppState, p: Point) -> bool {
+    fn is_within_a_hextile(&mut self, data: &AppState, mouse_click_canvas_coords: Point) -> bool {
         println!("calling is_within_a_hextile!");
 
         // On the screen each hextile is contained in a 20px x 20px rectangle, so the radius is 10px
         for hextile in data.board.iter() {
-            if ((CanvasWidget::cartesian_x_to_screen_x(hextile.cartesian_x()) - p.x).powi(2) + (CanvasWidget::cartesian_y_to_screen_y(hextile.cartesian_y()) - p.y).powi(2)).sqrt() < 10.0 {
+            if ((cartesian_x_to_canvas_x(hextile.cartesian_x()) - mouse_click_canvas_coords.x).powi(2) + (cartesian_y_to_canvas_y(hextile.cartesian_y()) - mouse_click_canvas_coords.y).powi(2)).sqrt() < 10.0 {
                 self.piece_being_dragged = Some(*hextile);
                 println!("success!");
                 return true;
@@ -417,14 +424,20 @@ impl Widget<AppState> for CanvasWidget {
         // (ctx.size() returns the size of the layout rect we're painting in)
         // Note: ctx also has a `clear` method, but that clears the whole context,
         // and we only want to clear this widget's area.
-        let size = ctx.size();
-        let rect = size.to_rect();
+        // let size = ctx.size();
+        let rect = Rect::from_center_size(Point::new(CANVAS_WIDTH / 2.0, CANVAS_HEIGHT / 2.0), Size::new(BOARD_WIDTH, BOARD_HEIGHT));
         //ctx.fill(rect, &Color::WHITE);
 
-        //ctx.fill(size.to_rect().to_ellipse(), &Color::rgb8(255,248,220));
+        let ctx_bounding_rect = ctx.size().to_rect();
+
+        // draw a bounding box around the canvas
+        //ctx.stroke(ctx_bounding_rect, &Color::rgba(1.0, 1.0, 1.0, 1.0), 5.0);
+
+        // draw a bounding box around the edges of the board rect
+        //ctx.stroke(Rect::from_center_size(Point::new(CANVAS_WIDTH/2.0, CANVAS_HEIGHT/2.0), Size::new(BOARD_WIDTH, BOARD_HEIGHT)), &Color::rgba(1.0, 1.0, 1.0, 1.0), 5.0);
 
         // draw light brown outer circle of board
-        ctx.fill(Rect::from_center_size(rect.center(), Size::new(rect.width() * 3.0 / 4.0, rect.height() * 3.0 / 4.0)).to_ellipse(), &Color::rgb8(BOARD_CIRCLE_COLOR_r,BOARD_CIRCLE_COLOR_g,BOARD_CIRCLE_COLOR_b));
+        ctx.fill(Circle::new(Point::new(CANVAS_WIDTH / 2.0, CANVAS_HEIGHT / 2.0), BOARD_WIDTH / 2f64), &Color::rgb8(BOARD_CIRCLE_COLOR_r,BOARD_CIRCLE_COLOR_g,BOARD_CIRCLE_COLOR_b));
 
         // loop through the board, draw each hextile
         // let size_bounds = Size::new(20.0,20.0);
@@ -432,16 +445,6 @@ impl Widget<AppState> for CanvasWidget {
 
         //ctx.paint_with_z_index(1, move |ctx| {
         
-        let screen_x = |x: f64| -> f64 {
-            //return (x / ABSTRACT_BOARD_WIDTH + 1.0/2.0) * BOARD_WIDTH;
-            return (BOARD_WIDTH / 2.0) + (x / (ABSTRACT_BOARD_WIDTH / 2.0)) * (BOARD_WIDTH / 2.0) + (CANVAS_WIDTH - BOARD_WIDTH) / 2.0;
-        };
-        
-        let screen_y = |y: f64| -> f64 {
-            //return (-1.0) * (y / ABSTRACT_BOARD_HEIGHT - 1.0/2.0) * BOARD_HEIGHT;
-            return (BOARD_HEIGHT / 2.0) + (-(y / (ABSTRACT_BOARD_HEIGHT / 2.0))) * (BOARD_HEIGHT / 2.0) + (CANVAS_HEIGHT - BOARD_HEIGHT) / 2.0;
-        };    
-
         //println!("Size of board Vec = {}", board.len());
 
         let mut x_hex_saved : i32 = 0;
@@ -456,7 +459,7 @@ impl Widget<AppState> for CanvasWidget {
             //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
             // draw the square beneath the piece
-            ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15));
+            ctx.fill(Rect::from_center_size(Point::new(cartesian_x_to_canvas_x(hextile.cartesian_x()), cartesian_y_to_canvas_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &Color::rgb8(96,54,15));
         }
 
         for piece in data.pieces.iter() {
@@ -476,7 +479,7 @@ impl Widget<AppState> for CanvasWidget {
             } else {
                 // draw the piece in its resting state spot
                 // println!("from inside paint(): piece.hextile_idx = {0}, data.board.len() = {1}", piece.hextile_idx, data.board.len());
-                ctx.fill(Rect::from_center_size(Point::new(screen_x(data.board[piece.hextile_idx].cartesian_x()), screen_y(data.board[piece.hextile_idx].cartesian_y())), *piece_size_bounds).to_ellipse(), data.player_piece_colors[piece.player_num].to_druid_color());
+                ctx.fill(Rect::from_center_size(Point::new(cartesian_x_to_canvas_x(data.board[piece.hextile_idx].cartesian_x()), cartesian_y_to_canvas_y(data.board[piece.hextile_idx].cartesian_y())), *piece_size_bounds).to_ellipse(), data.player_piece_colors[piece.player_num].to_druid_color());
             }
         }
 
@@ -818,15 +821,13 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                     })
                                                 )),1.0)
                                         )
-                                        .with_child(Flex::row().with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
-                                            //if !data.in_game {
-                                                // return format!("");
-                                            //} else { // a game is in progress
-                                                println!("Here");
-                                                if data.whos_turn.is_none() { return format!(""); }
-                                                return format!("Player {} to move", data.whos_turn.unwrap() + 1);
-                                            //}
-                                        })))
+                                        .with_child(Flex::row()
+                                            .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
+                                                    if data.whos_turn.is_none() { return format!(""); }
+                                                    return format!("Player {} to move", data.whos_turn.unwrap() + 1);
+                                                }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
+                                            )
+                                        )
                                         .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None})));
             ctx.children_changed();
         } else if data.window_type == AppStateValue::MULTI_PLAYER {
