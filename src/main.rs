@@ -16,13 +16,13 @@ use druid::im::vector;
 extern crate lazy_static;
 
 lazy_static! {
-    static ref WHOS_TURN_FONT : FontDescriptor = FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0);
+    static ref whose_turn_FONT : FontDescriptor = FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0);
 }
 
 lazy_static! {
     // Global mutable variable storing the WidgetId of the root widget. 
     static ref root_widget_id_guard : Mutex::<WidgetId> = Mutex::<WidgetId>::new(WidgetId::next());  // global variable always storing the widget id of the root widget
-    static ref start_game_selector : Selector<u32> = Selector::new("START_GAME");
+    static ref start_game_selector : Selector<usize> = Selector::new("START_GAME");
     static ref piece_size_bounds : Size = Size::new(20.0, 20.0);
     static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
     // static ref SQUARE_COLOR : Color = Color::rgb8(96,54,15);
@@ -388,7 +388,9 @@ struct AppState {
     in_game : bool,
     mouse_location_in_canvas : Point,
     player_piece_colors : im::Vector<PieceColor>, // player_piece_colors[i] = piece color of player i,
-    whos_turn : Option<usize>,
+    whose_turn : Option<usize>,
+    last_hopper : Option<Piece>,
+    num_players : Option<usize>,
 }
 
 struct MainWidget<T: Data> {
@@ -573,7 +575,7 @@ impl Widget<AppState> for CanvasWidget {
                 println!("in event::MouseDown...");
                 if self.is_within_a_hextile(data, mouse_event.pos) {
                     if self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.is_some() {
-                        if data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()].player_num == data.whos_turn.unwrap() {
+                        if data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()].player_num == data.whose_turn.unwrap() {
                             self.piece_being_dragged = Some(data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()]);
                             self.piece_is_being_dragged = true;  
                         } else {
@@ -624,7 +626,7 @@ impl Widget<AppState> for CanvasWidget {
                         data.pieces[piece_idx].hextile_idx = dest_square_idx;
 
                         if ! making_hop_move {
-                            data.whos_turn = Some((data.whos_turn.unwrap() + 1usize) % data.player_piece_colors.len())
+                            data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len())
                         }
 
                     } 
@@ -943,7 +945,7 @@ fn hextile_idx_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board: &im::Ve
     return None;
 }
 
-fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: u32) {
+fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: usize) {
 
     println!("From inside initialize_pieces_for_board(): size of board Vec = {x}", x = board.len());
 
@@ -1010,14 +1012,15 @@ impl Widget<AppState> for MainWidget<AppState> {
 
         match event {
             Event::Command(command) => {
-                if command.is::<u32>(*start_game_selector) {
-                    let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
-                    println!("Received a start game command for {} players", num_players);
-                    if num_players == 6 {
+                if command.is::<usize>(*start_game_selector) {
+                    data.num_players = Some(*command.get_unchecked::<usize>(*start_game_selector));
+                    //let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
+                    println!("Received a start game command for {} players", data.num_players.unwrap());
+                    if data.num_players.unwrap() == 6 {
                         data.board = create_board();
                         data.pieces.clear();
 
-                        initialize_pieces_for_board(&mut data.board, &mut data.pieces , num_players);
+                        initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap());
 
                         data.player_piece_colors = vector![
                             PieceColor::RED, 
@@ -1030,8 +1033,8 @@ impl Widget<AppState> for MainWidget<AppState> {
 
                         data.in_game = true;
 
-                        // data.whos_turn = Some(0);
-                        data.whos_turn = Some(4);
+                        // data.whose_turn = Some(0);
+                        data.whose_turn = Some(4);
 
                         ctx.request_paint();
                     }
@@ -1076,9 +1079,8 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                             let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
                                                             let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
                                                             let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
-                                                            let item5 = MenuItem::<AppState>::new(LocalizedString::new("5"), Command::new(*start_game_selector, 5, Target::Widget(*widget_id_holder)));
                                                             let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
-                                                            let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item5).append(item6), data.mouse_location_in_canvas.clone());
+                                                            let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item6), data.mouse_location_in_canvas.clone());
                                                             ctx.show_context_menu(new_game_context_menu);
                                                     // println!("new game buttton pressed!!");
                                                 })))),1.0)
@@ -1089,16 +1091,24 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                         data.pieces.clear();
                                                         data.player_piece_colors.clear();
                                                         data.in_game = false;
-                                                        data.whos_turn = None;
+                                                        data.whose_turn = None;
+                                                        data.last_hopper = None;
+                                                        data.num_players = None;
                                                         println!("Quit button pressed in single-player mode....");                                    
                                                     })
                                                 )),1.0)
                                         )
                                         .with_child(Flex::row()
                                             .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
-                                                    if data.whos_turn.is_none() { return format!(""); }
-                                                    return format!("Player {} to move", data.whos_turn.unwrap() + 1);
+                                                    if data.whose_turn.is_none() { return format!(""); }
+                                                    return format!("Player {} to move", data.whose_turn.unwrap() + 1);
                                                 }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
+                                            )
+                                        )
+                                        .with_child(Flex::row()
+                                            .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
+                                                    data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
+                                                })
                                             )
                                         )
                                         .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None})));
@@ -1298,7 +1308,9 @@ fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
     //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
-    let initial_state = AppState {whos_turn : None, window_type : AppStateValue::START, board: im::Vector::new(), in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], player_piece_colors: im::Vector::new()};
+    let initial_state = AppState {whose_turn : None, window_type : AppStateValue::START, board: im::Vector::new(), 
+        in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
+        player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None};
 
     //let command_handler = ApplicationCommandHandler::new();
 
