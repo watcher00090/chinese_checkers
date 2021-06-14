@@ -11,6 +11,7 @@ use druid::piet::{FontFamily, FontWeight, ImageFormat, InterpolationMode, Text, 
 use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 use druid::im;
 use druid::im::vector;
+use std::convert::TryInto;
 
 #[macro_use]
 extern crate lazy_static;
@@ -186,7 +187,7 @@ enum AppStateValue {
     MULTI_PLAYER,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Data, PartialEq)]
 enum StartingRegion {
     TOP,
     TOP_LEFT,
@@ -194,6 +195,35 @@ enum StartingRegion {
     BOTTOM_LEFT,
     BOTTOM_RIGHT,
     BOTTOM,
+}
+
+impl StartingRegion {
+    // returns the opposite region to the given region
+    fn opposite(&self) -> StartingRegion {
+        match self {
+            StartingRegion::TOP => {
+                StartingRegion::BOTTOM
+            }, 
+            StartingRegion::BOTTOM => {
+                StartingRegion::TOP
+            },
+            StartingRegion::TOP_LEFT => {
+                StartingRegion::BOTTOM_RIGHT
+            },
+            StartingRegion::TOP_RIGHT => {
+                StartingRegion::BOTTOM_LEFT
+            }, 
+            StartingRegion::BOTTOM_LEFT => {
+                StartingRegion::TOP_RIGHT
+            }, 
+            StartingRegion::BOTTOM_RIGHT => {
+                StartingRegion::TOP_LEFT
+            }
+            _ => {
+                panic!("ERROR: opposite() method of StartingRegion: unrecognized input argument, exiting...");
+            }
+        }
+    }
 }
 
 
@@ -391,6 +421,7 @@ struct AppState {
     whose_turn : Option<usize>,
     last_hopper : Option<Piece>,
     num_players : Option<usize>,
+    regions_to_players : im::Vector<StartingRegion> // regions_to_players[i] = the starting region of player i
 }
 
 struct MainWidget<T: Data> {
@@ -966,21 +997,13 @@ fn hextile_idx_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board: &im::Ve
     return None;
 }
 
-fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: usize) {
+fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: usize, regions_to_players_slice: &[StartingRegion]) {
 
     println!("From inside initialize_pieces_for_board(): size of board Vec = {x}", x = board.len());
 
     if num_players == 6 {
 
-        let regions_to_players : [StartingRegion; 6] = [
-            // turns proceed clockwise
-            StartingRegion::TOP,
-            StartingRegion::TOP_RIGHT,
-            StartingRegion::BOTTOM_RIGHT,
-            StartingRegion::BOTTOM,
-            StartingRegion::BOTTOM_LEFT,
-            StartingRegion::TOP_LEFT,
-        ];
+        let regions_to_players : [StartingRegion; 6] = regions_to_players_slice.try_into().expect("ERROR: intialize_pieces_for_board(): slice with incorrect length, exiting...");
 
         for i in 0..6 {
             let starting_region : StartingRegion = regions_to_players[i];
@@ -1038,10 +1061,20 @@ impl Widget<AppState> for MainWidget<AppState> {
                     //let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
                     println!("Received a start game command for {} players", data.num_players.unwrap());
                     if data.num_players.unwrap() == 6 {
+
                         data.board = create_board();
+
                         data.pieces.clear();
 
-                        initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap());
+                        let regions_to_players : [StartingRegion; 6] = [
+                            // turns proceed clockwise
+                            StartingRegion::TOP,
+                            StartingRegion::TOP_RIGHT,
+                            StartingRegion::BOTTOM_RIGHT,
+                            StartingRegion::BOTTOM,
+                            StartingRegion::BOTTOM_LEFT,
+                            StartingRegion::TOP_LEFT,
+                        ];                
 
                         data.player_piece_colors = vector![
                             PieceColor::RED, 
@@ -1052,7 +1085,11 @@ impl Widget<AppState> for MainWidget<AppState> {
                             PieceColor::WHITE            
                         ];
 
+                        initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap(), &regions_to_players[..]);
+
                         data.in_game = true;
+
+                        data.regions_to_players = im::vector![regions_to_players[0], regions_to_players[1], regions_to_players[2], regions_to_players[3], regions_to_players[4], regions_to_players[5]];
 
                         // data.whose_turn = Some(0);
                         data.whose_turn = Some(0);
@@ -1329,10 +1366,9 @@ fn create_board() -> im::Vector<Hextile> {
 fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
-    //let initial_state = AppState {window_type : AppStateValue::START, board: Arc::<Vec<Hextile>>::new(create_board()), in_game: false};
     let initial_state = AppState {whose_turn : None, window_type : AppStateValue::START, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
-        player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None};
+        player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new()};
 
     //let command_handler = ApplicationCommandHandler::new();
 
