@@ -604,11 +604,7 @@ impl Widget<AppState> for CanvasWidget {
 
                         println!("Error: Square already occupied: please move to an occupied square instead");
 
-                    } else if check_step(starting_square, target_square, data) || check_hop(starting_square, target_square, data) {
-                        
-                        let making_hop_move : bool = check_hop(starting_square, target_square, data);
-
-                        println!("making hop move : {} ", making_hop_move);
+                    } else if check_step(starting_square, target_square, data) && data.last_hopper.is_none() {
 
                         let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
                         let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
@@ -625,11 +621,36 @@ impl Widget<AppState> for CanvasWidget {
 
                         data.pieces[piece_idx].hextile_idx = dest_square_idx;
 
-                        if ! making_hop_move {
-                            data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len())
-                        }
+                        data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
 
-                    } 
+                        data.last_hopper = None;
+
+                    } else if check_hop(starting_square, target_square, data) {
+                    
+                        println!("making hop move...");
+
+                        let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
+                        let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
+                        let piece_idx : usize = data.pieces.iter().position(|&piece| piece.same_hex_coords(starting_square)).unwrap();
+
+                        let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
+
+                        if data.last_hopper.is_none() || (data.last_hopper.is_some() && data.last_hopper.unwrap().same_hex_coords(starting_square)) {
+
+                            println!("data.last_hopper is none? {is_none}", is_none = data.last_hopper.is_none());
+
+                            data.board[starting_square_idx].piece_idx = None;
+                            data.board[target_square_idx].piece_idx = Some(piece_idx);
+    
+                            data.pieces[piece_idx].x_hex = target_square.x_hex;
+                            data.pieces[piece_idx].y_hex = target_square.y_hex;
+                            data.pieces[piece_idx].z_hex = target_square.z_hex;
+    
+                            data.pieces[piece_idx].hextile_idx = dest_square_idx;
+        
+                            data.last_hopper = Some(data.pieces[piece_idx]);    
+                        }
+                    }
                 
                 } 
 
@@ -1034,7 +1055,7 @@ impl Widget<AppState> for MainWidget<AppState> {
                         data.in_game = true;
 
                         // data.whose_turn = Some(0);
-                        data.whose_turn = Some(4);
+                        data.whose_turn = Some(0);
 
                         ctx.request_paint();
                     }
@@ -1108,6 +1129,7 @@ impl Widget<AppState> for MainWidget<AppState> {
                                         .with_child(Flex::row()
                                             .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
                                                     data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
+                                                    data.last_hopper = None;
                                                 })
                                             )
                                         )
