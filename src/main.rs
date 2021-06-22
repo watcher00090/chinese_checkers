@@ -181,10 +181,14 @@ BoardRegionBoundaryHexCoords {
 };
 
 #[derive(PartialEq, Clone, Data, Copy, Debug)]
-enum AppStateValue {
+enum AppPage {
     START,
-    SINGLE_PLAYER,
-    MULTI_PLAYER,
+    NEW_GAME,
+    JOIN_MULTIPLAYER_GAME,
+    LOCAL_GAME,
+    REMOTE_GAME,
+    CREATE_REMOTE_GAME,
+    SETTINGS,
 }
 
 #[derive(Clone, Copy, Data, PartialEq)]
@@ -280,7 +284,7 @@ impl PieceColor {
 
 #[derive(PartialEq, Clone, Data, Lens, Copy)]
 struct WindowType {
-    window_type : AppStateValue
+    window_type : AppPage
 }
 
 #[derive(PartialEq, Data, Clone, Copy)]
@@ -412,7 +416,7 @@ impl Piece {
 // Stores which window we're in and the entire state of the game 
 #[derive(PartialEq, Clone, Data, Lens)]
 struct AppState {
-    window_type : AppStateValue,
+    window_type : AppPage,
     board : im::Vector<Hextile>,
     pieces: im::Vector<Piece>,
     in_game : bool,
@@ -821,18 +825,19 @@ impl Widget<AppState> for CanvasWidget {
 impl MainWidget<AppState> {
 
     fn make_start_menu() -> Container<AppState> {
+        let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
         let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
         let column_layout = SizedBox::new(Flex::column()
-        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Single-Player").on_click(|ctx, data : &mut AppState, env| {
-            data.window_type = AppStateValue::SINGLE_PLAYER;
+        .with_child(Padding::new(padding_dp, SizedBox::new(Label::new("Chinese Checkers").with_font(font))))
+        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("New Game").on_click(|ctx, data : &mut AppState, env| {
+            data.window_type = AppPage::NEW_GAME;
             println!("Single-player button pressed....");
         })).expand_width()))
-        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Multi-Player").on_click(|ctx, data : &mut AppState, env| {
-            data.window_type = AppStateValue::MULTI_PLAYER;
+        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Join Game").on_click(|ctx, data : &mut AppState, env| {
+            data.window_type = AppPage::JOIN_MULTIPLAYER_GAME;
             println!("Multi-player button pressed....");
         })).expand_width()))
         .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Settings")).expand_width()))
-        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Feedback")).expand_width()))
         .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Quit").on_click(|ctx, data: &mut AppState, env| {
             println!("closing the application....");
             ctx.window().close();
@@ -846,11 +851,11 @@ impl MainWidget<AppState> {
 
         // let column_layout = Flex::column()
         //     .with_child(Padding::new(padding_dp, Button::new("Single-Player").on_click(|ctx, data : &mut AppState, env| {
-        //         data.window_type = AppStateValue::SINGLE_PLAYER;
+        //         data.window_type = AppPage:: LOCAL_GAME;
         //         println!("Single-player button pressed....");
         //     })))
         //     .with_child(Padding::new(padding_dp, Button::new("Multi-Player").on_click(|ctx, data : &mut AppState, env| {
-        //         data.window_type = AppStateValue::MULTI_PLAYER;
+        //         data.window_type = AppPage::JOIN_MULTIPLAYER_GAME;
         //         println!("Multi-player button pressed....");
         //     })))
         //     .with_child(Padding::new(padding_dp, Button::new("Settings")))
@@ -1117,13 +1122,13 @@ impl Widget<AppState> for MainWidget<AppState> {
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
         self.main_container.update(ctx, old_data, data, env);
 
-        if data.window_type == AppStateValue::START && old_data.window_type == AppStateValue::SINGLE_PLAYER {
+        if data.window_type == AppPage::START && old_data.window_type == AppPage:: LOCAL_GAME {
             self.main_container = MainWidget::make_start_menu();
             ctx.children_changed();
         }
-        else if data.window_type == AppStateValue::START {
+        else if data.window_type == AppPage::START {
             self.main_container.update(ctx,old_data,data,env)
-        } else if data.window_type == AppStateValue::SINGLE_PLAYER && old_data.window_type == AppStateValue::START {    
+        } else if data.window_type == AppPage::LOCAL_GAME && old_data.window_type == AppPage::START {    
             self.main_container =  Container::new(
                                     Flex::column()
                                         .with_child(
@@ -1144,7 +1149,7 @@ impl Widget<AppState> for MainWidget<AppState> {
                                                 })))),1.0)
                                                 .with_flex_child(Container::new(Align::centered(
                                                     Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
-                                                        data.window_type = AppStateValue::START;
+                                                        data.window_type = AppPage::START;
                                                         data.board.clear();
                                                         data.pieces.clear();
                                                         data.player_piece_colors.clear();
@@ -1172,8 +1177,8 @@ impl Widget<AppState> for MainWidget<AppState> {
                                         )
                                         .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None})));
             ctx.children_changed();
-        } else if data.window_type == AppStateValue::MULTI_PLAYER {
-            self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("MULTI-PLAYER-MODE-ENTERED"))));
+        } else if data.window_type == AppPage::JOIN_MULTIPLAYER_GAME {
+            self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("Join a remote game"))));
             ctx.children_changed();
         }
     }
@@ -1366,7 +1371,7 @@ fn create_board() -> im::Vector<Hextile> {
 fn main() {
     let main_window = WindowDesc::new(build_root_widget);
 
-    let initial_state = AppState {whose_turn : None, window_type : AppStateValue::START, board: im::Vector::new(), 
+    let initial_state = AppState {whose_turn : None, window_type : AppPage::START, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new()};
 
