@@ -12,6 +12,7 @@ use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 use druid::im;
 use druid::im::vector;
 use std::convert::TryInto;
+use std::any::Any;
 
 #[macro_use]
 extern crate lazy_static;
@@ -184,7 +185,7 @@ BoardRegionBoundaryHexCoords {
 enum AppPage {
     START,
     NEW_GAME,
-    JOIN_MULTIPLAYER_GAME,
+    JOIN_REMOTE_GAME,
     LOCAL_GAME,
     REMOTE_GAME,
     CREATE_REMOTE_GAME,
@@ -465,13 +466,13 @@ impl CanvasWidget {
  
 // Is 'dest' a tile that can be moved to a single move, and can we move from 'piece' to 'dest' in a single move
 fn check_step(start: Hextile, dest: Hextile, data: &AppState) -> bool {
-    let mut tmp_var_tl : Option<usize> = None;
+    let tmp_var_tl; // : Option<usize> = None;
     tmp_var_tl = start.get_tl(data);
     if tmp_var_tl.is_some() && data.board[tmp_var_tl.unwrap()].same_hex_coords(dest) {
         return true
     }
 
-    let mut tmp_var_tr : Option<usize> = None;
+    let tmp_var_tr; // : Option<usize> = None;
     tmp_var_tr = start.get_tr(data);
     if tmp_var_tr.is_some() && data.board[tmp_var_tr.unwrap()].same_hex_coords(dest) {
             return true 
@@ -564,43 +565,43 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     return false;
 }
 
-fn is_within_region(x: i32, y: i32, z: i32, region: BoardRegionBoundaryHexCoords) -> bool {
-    return x + y + z == 0 &&
-        region.x_min <= x && x <= region.x_max &&
-        region.y_min <= y && y <= region.y_max &&
-        region.z_min <= z && z <= region.z_max
-}
+// fn is_within_region(x: i32, y: i32, z: i32, region: BoardRegionBoundaryHexCoords) -> bool {
+//     return x + y + z == 0 &&
+//         region.x_min <= x && x <= region.x_max &&
+//         region.y_min <= y && y <= region.y_max &&
+//         region.z_min <= z && z <= region.z_max
+// }
 
-fn is_within_board(x: i32, y: i32, z: i32) -> bool {
-    return x + y + z == 0 && (is_within_region(x,y,z,BOTTOM_LEFT_TRIANGLE_BOUNDARY_COORDS) ||
-    is_within_region(x, y, z, BOTTOM_RIGHT_TRIANGLE_BOUNDARY_COORDS) ||
-    is_within_region(x, y, z, TOP_LEFT_TRIANGLE_BOUNDARY_COORDS) ||
-    is_within_region(x, y, z, TOP_RIGHT_TRIANGLE_BOUNDARY_COORDS) || 
-    is_within_region(x, y, z, BOTTOM_TRIANGLE_BOUNDARY_COORDS) ||
-    is_within_region(x, y, z, TOP_TRIANGLE_BOUNDARY_COORDS) ||
-    is_within_region(x, y, z, CENTER_REGION_BOUNDARY_COORDS))
-}
+// fn is_within_board(x: i32, y: i32, z: i32) -> bool {
+//     return x + y + z == 0 && (is_within_region(x,y,z,BOTTOM_LEFT_TRIANGLE_BOUNDARY_COORDS) ||
+//     is_within_region(x, y, z, BOTTOM_RIGHT_TRIANGLE_BOUNDARY_COORDS) ||
+//     is_within_region(x, y, z, TOP_LEFT_TRIANGLE_BOUNDARY_COORDS) ||
+//     is_within_region(x, y, z, TOP_RIGHT_TRIANGLE_BOUNDARY_COORDS) || 
+//     is_within_region(x, y, z, BOTTOM_TRIANGLE_BOUNDARY_COORDS) ||
+//     is_within_region(x, y, z, TOP_TRIANGLE_BOUNDARY_COORDS) ||
+//     is_within_region(x, y, z, CENTER_REGION_BOUNDARY_COORDS))
+// }
 
-fn get_adjacent(x: i32, y: i32, z: i32) -> Vec<[i32; 3]> {
-    let mut neighbors: Vec<[i32; 3]> = Vec::new();
-    neighbors.push([x, y+1, z-1]); // top left
-    neighbors.push([x+1, y, z-1]); // top right
-    neighbors.push([x, y-1, z+1]); // bottom right
-    neighbors.push([x-1, y+1, z]); // left
-    neighbors.push([x+1, y-1, z]); // right
-    neighbors.push([x-1, y, z+1]); // bottom left
+// fn get_adjacent(x: i32, y: i32, z: i32) -> Vec<[i32; 3]> {
+//     let mut neighbors: Vec<[i32; 3]> = Vec::new();
+//     neighbors.push([x, y+1, z-1]); // top left
+//     neighbors.push([x+1, y, z-1]); // top right
+//     neighbors.push([x, y-1, z+1]); // bottom right
+//     neighbors.push([x-1, y+1, z]); // left
+//     neighbors.push([x+1, y-1, z]); // right
+//     neighbors.push([x-1, y, z+1]); // bottom left
 
-    let mut i : usize = neighbors.len();
-    while i >= 0 {
-        let pos : [i32; 3] = neighbors[i];
-        if !is_within_board(pos[0], pos[1], pos[2]) {
-            neighbors.remove(i);
-        }
-        i = i - 1;
-    }
+//     let mut i : usize = neighbors.len();
+//     while i >= 0 {
+//         let pos : [i32; 3] = neighbors[i];
+//         if !is_within_board(pos[0], pos[1], pos[2]) {
+//             neighbors.remove(i);
+//         }
+//         i = i - 1;
+//     }
 
-    return neighbors;
-}
+//     return neighbors;
+// }
 
 impl Widget<AppState> for CanvasWidget {
 
@@ -748,10 +749,10 @@ impl Widget<AppState> for CanvasWidget {
         // Note: ctx also has a `clear` method, but that clears the whole context,
         // and we only want to clear this widget's area.
         // let size = ctx.size();
-        let rect = Rect::from_center_size(Point::new(CANVAS_WIDTH / 2.0, CANVAS_HEIGHT / 2.0), Size::new(BOARD_WIDTH, BOARD_HEIGHT));
+        // let rect = Rect::from_center_size(Point::new(CANVAS_WIDTH / 2.0, CANVAS_HEIGHT / 2.0), Size::new(BOARD_WIDTH, BOARD_HEIGHT));
         //ctx.fill(rect, &Color::WHITE);
 
-        let ctx_bounding_rect = ctx.size().to_rect();
+        // let ctx_bounding_rect = ctx.size().to_rect();
 
         // draw a bounding box around the canvas
         //ctx.stroke(ctx_bounding_rect, &Color::rgba(1.0, 1.0, 1.0, 1.0), 5.0);
@@ -777,9 +778,9 @@ impl Widget<AppState> for CanvasWidget {
         
         //println!("Size of board Vec = {}", board.len());
 
-        let mut x_hex_saved : i32 = 0;
-        let mut y_hex_saved : i32 = 0;
-        let mut z_hex_saved : i32 = 0;
+        // let mut x_hex_saved : i32 = 0;
+        // let mut y_hex_saved : i32 = 0;
+        // let mut z_hex_saved : i32 = 0;
         let mut will_draw_piece_later : bool = false;
         let mut saved_piece_color : Option<&Color> = None;
 
@@ -822,29 +823,182 @@ impl Widget<AppState> for CanvasWidget {
 
 }
 
+// fn build_page_ui(page: AppPage) -> impl Widget<AppState>
+fn build_page_ui(page: AppPage) -> Container<AppState> {
+    match page {
+        AppPage::CREATE_REMOTE_GAME => {
+            let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+            let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+
+            let column_layout = SizedBox::new(Flex::column()
+                .with_child(
+                    Padding::new(padding_dp,
+                        Label::new("New Remote Game").with_font(font)
+                    )
+                )
+                .with_child(
+                    Flex::row()
+                    .with_flex_child(
+                        Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("Add Players")
+                            )
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Button::new("").expand_width().expand_height()
+                            )
+                        )
+                    , 0.3333)
+                    .with_flex_spacer(0.3333)
+                    .with_flex_child(
+                        Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("Room ID")
+                            )
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Button::new("Copy this").expand_width() // TODO replace with textfield
+                            )
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("Registration ticket pastebin")
+                            )
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Button::new("Paste here").expand_width()
+                            )
+                        )
+                    , 0.3333)
+
+                )
+            ).width(300.0).expand_height();
+
+            return Container::new(Align::centered(column_layout))
+        },
+        AppPage::JOIN_REMOTE_GAME => {
+            return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
+        },
+        AppPage::LOCAL_GAME => {
+            return Container::new(Align::centered(Flex::column().with_child(Label::new("LOCAL_GAME"))));
+        },
+        AppPage::REMOTE_GAME => {
+            return Container::new(Align::centered(Flex::column().with_child(Label::new("REMOTE_GAME"))));
+        },
+        AppPage::NEW_GAME => {
+            let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+            let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+
+            let column_layout = SizedBox::new(Flex::column()
+                .with_child(
+                    Padding::new(padding_dp,
+                        Label::new("New Game").with_font(font)
+                    )
+                )
+                .with_child(
+                    Padding::new(padding_dp,
+                        Button::new("New Local Game")
+                        .on_click(|ctx, data : &mut AppState, env| {
+                            data.window_type = AppPage::LOCAL_GAME;
+                            println!("New Local Game button pressed....");
+                        })
+                    )
+                )
+                .with_child(
+                    Padding::new(padding_dp,
+                        Button::new("New Remote Game")
+                        .on_click(|ctx, data : &mut AppState, env| {
+                            data.window_type = AppPage::CREATE_REMOTE_GAME;
+                            println!("New Remote Game button pressed....");
+                        })
+                    )
+                )
+            ).width(300.0).expand_height();
+
+            return Container::new(Align::centered(column_layout))
+        },
+        AppPage::SETTINGS => {
+            return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER SETTINGS PAGE"))));
+        },
+        AppPage::START => {
+            let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+            let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+            let column_layout = SizedBox::new(Flex::column()
+            .with_child(
+                Padding::new(padding_dp, 
+                    Label::new("Chinese Checkers").with_font(font)
+                )
+            )
+            .with_child(
+                Padding::new(padding_dp, 
+                    Button::new("New Game")
+                    .on_click(|ctx, data : &mut AppState, env| {
+                        data.window_type = AppPage::NEW_GAME;
+                        println!("New game button pressed....");
+                    })
+                    .expand_width()
+                )
+            )
+            .with_child(
+                Padding::new(padding_dp, 
+                    Button::new("Join Game")
+                    .on_click(|ctx, data : &mut AppState, env| {
+                        data.window_type = AppPage::JOIN_REMOTE_GAME;
+                        println!("Join game button pressed....");
+                    })
+                    .expand_width()
+                )
+            )
+            .with_child(
+                Padding::new(padding_dp, 
+                    Button::new("Settings")
+                    .expand_width()
+                )
+            )
+            .with_child(
+                Padding::new(padding_dp, 
+                    Button::new("Quit")
+                    .on_click(|ctx, data: &mut AppState, env| {
+                        println!("closing the application....");
+                        ctx.window().close();
+                    })
+                    .expand_width()
+                )
+            )).width(300.0).expand_height();
+    
+            return Container::new(Align::centered(column_layout));
+        }
+    }
+}
+
 impl MainWidget<AppState> {
 
-    fn make_start_menu() -> Container<AppState> {
-        let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-        let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
-        let column_layout = SizedBox::new(Flex::column()
-        .with_child(Padding::new(padding_dp, SizedBox::new(Label::new("Chinese Checkers").with_font(font))))
-        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("New Game").on_click(|ctx, data : &mut AppState, env| {
-            data.window_type = AppPage::NEW_GAME;
-            println!("Single-player button pressed....");
-        })).expand_width()))
-        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Join Game").on_click(|ctx, data : &mut AppState, env| {
-            data.window_type = AppPage::JOIN_MULTIPLAYER_GAME;
-            println!("Multi-player button pressed....");
-        })).expand_width()))
-        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Settings")).expand_width()))
-        .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Quit").on_click(|ctx, data: &mut AppState, env| {
-            println!("closing the application....");
-            ctx.window().close();
-        })).expand_width()))).width(300.0);
+    // fn make_start_menu() -> Container<AppState> {
+    //     let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+    //     let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+    //     let column_layout = SizedBox::new(Flex::column()
+    //     .with_child(Padding::new(padding_dp, SizedBox::new(Label::new("Chinese Checkers").with_font(font))))
+    //     .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("New Game").on_click(|ctx, data : &mut AppState, env| {
+    //         data.window_type = AppPage::NEW_GAME;
+    //         println!("Single-player button pressed....");
+    //     })).expand_width()))
+    //     .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Join Game").on_click(|ctx, data : &mut AppState, env| {
+    //         data.window_type = AppPage::JOIN_REMOTE_GAME;
+    //         println!("Multi-player button pressed....");
+    //     })).expand_width()))
+    //     .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Settings")).expand_width()))
+    //     .with_child(Padding::new(padding_dp, SizedBox::new(Button::new("Quit").on_click(|ctx, data: &mut AppState, env| {
+    //         println!("closing the application....");
+    //         ctx.window().close();
+    //     })).expand_width()))).width(300.0);
 
-        return Container::new(Align::centered(column_layout));
-    }
+    //     return Container::new(Align::centered(column_layout));
+    // }
 
     fn new() -> IdentityWrapper<Self> {
         // let padding_dp = (0.0, 10.0); // 4dp of vertical padding, 0dp of horizontal padding 
@@ -863,7 +1017,7 @@ impl MainWidget<AppState> {
         //     .with_child(Padding::new(padding_dp, Button::new("Quit")));
                      
         let main_widget = MainWidget::<AppState> {
-            main_container: MainWidget::make_start_menu()
+            main_container: build_page_ui(AppPage::START)
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
@@ -1120,69 +1274,174 @@ impl Widget<AppState> for MainWidget<AppState> {
     }
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
+        println!("In update() for MainWidget<AppState>....");
+
         self.main_container.update(ctx, old_data, data, env);
 
-        if data.window_type == AppPage::START && old_data.window_type == AppPage:: LOCAL_GAME {
-            self.main_container = MainWidget::make_start_menu();
-            ctx.children_changed();
-        }
-        else if data.window_type == AppPage::START {
-            self.main_container.update(ctx,old_data,data,env)
-        } else if data.window_type == AppPage::LOCAL_GAME && old_data.window_type == AppPage::START {    
-            self.main_container =  Container::new(
-                                    Flex::column()
-                                        .with_child(
-                                            Flex::row()
-                                                .with_flex_child(Padding::new(20.0, 
-                                                    Container::new(Align::centered(
-                                                        Button::new("New Game").on_click(|ctx, data: &mut AppState, _env| {
-                                                            let context_menu_desc = MenuDesc::<AppState>::new(LocalizedString::new("Number of Players"));
-                                                            let item = MenuItem::<AppState>::new(LocalizedString::new("How many players?"), Selector::new(""));
-                                                            let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();            
-                                                            let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), Command::new(*start_game_selector, 2, Target::Widget(*widget_id_holder)));
-                                                            let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), Command::new(*start_game_selector, 3, Target::Widget(*widget_id_holder)));
-                                                            let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), Command::new(*start_game_selector, 4, Target::Widget(*widget_id_holder)));
-                                                            let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), Command::new(*start_game_selector, 6, Target::Widget(*widget_id_holder)));
-                                                            let new_game_context_menu = ContextMenu::new(context_menu_desc.append(item.disabled()).append(item2).append(item3).append(item4).append(item6), data.mouse_location_in_canvas.clone());
-                                                            ctx.show_context_menu(new_game_context_menu);
-                                                    // println!("new game buttton pressed!!");
-                                                })))),1.0)
-                                                .with_flex_child(Container::new(Align::centered(
-                                                    Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
-                                                        data.window_type = AppPage::START;
-                                                        data.board.clear();
-                                                        data.pieces.clear();
-                                                        data.player_piece_colors.clear();
-                                                        data.in_game = false;
-                                                        data.whose_turn = None;
-                                                        data.last_hopper = None;
-                                                        data.num_players = None;
-                                                        println!("Quit button pressed in single-player mode....");                                    
-                                                    })
-                                                )),1.0)
-                                        )
-                                        .with_child(Flex::row()
-                                            .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
-                                                    if data.whose_turn.is_none() { return format!(""); }
-                                                    return format!("Player {} to move", data.whose_turn.unwrap() + 1);
-                                                }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
-                                            )
-                                        )
-                                        .with_child(Flex::row()
-                                            .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
-                                                    data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
-                                                    data.last_hopper = None;
-                                                })
-                                            )
-                                        )
-                                        .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None})));
-            ctx.children_changed();
-        } else if data.window_type == AppPage::JOIN_MULTIPLAYER_GAME {
-            self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("Join a remote game"))));
+        if data.window_type != old_data.window_type {
+            self.main_container = build_page_ui(data.window_type);
             ctx.children_changed();
         }
     }
 
+
+    // fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
+    //     println!("Update() of MainWidget<AppState> being called..");
+
+    //     self.main_container.update(ctx,old_data,data,env);
+
+    //     if data.window_type != old_data.window_type {
+    //         match data.window_type {
+    //             AppPage::CREATE_REMOTE_GAME => {
+    //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+    //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+        
+    //                 let column_layout = SizedBox::new(Flex::column()
+    //                     .with_child(
+    //                         Padding::new(padding_dp,
+    //                             Label::new("New Remote Game").with_font(font)
+    //                         )
+    //                     )
+    //                     .with_child(
+    //                         Flex::row()
+    //                         .with_flex_child(
+    //                             Flex::column()
+    //                             .with_child(
+    //                                 Padding::new(padding_dp,
+    //                                     Label::new("Add Players")
+    //                                 )
+    //                             )
+    //                             .with_child(
+    //                                 Padding::new(padding_dp,
+    //                                     Button::new("").expand_width().expand_height()
+    //                                 )
+    //                             )
+    //                         , 0.3333)
+    //                         .with_flex_spacer(0.3333)
+    //                         .with_flex_child(
+    //                             Flex::column()
+    //                             .with_child(
+    //                                 Padding::new(padding_dp,
+    //                                     Label::new("Room ID")
+    //                                 )
+    //                             )
+    //                             .with_child(
+    //                                 Padding::new(padding_dp,
+    //                                     Button::new("Copy this").expand_width() // TODO replace with textfield
+    //                                 )
+    //                             )
+    //                             .with_child(
+    //                                 Padding::new(padding_dp,
+    //                                     Label::new("Registration ticket pastebin")
+    //                                 )
+    //                             )
+    //                             .with_child(
+    //                                 Padding::new(padding_dp,
+    //                                     Button::new("Paste here").expand_width()
+    //                                 )
+    //                             )
+    //                         , 0.3333)
+        
+    //                     )
+    //                 ).width(300.0).expand_height();
+        
+    //                 self.main_container = Container::new(Align::centered(column_layout))
+    //             },
+    //             AppPage::JOIN_REMOTE_GAME => {
+    //                 self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
+    //             },
+    //             AppPage::LOCAL_GAME => {
+    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("LOCAL_GAME"))));
+    //             },
+    //             AppPage::REMOTE_GAME => {
+    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("REMOTE_GAME"))));
+    //             },
+    //             AppPage::NEW_GAME => {
+    //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+    //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+        
+    //                 let column_layout = SizedBox::new(Flex::column()
+    //                     .with_child(
+    //                         Padding::new(padding_dp,
+    //                             Label::new("New Game").with_font(font)
+    //                         )
+    //                     )
+    //                     .with_child(
+    //                         Padding::new(padding_dp,
+    //                             Button::new("New Local Game")
+    //                             .on_click(|ctx, data : &mut AppState, env| {
+    //                                 data.window_type = AppPage::LOCAL_GAME;
+    //                                 println!("New Local Game button pressed....");
+    //                             })
+    //                         )
+    //                     )
+    //                     .with_child(
+    //                         Padding::new(padding_dp,
+    //                             Button::new("New Remote Game")
+    //                             .on_click(|ctx, data : &mut AppState, env| {
+    //                                 data.window_type = AppPage::CREATE_REMOTE_GAME;
+    //                                 println!("New Remote Game button pressed....");
+    //                             })
+    //                         )
+    //                     )
+    //                 ).width(300.0).expand_height();
+        
+    //                 self.main_container = Container::new(Align::centered(column_layout))
+    //             },
+    //             AppPage::SETTINGS => {
+    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER SETTINGS PAGE"))));
+    //             },
+    //             AppPage::START => {
+    //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+    //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+    //                 let column_layout = SizedBox::new(Flex::column()
+    //                 .with_child(
+    //                     Padding::new(padding_dp, 
+    //                         Label::new("Chinese Checkers").with_font(font)
+    //                     )
+    //                 )
+    //                 .with_child(
+    //                     Padding::new(padding_dp, 
+    //                         Button::new("New Game")
+    //                         .on_click(|ctx, data : &mut AppState, env| {
+    //                             data.window_type = AppPage::NEW_GAME;
+    //                             println!("New game button pressed....");
+    //                         })
+    //                         .expand_width()
+    //                     )
+    //                 )
+    //                 .with_child(
+    //                     Padding::new(padding_dp, 
+    //                         Button::new("Join Game")
+    //                         .on_click(|ctx, data : &mut AppState, env| {
+    //                             data.window_type = AppPage::JOIN_REMOTE_GAME;
+    //                             println!("Join game button pressed....");
+    //                         })
+    //                         .expand_width()
+    //                     )
+    //                 )
+    //                 .with_child(
+    //                     Padding::new(padding_dp, 
+    //                         Button::new("Settings")
+    //                         .expand_width()
+    //                     )
+    //                 )
+    //                 .with_child(
+    //                     Padding::new(padding_dp, 
+    //                         Button::new("Quit")
+    //                         .on_click(|ctx, data: &mut AppState, env| {
+    //                             println!("closing the application....");
+    //                             ctx.window().close();
+    //                         })
+    //                         .expand_width()
+    //                     )
+    //                 )).width(300.0).expand_height();
+            
+    //                 self.main_container = Container::new(Align::centered(column_layout));
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 // Create the main (root) Widget 
@@ -1369,7 +1628,7 @@ fn create_board() -> im::Vector<Hextile> {
     }
 
 fn main() {
-    let main_window = WindowDesc::new(build_root_widget);
+    let main_window = WindowDesc::new(MainWidget::<AppState>::new);
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::START, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
