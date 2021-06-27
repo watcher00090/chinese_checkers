@@ -428,7 +428,7 @@ struct AppState {
     last_hopper : Option<Piece>,
     num_players : Option<usize>,
     regions_to_players : im::Vector<StartingRegion>, // regions_to_players[i] = the starting region of player i
-    create_remote_game_players_added : Option<Vector<String>>
+    create_remote_game_players_added : Option<Vector<&'static str>>
 }
 
 struct MainWidget<T: Data> {
@@ -897,16 +897,7 @@ fn build_page_ui(page: AppPage) -> Container<AppState> {
                         .lens(lens::Identity.map(
                             |data: &AppState| {
                                 if data.create_remote_game_players_added.is_some() {                                    
-                                    let mut ret : Vector<&str> = Vector::new();
-                                    let tmp = data.create_remote_game_players_added.clone();
-                                    let mut ret_box = Box::new(ret);
-
-                                    for player in tmp.unwrap().into_iter() {
-                                        let player_clone = Box::new(player.clone());
-                                        // let tmp_player = *player_clone.clone().as_ref();
-                                        ret_box.as_mut().push_back("funky");
-                                    }
-                                    return ((*ret_box.as_ref()).clone(), (*ret_box.as_ref()).clone());
+                                    return (data.create_remote_game_players_added.clone().unwrap(), data.create_remote_game_players_added.clone().unwrap());
                                 } else {
                                     return (Vector::new(), Vector::new())
                                 }
@@ -1692,7 +1683,7 @@ fn main() {
     let initial_state = AppState {whose_turn : None, window_type : AppPage::START, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
-        create_remote_game_players_added: Some(vector![String::from("Tommy"), String::from("Karina"), String::from("Joseph")])
+        create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"])
     };
 
     //let command_handler = ApplicationCommandHandler::new();
