@@ -889,9 +889,18 @@ fn build_page_ui(page: AppPage) -> Container<AppState> {
                     .with_flex_child(
                         Scroll::new(
                             List::new(|| { 
-                                Label::new(|(_, item): &(Vector<&str>, &str), env: &Env| {
-                                    format!("{}", item)
-                                })
+                                Flex::row()
+                                .with_child(
+                                    Label::new(|(_, item): &(Vector<&str>, &str), env: &Env| {
+                                        format!("{}", item)
+                                    })
+                                )
+                                .with_child(
+                                    Button::new("-")
+                                    .on_click(|_ctx, (list, item): &mut (Vector<&str>, &str), _env| {
+                                        list.retain(|v| v != item) // remove the entry from the list 
+                                    })
+                                )
                             }) //.expand_width().expand_height()
                         )
                         .lens(lens::Identity.map(
@@ -903,7 +912,7 @@ fn build_page_ui(page: AppPage) -> Container<AppState> {
                                 }
                             },
                             |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
-                                // data.players_added = Some(displayVar);
+                                data.create_remote_game_players_added = Some(lens_data.0)
                             }
                         ))
                     ,1.0)
