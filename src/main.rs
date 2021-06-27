@@ -1,5 +1,6 @@
-use druid::widget::{ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{Scroll, ListIter ,List, FlexParams, MainAxisAlignment, CrossAxisAlignment, ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
+use druid::lens::{self, LensExt};
 use druid::{WidgetPod, WindowId, MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
 use rand::prelude::*;
 use std::collections::hash_map::DefaultHasher;
@@ -10,7 +11,7 @@ use druid::kurbo::{Circle, Shape, BezPath};
 use druid::piet::{FontFamily, FontWeight, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
 use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 use druid::im;
-use druid::im::vector;
+use druid::im::{vector, Vector};
 use std::convert::TryInto;
 use std::any::Any;
 
@@ -426,7 +427,8 @@ struct AppState {
     whose_turn : Option<usize>,
     last_hopper : Option<Piece>,
     num_players : Option<usize>,
-    regions_to_players : im::Vector<StartingRegion> // regions_to_players[i] = the starting region of player i
+    regions_to_players : im::Vector<StartingRegion>, // regions_to_players[i] = the starting region of player i
+    create_remote_game_players_added : Option<Vector<String>>
 }
 
 struct MainWidget<T: Data> {
@@ -827,57 +829,101 @@ impl Widget<AppState> for CanvasWidget {
 fn build_page_ui(page: AppPage) -> Container<AppState> {
     match page {
         AppPage::CREATE_REMOTE_GAME => {
+            // let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+            // let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+
+            // let column_layout = Flex::column()
+            //     .with_child(
+            //         Padding::new(padding_dp,
+            //             Label::new("New Remote Game").with_font(font)
+            //         )
+            //     )
+            //     .with_child(
+            //         Flex::row()
+            //         .with_flex_child(
+            //             Flex::column()
+            //             .with_child(
+            //                 Padding::new(padding_dp,
+            //                     Label::new("Add Players")
+            //                 )
+            //             )
+            //             .with_child(
+            //                 Padding::new(padding_dp,
+            //                     Button::new("Test button").expand_width().expand_height()
+            //                 )
+            //             ).expand_width()
+            //         , 1.0)
+            //         .with_flex_spacer(1.0)
+            //         .with_flex_child(
+            //             Flex::column()
+            //             .with_child(
+            //                 Padding::new(padding_dp,
+            //                     Label::new("Room ID")
+            //                 )
+            //             )
+            //             .with_child(
+            //                 Padding::new(padding_dp,
+            //                     Button::new("Copy this").expand_width() // TODO replace with textfield
+            //                 )
+            //             )
+            //             .with_child(
+            //                 Padding::new(padding_dp,
+            //                     Label::new("Registration ticket pastebin")
+            //                 )
+            //             )
+            //             .with_child(
+            //                 Padding::new(padding_dp,
+            //                     Button::new("Paste here").expand_width()
+            //                 )
+            //             )
+            //         , 1.0)
+            //     ).expand_height();
+
             let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
             let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
 
-            let column_layout = SizedBox::new(Flex::column()
-                .with_child(
-                    Padding::new(padding_dp,
-                        Label::new("New Remote Game").with_font(font)
-                    )
-                )
-                .with_child(
+            let mut column_layout = Flex::column()
+                .with_child(Button::new("test button"))
+                .with_flex_child(
                     Flex::row()
                     .with_flex_child(
-                        Flex::column()
-                        .with_child(
-                            Padding::new(padding_dp,
-                                Label::new("Add Players")
-                            )
+                        Scroll::new(
+                            List::new(|| { 
+                                Label::new(|(_, item): &(Vector<&str>, &str), env: &Env| {
+                                    format!("{}", item)
+                                })
+                            }) //.expand_width().expand_height()
                         )
-                        .with_child(
-                            Padding::new(padding_dp,
-                                Button::new("").expand_width().expand_height()
-                            )
-                        )
-                    , 0.3333)
-                    .with_flex_spacer(0.3333)
-                    .with_flex_child(
-                        Flex::column()
-                        .with_child(
-                            Padding::new(padding_dp,
-                                Label::new("Room ID")
-                            )
-                        )
-                        .with_child(
-                            Padding::new(padding_dp,
-                                Button::new("Copy this").expand_width() // TODO replace with textfield
-                            )
-                        )
-                        .with_child(
-                            Padding::new(padding_dp,
-                                Label::new("Registration ticket pastebin")
-                            )
-                        )
-                        .with_child(
-                            Padding::new(padding_dp,
-                                Button::new("Paste here").expand_width()
-                            )
-                        )
-                    , 0.3333)
+                        .lens(lens::Identity.map(
+                            |data: &AppState| {
+                                if data.create_remote_game_players_added.is_some() {                                    
+                                    let mut ret : Vector<&str> = Vector::new();
+                                    let tmp = data.create_remote_game_players_added.clone();
+                                    let mut ret_box = Box::new(ret);
 
-                )
-            ).width(300.0).expand_height();
+                                    for player in tmp.unwrap().into_iter() {
+                                        let player_clone = Box::new(player.clone());
+                                        // let tmp_player = *player_clone.clone().as_ref();
+                                        ret_box.as_mut().push_back("funky");
+                                    }
+                                    return ((*ret_box.as_ref()).clone(), (*ret_box.as_ref()).clone());
+                                } else {
+                                    return (Vector::new(), Vector::new())
+                                }
+                            },
+                            |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
+                                // data.players_added = Some(displayVar);
+                            }
+                        ))
+                    ,1.0)
+                    .with_flex_child(
+                        Button::new("add new user").on_click(|ctx, data: &mut AppState, env| {
+                        }).expand_width().expand_height()
+                    ,1.0)
+                    .with_flex_child(
+                        Button::new("button 3").expand_width().expand_height()
+                    ,1.0)
+                , FlexParams::new(1.0, CrossAxisAlignment::Center));
 
             return Container::new(Align::centered(column_layout))
         },
@@ -907,6 +953,7 @@ fn build_page_ui(page: AppPage) -> Container<AppState> {
                             data.window_type = AppPage::LOCAL_GAME;
                             println!("New Local Game button pressed....");
                         })
+                        .expand_width()
                     )
                 )
                 .with_child(
@@ -916,8 +963,20 @@ fn build_page_ui(page: AppPage) -> Container<AppState> {
                             data.window_type = AppPage::CREATE_REMOTE_GAME;
                             println!("New Remote Game button pressed....");
                         })
+                        .expand_width()
                     )
                 )
+                .with_child(
+                    Padding::new(padding_dp,
+                        Button::new("Back")
+                        .on_click(|ctx, data : &mut AppState, env| {
+                            data.window_type = AppPage::START;
+                            println!("Back button pressed from new game page....");
+                        })
+                        .expand_width()
+                    )
+                )
+
             ).width(300.0).expand_height();
 
             return Container::new(Align::centered(column_layout))
@@ -1632,7 +1691,9 @@ fn main() {
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::START, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
-        player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new()};
+        player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
+        create_remote_game_players_added: Some(vector![String::from("Tommy"), String::from("Karina"), String::from("Joseph")])
+    };
 
     //let command_handler = ApplicationCommandHandler::new();
 
