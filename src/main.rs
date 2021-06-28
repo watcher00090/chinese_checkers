@@ -1,7 +1,7 @@
 use druid::widget::{Scroll, ListIter ,List, FlexParams, MainAxisAlignment, CrossAxisAlignment, ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
-use druid::{WidgetPod, WindowId, MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
+use druid::{UnitPoint, WidgetPod, WindowId, MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
 use rand::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash,Hasher};
@@ -886,43 +886,50 @@ fn build_page_ui(page: AppPage) -> Container<AppState> {
                 .with_child(Button::new("test button"))
                 .with_flex_child(
                     Flex::row()
-                    .with_flex_child(
-                        Scroll::new(
-                            List::new(|| { 
-                                Flex::row()
-                                .with_child(
-                                    Label::new(|(_, item): &(Vector<&str>, &str), env: &Env| {
-                                        format!("{}", item)
-                                    })
-                                )
-                                .with_child(
-                                    Button::new("-")
-                                    .on_click(|_ctx, (list, item): &mut (Vector<&str>, &str), _env| {
-                                        list.retain(|v| v != item) // remove the entry from the list 
-                                    })
-                                )
-                            }) //.expand_width().expand_height()
-                        )
-                        .lens(lens::Identity.map(
-                            |data: &AppState| {
-                                if data.create_remote_game_players_added.is_some() {                                    
-                                    return (data.create_remote_game_players_added.clone().unwrap(), data.create_remote_game_players_added.clone().unwrap());
-                                } else {
-                                    return (Vector::new(), Vector::new())
+                        .with_flex_child(
+                            Scroll::new(
+                                List::new(|| { 
+                                    Flex::row()
+                                        .with_child(
+                                            Label::new(|(_, item): &(Vector<&str>, &str), _env: &Env| {
+                                                format!("{}", item)
+                                            })
+                                        )
+                                        .with_flex_spacer(1.0)
+                                        .with_child(
+                                            Button::new("-")
+                                                .on_click(|_ctx, (list, item): &mut (Vector<&str>, &str), _env| {
+                                                    list.retain(|v| v != item) // remove the entry from the list 
+                                                })
+                                                .fix_size(30.0, 30.0)
+                                            //.align_horizontal(UnitPoint::RIGHT)
+                                        )
+                                        .padding(10.0)
+                                        .background(Color::rgb(0.5,0.0,0.5))
+                                        .fix_height(50.0)
+                                })//.expand_width() //.expand_width().expand_height()
+                            )
+                            .vertical() // so that the scrolling is vertical, not horizontal
+                            .lens(lens::Identity.map(
+                                |data: &AppState| {
+                                    if data.create_remote_game_players_added.is_some() {                                    
+                                        return (data.create_remote_game_players_added.clone().unwrap(), data.create_remote_game_players_added.clone().unwrap());
+                                    } else {
+                                        return (Vector::new(), Vector::new())
+                                    }
+                                },
+                                |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
+                                    data.create_remote_game_players_added = Some(lens_data.0)
                                 }
-                            },
-                            |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
-                                data.create_remote_game_players_added = Some(lens_data.0)
-                            }
-                        ))
-                    ,1.0)
-                    .with_flex_child(
-                        Button::new("add new user").on_click(|ctx, data: &mut AppState, env| {
-                        }).expand_width().expand_height()
-                    ,1.0)
-                    .with_flex_child(
-                        Button::new("button 3").expand_width().expand_height()
-                    ,1.0)
+                            ))//.expand_width()
+                        ,1.0)
+                        .with_flex_child(
+                            Button::new("add new user").on_click(|ctx, data: &mut AppState, env| {
+                            }).expand_width().expand_height()
+                        ,1.0)
+                        .with_flex_child(
+                            Button::new("button 3").expand_width().expand_height()
+                        ,1.0)
                 , FlexParams::new(1.0, CrossAxisAlignment::Center));
 
             return Container::new(Align::centered(column_layout))
