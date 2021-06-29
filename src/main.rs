@@ -437,7 +437,8 @@ struct AppState {
     num_players : Option<usize>,
     regions_to_players : im::Vector<StartingRegion>, // regions_to_players[i] = the starting region of player i
     create_remote_game_players_added : Option<Vector<&'static str>>,
-    room_id: Option<String>
+    room_id: Option<String>,
+    registration_ticket: String
 }
 
 struct MainWidget<T: Data> {
@@ -1012,11 +1013,12 @@ fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
                             .cross_axis_alignment(CrossAxisAlignment::Start)
                             .with_flex_child(
                                 Flex::column()
+                                .cross_axis_alignment(CrossAxisAlignment::Start)
                                 .with_child(Label::new("Room ID"))
                                 .with_child(
                                     WidgetExt::controller(
                                         ValueTextBox::new(
-                                            TextBox::new(), RoomIDFormatter::new(extras.unwrap_or_default())
+                                            TextBox::new(), RoomIDFormatter::new(extras.clone().unwrap_or_default())
                                         )
                                         .update_data_while_editing(false)
                                         .validate_while_editing(true)
@@ -1037,11 +1039,21 @@ fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
                                          data.room_id = Some(lens_data)
                                      }
                                 ))
-                            ,1.0)
+                                .expand_height()
+                            , 1.0)
                             .with_flex_child(
-                                Button::new("test button")
-                                .expand_width()
-                                .expand_height()       
+                                Flex::column()
+                                .cross_axis_alignment(CrossAxisAlignment::Start)
+                                .with_child(Label::new("Paste registration tickets here:"))
+                                .with_child(
+                                    //WidgetExt::controller(
+                                        TextBox::new()
+                                            .expand_width()
+                                    //    , TextCopyController{}
+                                    //)
+                                    .lens(AppState::registration_ticket)
+                                )
+                                .expand_height()
                             , 1.0)
                         , 4.0)
                 , FlexParams::new(1.0, CrossAxisAlignment::Center));
@@ -1815,7 +1827,8 @@ fn main() {
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
-        room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i"))
+        room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i")),
+        registration_ticket: String::from("registration ticket")
     };
 
     //let command_handler = ApplicationCommandHandler::new();
