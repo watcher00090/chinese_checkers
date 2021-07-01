@@ -1,25 +1,28 @@
 use druid::widget::{Controller, TextBox, ValueTextBox, Scroll, ListIter ,List, FlexParams, MainAxisAlignment, CrossAxisAlignment, ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
-use druid::{UnitPoint, WidgetPod, WindowId, MenuDesc, MenuItem, Screen, LocalizedString, ContextMenu, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
+use druid::{UnitPoint, WidgetPod, WindowId, Screen, LocalizedString, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
 use rand::prelude::*;
+// use druid::{MenuDesc, MenuItem, ContextMenu};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash,Hasher};
 use druid::widget::prelude::*;
 use std::sync::{Arc, Mutex, MutexGuard};
 use druid::kurbo::{Circle, Shape, BezPath};
 use druid::piet::{FontFamily, FontWeight, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
-use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
+// use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 use druid::im;
 use druid::im::{vector, Vector};
 use druid::text::format::{Validation, ValidationError, ParseFormatter, Formatter};
-use druid::text::selection::Selection;
+// use druid::text::selection::Selection;
 use std::error::Error;
-use druid_shell::KeyState;
+// use druid_shell::KeyState;
 use druid::Modifiers;
 use druid::commands;
 use std::convert::TryInto;
 use std::any::Any;
+
+use druid::Menu;
 
 
 
@@ -846,29 +849,29 @@ impl RoomIDFormatter<String> {
 }
 
 // Dummy formatter that ensures that the user can't edit the room id in the create_remote_game page
-impl Formatter<String> for RoomIDFormatter<String> {
-    fn format(&self, value: &String) -> String {
-        return self.base.clone();
-    }
+// impl Formatter<String> for RoomIDFormatter<String> {
+//     fn format(&self, value: &String) -> String {
+//         return self.base.clone();
+//     }
 
-    fn validate_partial_input(&self, input: &str, sel: &Selection) -> Validation {
-        if String::from(input) ==  self.base {
-            return Validation::success();
-        } else {
-            return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-        }
-    }
+//     fn validate_partial_input(&self, input: &str, sel: &Selection) -> Validation {
+//         if String::from(input) ==  self.base {
+//             return Validation::success();
+//         } else {
+//             return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+//         }
+//     }
 
-    fn value(&self, input: &str) -> Result<String, ValidationError> {
-        if String::from(input) == self.base {
-            return Ok(self.base.clone())
-        } else {
-            return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
-        }
-    }
+//     fn value(&self, input: &str) -> Result<String, ValidationError> {
+//         if String::from(input) == self.base {
+//             return Ok(self.base.clone())
+//         } else {
+//             return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
+//         }
+//     }
 
 
-}
+// }
 
 #[derive(Debug, Default)]
 pub struct TextCopyController {}
@@ -876,11 +879,11 @@ pub struct TextCopyController {}
 impl<W: Widget<String>> Controller<String, W> for TextCopyController {
     fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut String, env: &Env) {
         match event {
-            Event::KeyDown(key_event) => {
-                if key_event.state == KeyState::Down && key_event.code == druid::Code::KeyC && (key_event.mods & Modifiers::CONTROL == Modifiers::CONTROL) { // attempting to copy the text
-                    ctx.submit_command(druid::commands::COPY)
-                }     
-            }, 
+            // Event::KeyDown(key_event) => {
+            //     if key_event.state == KeyState::Down && key_event.code == druid::Code::KeyC && (key_event.mods & Modifiers::CONTROL == Modifiers::CONTROL) { // attempting to copy the text
+            //         ctx.submit_command(druid::commands::COPY)
+            //     }     
+            // }, 
             other => child.event(ctx, other, data, env)
         }
     }  
@@ -962,7 +965,9 @@ fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
                 .with_flex_child(
                     Flex::row()
                         .cross_axis_alignment(CrossAxisAlignment::Start)
-                        .with_child(
+                        // 1.0, 10.0, 2.0, 4.0, 1.0
+                        .with_flex_spacer(1.0)
+                        .with_flex_child(
                             Padding::new(list_padding,
                                 Flex::column()
                                     .with_child(
@@ -988,7 +993,6 @@ fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
                                                     .padding(10.0)
                                                     .background(Color::rgb(0.5,0.0,0.5))
                                                     .fix_height(50.0)
-                                                    .fix_width(250.0)
                                             })
                                         )
                                         .vertical() // so that the scrolling is vertical, not horizontal
@@ -1003,10 +1007,10 @@ fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
                                             |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
                                                 data.create_remote_game_players_added = Some(lens_data.0)
                                             }
-                                        ))//.expand_width()
+                                        )).expand_width()
                                     ,1.0)
                             )
-                        )
+                        , 10.0)
                         .with_flex_spacer(2.0)
                         .with_flex_child(
                             Flex::column()
@@ -1016,16 +1020,15 @@ fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
                                 .cross_axis_alignment(CrossAxisAlignment::Start)
                                 .with_child(Label::new("Room ID"))
                                 .with_child(
-                                    WidgetExt::controller(
-                                        ValueTextBox::new(
-                                            TextBox::new(), RoomIDFormatter::new(extras.clone().unwrap_or_default())
-                                        )
-                                        .update_data_while_editing(false)
-                                        .validate_while_editing(true)
-                                        .expand_width()
-                                        , TextCopyController{}
+                                    //WidgetExt::controller(
+                                    // ValueTextBox::new(
+                                    TextBox::new() // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
+                                    //)
+                                    //.update_data_while_editing(false)
+                                    //.validate_while_editing(true)
+                                    .expand_width()
+                                    //, TextCopyController{}
                                     )
-                                )
                                 .lens(lens::Map::new(
                                      |data: &AppState| {
                                          if data.room_id.is_some() {
@@ -1056,6 +1059,7 @@ fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
                                 .expand_height()
                             , 1.0)
                         , 4.0)
+                        .with_flex_spacer(1.0)
                 , FlexParams::new(1.0, CrossAxisAlignment::Center));
 
             return Container::new(Align::centered(column_layout))
@@ -1793,35 +1797,36 @@ fn create_board() -> im::Vector<Hextile> {
 
 // add the valid tiles in the given range to the board
 //fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x_max: i32, y_min: i32, y_max: i32, z_min: i32, z_max: i32) {
-    fn add_appropriate_hextiles_to_board(
-        board: &mut im::Vector<Hextile>,
-        x_min: i32,
-        x_max: i32,
-        y_min: i32,
-        y_max: i32,
-        z_min: i32,
-        z_max: i32,
-    ) {
-        for x in x_min..(x_max + 1) {
-            for y in y_min..(y_max + 1) {
-                for z in z_min..(z_max + 1) {
-                    if x + y + z == 0 {
-                        //let tile : Hextile = Hextile{y_hex: y, x_hex: x, z_hex: z, c: [0.0,0.0,0.0,0.0], p: None};
-                        let tile: Hextile = Hextile {
-                            y_hex: y,
-                            x_hex: x,
-                            z_hex: z,
-                            piece_idx: None,
-                        };
-                        board.push_back(tile);
-                    }
+fn add_appropriate_hextiles_to_board(
+    board: &mut im::Vector<Hextile>,
+    x_min: i32,
+    x_max: i32,
+    y_min: i32,
+    y_max: i32,
+    z_min: i32,
+    z_max: i32,
+) {
+    for x in x_min..(x_max + 1) {
+        for y in y_min..(y_max + 1) {
+            for z in z_min..(z_max + 1) {
+                if x + y + z == 0 {
+                    //let tile : Hextile = Hextile{y_hex: y, x_hex: x, z_hex: z, c: [0.0,0.0,0.0,0.0], p: None};
+                    let tile: Hextile = Hextile {
+                        y_hex: y,
+                        x_hex: x,
+                        z_hex: z,
+                        piece_idx: None,
+                    };
+                    board.push_back(tile);
                 }
             }
         }
     }
+}
 
 fn main() {
-    let main_window = WindowDesc::new(MainWidget::<AppState>::new);
+    let main_window = WindowDesc::new(MainWidget::<AppState>::new())
+                    .menu(make_menu::<AppState>);
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::START, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
@@ -1837,4 +1842,26 @@ fn main() {
         //.delegate(command_handler)
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
+}
+
+#[allow(unused_assignments, unused_mut)]
+fn make_menu<T: Data>(_window: Option<WindowId>, _data: &AppState, _env: &Env) -> Menu<T> {
+    let mut base = Menu::empty();
+    #[cfg(target_os = "macos")]
+    {
+        base = base.entry(druid::platform_menus::mac::application::default())
+    }
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        base = base.entry(druid::platform_menus::win::file::default());
+    }
+    base.entry(
+        Menu::new(LocalizedString::new("common-menu-edit-menu"))
+            .entry(druid::platform_menus::common::undo())
+            .entry(druid::platform_menus::common::redo())
+            .separator()
+            .entry(druid::platform_menus::common::cut())
+            .entry(druid::platform_menus::common::copy())
+            .entry(druid::platform_menus::common::paste()),
+    )
 }
