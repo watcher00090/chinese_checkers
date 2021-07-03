@@ -1120,48 +1120,54 @@ impl MainWidget<AppState> {
             AppPage::START => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
-                let column_layout = SizedBox::new(Flex::column()
-                .with_child(
-                    Padding::new(padding_dp, 
-                        Label::new("Chinese Checkers").with_font(font)
+                
+                let inner_menu = SizedBox::new(Flex::column()
+                    .with_child(
+                        Padding::new(padding_dp, 
+                            Label::new("Chinese Checkers").with_font(font)
+                        )
                     )
-                )
-                .with_child(
-                    Padding::new(padding_dp, 
-                        Button::new("New Game")
-                        .on_click(|ctx, data : &mut AppState, env| {
-                            data.window_type = AppPage::NEW_GAME;
-                            println!("New game button pressed....");
-                        })
-                        .expand_width()
+                    .with_child(
+                        Padding::new(padding_dp, 
+                            Button::new("New Game")
+                            .on_click(|ctx, data : &mut AppState, env| {
+                                data.window_type = AppPage::NEW_GAME;
+                                println!("New game button pressed....");
+                            })
+                            .expand_width()
+                        )
                     )
-                )
-                .with_child(
-                    Padding::new(padding_dp, 
-                        Button::new("Join Game")
-                        .on_click(|ctx, data : &mut AppState, env| {
-                            data.window_type = AppPage::JOIN_REMOTE_GAME;
-                            println!("Join game button pressed....");
-                        })
-                        .expand_width()
+                    .with_child(
+                        Padding::new(padding_dp, 
+                            Button::new("Join Game")
+                            .on_click(|ctx, data : &mut AppState, env| {
+                                data.window_type = AppPage::JOIN_REMOTE_GAME;
+                                println!("Join game button pressed....");
+                            })
+                            .expand_width()
+                        )
                     )
-                )
-                .with_child(
-                    Padding::new(padding_dp, 
-                        Button::new("Settings")
-                        .expand_width()
+                    .with_child(
+                        Padding::new(padding_dp, 
+                            Button::new("Settings")
+                            .expand_width()
+                        )
                     )
-                )
-                .with_child(
-                    Padding::new(padding_dp, 
-                        Button::new("Quit")
-                        .on_click(|ctx, data: &mut AppState, env| {
-                            println!("closing the application....");
-                            ctx.window().close();
-                        })
-                        .expand_width()
+                    .with_child(
+                        Padding::new(padding_dp, 
+                            Button::new("Quit")
+                            .on_click(|ctx, data: &mut AppState, env| {
+                                println!("closing the application....");
+                                ctx.window().close();
+                            })
+                            .expand_width()
+                        )
                     )
-                )).width(300.0).expand_height();
+                ).width(300.0);
+                
+                let start_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
+                );
 
                 let painter = Painter::new(|ctx, data: &AppState, env| {
                     let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
@@ -1172,10 +1178,10 @@ impl MainWidget<AppState> {
                             SvgData::default()
                         }
                     };
-                    Svg::new(svg_background.clone()).fill_mode(FillStrat::FitWidth).paint(ctx,data,env);        
+                    Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
                 });
 
-                return Container::new(Align::centered(column_layout)).background(painter);
+                return Container::new(start_page).background(painter);
             }
         }
     }
