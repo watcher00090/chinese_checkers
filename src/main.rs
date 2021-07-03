@@ -1121,23 +1121,25 @@ impl MainWidget<AppState> {
             },
             AppPage::START => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-                let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
 
                 //let chinese_checkers_label_background = Color::rgba8(74, 71, 71, 128);
                 
                 let button_color_dark = BUTTON_COLOR_DARK.get();
 
-                let mut chinese_checkers_label_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
+                let mut chinese_checkers_menu_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
                 if button_color_dark.is_some() { 
                     let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
                     println!("Got here, BUTTON_COLOR_DARK is set!");
-                    chinese_checkers_label_background_color = Color::rgba(r,g,b,0.4); 
+                    chinese_checkers_menu_background_color = Color::rgba(r,g,b,0.4); 
                 };
+
+                let menu_background_padding = (10.0, 0.0);
                 
-                let inner_menu = SizedBox::new(Flex::column()
+                let inner_menu = SizedBox::new(Padding::new(menu_background_padding, Flex::column()
                     .with_child(
                         Padding::new(padding_dp, 
-                            Label::new("Chinese Checkers").with_font(font).background(chinese_checkers_label_background_color)
+                            Label::new("Chinese Checkers").with_font(font)
                         )
                     )
                     .with_child(
@@ -1176,7 +1178,7 @@ impl MainWidget<AppState> {
                             .expand_width()
                         )
                     )
-                ).width(300.0);
+                )).width(320.0).background(chinese_checkers_menu_background_color);
                 
                 let start_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
                     Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
