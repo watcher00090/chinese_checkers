@@ -47,10 +47,13 @@ lazy_static! {
     // static ref SQUARE_COLOR : Color = Color::rgb8(96,54,15);
     //static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8(189, 143, 64);
     static ref SQUARE_COLOR : Color = Color::rgb8( 200, 144, 103 );    
-    static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8( 200, 144, 103 );   
+    static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8( 200, 144, 103 );
 }
 
 static BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS : f64 = 20f64;
+
+static UPDATE_BEEN_CALLED : OnceCell<bool> = OnceCell::new();
+static BUTTON_COLOR_DARK : OnceCell<Color> = OnceCell::new();    
 
 // the number of squares on the board
 const N_SQUARES : usize = 121;
@@ -70,7 +73,6 @@ static CANVAS_HEIGHT: f64 = BOARD_WIDTH + (2f64)*BOARD_RECT_VERTICAL_OFFSET_IN_C
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
 //static ABSTRACT_BOARD_HEIGHT: f64 = 15.0; // vertical length from size to size of the board, with the origin right in the middle
-
 
 // static START_NEW_GAME_2_PLAYERS_ID : u32 = 1000;
 // static START_NEW_GAME_3_PLAYERS_ID : u32 = 1001;
@@ -1120,11 +1122,22 @@ impl MainWidget<AppState> {
             AppPage::START => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+
+                //let chinese_checkers_label_background = Color::rgba8(74, 71, 71, 128);
+                
+                let button_color_dark = BUTTON_COLOR_DARK.get();
+
+                let mut chinese_checkers_label_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
+                if button_color_dark.is_some() { 
+                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
+                    println!("Got here, BUTTON_COLOR_DARK is set!");
+                    chinese_checkers_label_background_color = Color::rgba(r,g,b,0.4); 
+                };
                 
                 let inner_menu = SizedBox::new(Flex::column()
                     .with_child(
                         Padding::new(padding_dp, 
-                            Label::new("Chinese Checkers").with_font(font)
+                            Label::new("Chinese Checkers").with_font(font).background(chinese_checkers_label_background_color)
                         )
                     )
                     .with_child(
@@ -1374,6 +1387,10 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
 impl Widget<AppState> for MainWidget<AppState> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
+        if UPDATE_BEEN_CALLED.get().is_none() {
+            ctx.request_update();
+        }
+
         self.main_container.event(ctx, event, data, _env);
 
         match event {
@@ -1438,13 +1455,20 @@ impl Widget<AppState> for MainWidget<AppState> {
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
         println!("In update() for MainWidget<AppState>....");
-
-        self.main_container.update(ctx, old_data, data, env);
-
-        if data.window_type != old_data.window_type {
-            let extras = if data.window_type == AppPage::CREATE_REMOTE_GAME { Some(String::from(data.room_id.clone().unwrap_or_default())) } else { None };
-            self.main_container = MainWidget::build_page_ui(data.window_type, extras);
+        if UPDATE_BEEN_CALLED.get().is_none() { // the OnceCell hasn't been initialized so the app hasn't been launched yet
+            self.main_container = MainWidget::build_page_ui(data.window_type, None);
             ctx.children_changed();
+            let res = UPDATE_BEEN_CALLED.set(true);
+            if res.is_err() {
+                println!("ERROR: attempting to set the UPDATE_BEEN_CALLED boolean in update() produced an error, which was unexpected.")
+            }
+        } else {
+            self.main_container.update(ctx, old_data, data, env);
+            if data.window_type != old_data.window_type {
+                let extras = if data.window_type == AppPage::CREATE_REMOTE_GAME { Some(String::from(data.room_id.clone().unwrap_or_default())) } else { None };
+                self.main_container = MainWidget::build_page_ui(data.window_type, extras);
+                ctx.children_changed();
+            }
         }
     }
 
@@ -1807,6 +1831,12 @@ fn main() {
 
     AppLauncher::with_window(main_window)
         //.delegate(command_handler)
+        .configure_env(|env, _data| {
+           let res = BUTTON_COLOR_DARK.set(env.get(druid::theme::BUTTON_DARK));
+           if res.is_err() {
+               println!("ERROR: attempting to set BUTTON_COLOR_DARK in configure_env produced an error...");
+           }
+        })
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
 }
