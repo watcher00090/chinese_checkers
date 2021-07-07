@@ -1826,7 +1826,8 @@ fn add_appropriate_hextiles_to_board(
 
 fn main() {
     let main_window = WindowDesc::new(MainWidget::<AppState>::new())
-                    .menu(make_menu::<AppState>);
+                    .menu(make_menu::<AppState>)
+                    .with_min_size(Size::new(400.0, 400.0));
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::START, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
