@@ -1083,36 +1083,39 @@ impl MainWidget<AppState> {
                     )
                     .with_child(
                         Padding::new(padding_dp,
-                            Button::new("New Local Game")
-                            .on_click(|ctx, data : &mut AppState, env| {
-                                data.window_type = AppPage::LOCAL_GAME;
-                                println!("New Local Game button pressed....");
-                            })
-                            .expand_width()
+                            WidgetExt::fix_width(
+                                Button::new("New Local Game")
+                                .on_click(|_ctx, data : &mut AppState, _env| {
+                                    data.window_type = AppPage::LOCAL_GAME;
+                                    println!("New Local Game button pressed....");
+                                })
+                            , 300.0)
                         )
                     )
                     .with_child(
                         Padding::new(padding_dp,
-                            Button::new("New Remote Game")
-                            .on_click(|ctx, data : &mut AppState, env| {
-                                data.window_type = AppPage::CREATE_REMOTE_GAME;
-                                println!("New Remote Game button pressed....");
-                            })
-                            .expand_width()
+                            WidgetExt::fix_width(
+                                Button::new("New Remote Game")
+                                .on_click(|_ctx, data : &mut AppState, _env| {
+                                    data.window_type = AppPage::CREATE_REMOTE_GAME;
+                                    println!("New Remote Game button pressed....");
+                                })
+                            , 300.0)
                         )
                     )
                     .with_child(
                         Padding::new(padding_dp,
-                            Button::new("Back")
-                            .on_click(|ctx, data : &mut AppState, env| {
-                                data.window_type = AppPage::START;
-                                println!("Back button pressed from new game page....");
-                            })
-                            .expand_width()
+                            WidgetExt::fix_width(
+                                Button::new("Back")
+                                .on_click(|_ctx, data : &mut AppState, _env| {
+                                    data.window_type = AppPage::START;
+                                    println!("Back button pressed from new game page....");
+                                })
+                            , 300.0)
                         )
                     )
 
-                ).width(300.0).expand_height();
+                ).expand_height();  //.width(300.0).expand_height();
 
                 return Container::new(Align::centered(column_layout))
             },
@@ -1144,38 +1147,42 @@ impl MainWidget<AppState> {
                     )
                     .with_child(
                         Padding::new(padding_dp, 
-                            Button::new("New Game")
-                            .on_click(|ctx, data : &mut AppState, env| {
-                                data.window_type = AppPage::NEW_GAME;
-                                println!("New game button pressed....");
-                            })
-                            .expand_width()
+                            WidgetExt::fix_width(
+                                Button::new("New Game")
+                                .on_click(|_ctx, data : &mut AppState, _env| {
+                                    data.window_type = AppPage::NEW_GAME;
+                                    println!("New game button pressed....");
+                                })
+                            , 300.0)
                         )
                     )
                     .with_child(
                         Padding::new(padding_dp, 
-                            Button::new("Join Game")
-                            .on_click(|ctx, data : &mut AppState, env| {
-                                data.window_type = AppPage::JOIN_REMOTE_GAME;
-                                println!("Join game button pressed....");
-                            })
-                            .expand_width()
+                            WidgetExt::fix_width(
+                                Button::new("Join Game")
+                                .on_click(|_ctx, data : &mut AppState, _env| {
+                                    data.window_type = AppPage::JOIN_REMOTE_GAME;
+                                    println!("Join game button pressed....");
+                                })
+                            , 300.0)
                         )
                     )
                     .with_child(
                         Padding::new(padding_dp, 
-                            Button::new("Settings")
-                            .expand_width()
+                            WidgetExt::fix_width(
+                                Button::new("Settings")
+                            , 300.0)
                         )
                     )
                     .with_child(
                         Padding::new(padding_dp, 
-                            Button::new("Quit")
-                            .on_click(|ctx, data: &mut AppState, env| {
-                                println!("closing the application....");
-                                ctx.window().close();
-                            })
-                            .expand_width()
+                            WidgetExt::fix_width(
+                                Button::new("Quit")
+                                .on_click(|ctx, _data: &mut AppState, _env| {
+                                    println!("closing the application....");
+                                    ctx.window().close();
+                                })
+                            , 300.0)
                         )
                     )
                 )).width(320.0).background(chinese_checkers_menu_background_color);
