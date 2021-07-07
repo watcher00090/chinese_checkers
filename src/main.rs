@@ -1141,7 +1141,7 @@ impl MainWidget<AppState> {
                 
                 let inner_menu = SizedBox::new(Padding::new(menu_background_padding, Flex::column()
                     .with_child(
-                        Padding::new(padding_dp, 
+                        Padding::new((0.0, 10.0, 0.0, 5.0), 
                             Label::new("Chinese Checkers").with_font(font)
                         )
                     )
@@ -1175,7 +1175,7 @@ impl MainWidget<AppState> {
                         )
                     )
                     .with_child(
-                        Padding::new(padding_dp, 
+                        Padding::new((0.0, 10.0, 0.0, 20.0), 
                             WidgetExt::fix_width(
                                 Button::new("Quit")
                                 .on_click(|ctx, _data: &mut AppState, _env| {
@@ -1185,7 +1185,7 @@ impl MainWidget<AppState> {
                             , 300.0)
                         )
                     )
-                )).width(320.0).background(chinese_checkers_menu_background_color);
+                )).background(chinese_checkers_menu_background_color);
                 
                 let start_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
                     Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
