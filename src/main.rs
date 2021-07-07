@@ -898,6 +898,163 @@ impl MainWidget<AppState> {
     fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
         match page {
             AppPage::CREATE_REMOTE_GAME => {
+
+                let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
+
+                //let chinese_checkers_label_background = Color::rgba8(74, 71, 71, 128);
+                
+                let button_color_dark = BUTTON_COLOR_DARK.get();
+
+                let mut chinese_checkers_menu_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
+                if button_color_dark.is_some() { 
+                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
+                    println!("Got here, BUTTON_COLOR_DARK is set!");
+                    chinese_checkers_menu_background_color = Color::rgba(r,g,b,0.4); 
+                };
+
+                let menu_background_padding = (10.0, 0.0);
+                let top_bar_button_padding = (10.0, 0.0); // 10dp of horizontal padding, 0dp of vertical padding
+                let list_padding = (30.0, 10.0);
+                let added_players_label_padding = (0.0, 10.0);
+                
+                let inner_menu = SizedBox::new(
+                    Padding::new(menu_background_padding, Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("New Remote Game").with_font(font)
+                            )
+                        )
+                        .with_child(
+                            Flex::row()
+                                .cross_axis_alignment(CrossAxisAlignment::Start)
+                                // 1.0, 10.0, 2.0, 4.0, 1.0
+                                .with_flex_child(
+                                    Padding::new(list_padding,
+                                        Flex::column()
+                                            .with_child(
+                                                Padding::new(added_players_label_padding, Label::new("Added Players"))
+                                            )
+                                            .with_flex_child(
+                                                Scroll::new(
+                                                    List::new(|| { 
+                                                        Flex::row()
+                                                            .with_child(
+                                                                Label::new(|(_, item): &(Vector<&str>, &str), _env: &Env| {
+                                                                    format!("{}", item)
+                                                                })
+                                                            )
+                                                            .with_flex_spacer(1.0)
+                                                            .with_child(
+                                                                Button::new("-")
+                                                                    .on_click(|_ctx, (list, item): &mut (Vector<&str>, &str), _env| {
+                                                                        list.retain(|v| v != item) // remove the entry from the list 
+                                                                    })
+                                                                    // .fix_size(30.0, 30.0)
+                                                            )
+                                                            .padding(10.0)
+                                                            .background(Color::rgba(0.0,0.0,0.0,0.5))
+                                                            .fix_height(50.0)
+                                                            .fix_width(100.0)
+                                                    })
+                                                )
+                                                .vertical() // so that the scrolling is vertical, not horizontal
+                                                .lens(lens::Identity.map(
+                                                    |data: &AppState| {
+                                                        if data.create_remote_game_players_added.is_some() {                                    
+                                                            return (data.create_remote_game_players_added.clone().unwrap(), data.create_remote_game_players_added.clone().unwrap());
+                                                        } else {
+                                                            return (Vector::new(), Vector::new())
+                                                        }
+                                                    },
+                                                    |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
+                                                        data.create_remote_game_players_added = Some(lens_data.0)
+                                                    }
+                                                ))
+                                            ,1.0)
+                                    )
+                                , 1.0)
+                                //.with_flex_spacer(2.0)
+                                .with_flex_child(
+                                    Flex::column()
+                                    .cross_axis_alignment(CrossAxisAlignment::Start)
+                                    .with_flex_child(
+                                        Flex::column()
+                                        .cross_axis_alignment(CrossAxisAlignment::Start)
+                                        .with_child(Label::new("Room ID"))
+                                        .with_child(
+                                            //WidgetExt::controller(
+                                            // ValueTextBox::new(
+                                            WidgetExt::fix_width(TextBox::new(), 150.0)
+                                            // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
+                                            //)
+                                            //.update_data_while_editing(false)
+                                            //.validate_while_editing(true)
+                                            //.expand_width()
+                                            //, TextCopyController{}
+                                            
+                                        )
+                                        .lens(lens::Map::new(
+                                            |data: &AppState| {
+                                                if data.room_id.is_some() {
+                                                    return data.clone().room_id.unwrap();
+                                                } else {
+                                                    println!("ERROR in build_page_ui when page = AppState::CREATE_REMOTE_GAME: data.room_id is none, which is incorrect");
+                                                    return String::from("");
+                                                }
+                                            },
+                                            |data: &mut AppState, lens_data: String| {
+                                                data.room_id = Some(lens_data)
+                                            }
+                                        ))
+                                        //.expand_height()
+                                    , 1.0)
+                                    .with_flex_child(
+                                        Flex::column()
+                                        .cross_axis_alignment(CrossAxisAlignment::Start)
+                                        .with_child(Label::new("Paste Registration Tickets Here:"))
+                                        .with_child(
+                                            WidgetExt::fix_width(TextBox::new(), 150.0)
+                                            //.expand_width()
+                                            .lens(AppState::registration_ticket)
+                                        )
+                                        //.expand_height()
+                                    , 1.0)
+                                , 1.0)
+                        ) // , FlexParams::new(1.0, CrossAxisAlignment::Center))
+                    )
+                ).background(chinese_checkers_menu_background_color);
+                                
+                let inner_menu_aligned = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_size(inner_menu, 400.0, 400.0))
+                );
+
+                let create_remote_game_page = Flex::column()
+                    .with_child(
+                        Flex::row()
+                        .with_child(Padding::new(top_bar_button_padding, Button::new("Back")))
+                        .with_flex_spacer(1.0)
+                        .with_child(Padding::new(top_bar_button_padding, Button::new("Help")))
+                    )
+                    .with_flex_spacer(1.0)
+                    .with_child(inner_menu_aligned)
+                    .with_flex_spacer(1.0);
+
+                let painter = Painter::new(|ctx, data: &AppState, env| {
+                    let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
+                        Ok(svg) => svg,
+                        Err(err) => {
+                            error!("{}", err);
+                            error!("Using an empty SVG instead.");
+                            SvgData::default()
+                        }
+                    };
+                    Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
+                });
+
+                return Container::new(create_remote_game_page).background(painter);
+
+
                 // let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 // let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
 
@@ -948,119 +1105,119 @@ impl MainWidget<AppState> {
                 //         , 1.0)
                 //     ).expand_height();
 
-                let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding 
-                let top_bar_button_padding = (10.0, 0.0); // 10dp of horizontal padding, 0dp of vertical padding
-                let list_padding = (30.0, 10.0);
-                let added_players_label_padding = (0.0, 10.0);
+                // let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+                // let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding 
+                // let top_bar_button_padding = (10.0, 0.0); // 10dp of horizontal padding, 0dp of vertical padding
+                // let list_padding = (30.0, 10.0);
+                // let added_players_label_padding = (0.0, 10.0);
 
-                let column_layout = Flex::column()
-                    .with_child(
-                        Flex::row()
-                        .with_child(Padding::new(top_bar_button_padding, Button::new("Back")))
-                        .with_flex_spacer(1.0)
-                        .with_child(Label::new("New Remote Game").with_font(font))
-                        .with_flex_spacer(1.0)
-                        .with_child(Padding::new(top_bar_button_padding, Button::new("Help")))
-                    )
-                    .with_flex_child(
-                        Flex::row()
-                            .cross_axis_alignment(CrossAxisAlignment::Start)
-                            // 1.0, 10.0, 2.0, 4.0, 1.0
-                            .with_flex_spacer(1.0)
-                            .with_flex_child(
-                                Padding::new(list_padding,
-                                    Flex::column()
-                                        .with_child(
-                                            Padding::new(added_players_label_padding, Label::new("Added Players"))
-                                        )
-                                        .with_flex_child(
-                                            Scroll::new(
-                                                List::new(|| { 
-                                                    Flex::row()
-                                                        .with_child(
-                                                            Label::new(|(_, item): &(Vector<&str>, &str), _env: &Env| {
-                                                                format!("{}", item)
-                                                            })
-                                                        )
-                                                        .with_flex_spacer(1.0)
-                                                        .with_child(
-                                                            Button::new("-")
-                                                                .on_click(|_ctx, (list, item): &mut (Vector<&str>, &str), _env| {
-                                                                    list.retain(|v| v != item) // remove the entry from the list 
-                                                                })
-                                                                .fix_size(30.0, 30.0)
-                                                        )
-                                                        .padding(10.0)
-                                                        .background(Color::rgb(0.5,0.0,0.5))
-                                                        .fix_height(50.0)
-                                                })
-                                            )
-                                            .vertical() // so that the scrolling is vertical, not horizontal
-                                            .lens(lens::Identity.map(
-                                                |data: &AppState| {
-                                                    if data.create_remote_game_players_added.is_some() {                                    
-                                                        return (data.create_remote_game_players_added.clone().unwrap(), data.create_remote_game_players_added.clone().unwrap());
-                                                    } else {
-                                                        return (Vector::new(), Vector::new())
-                                                    }
-                                                },
-                                                |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
-                                                    data.create_remote_game_players_added = Some(lens_data.0)
-                                                }
-                                            )).expand_width()
-                                        ,1.0)
-                                )
-                            , 10.0)
-                            .with_flex_spacer(2.0)
-                            .with_flex_child(
-                                Flex::column()
-                                .cross_axis_alignment(CrossAxisAlignment::Start)
-                                .with_flex_child(
-                                    Flex::column()
-                                    .cross_axis_alignment(CrossAxisAlignment::Start)
-                                    .with_child(Label::new("Room ID"))
-                                    .with_child(
-                                        //WidgetExt::controller(
-                                        // ValueTextBox::new(
-                                        TextBox::new() // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
-                                        //)
-                                        //.update_data_while_editing(false)
-                                        //.validate_while_editing(true)
-                                        .expand_width()
-                                        //, TextCopyController{}
-                                        )
-                                    .lens(lens::Map::new(
-                                        |data: &AppState| {
-                                            if data.room_id.is_some() {
-                                                return data.clone().room_id.unwrap();
-                                            } else {
-                                                println!("ERROR in build_page_ui when page = AppState::CREATE_REMOTE_GAME: data.room_id is none, which is incorrect");
-                                                return String::from("");
-                                            }
-                                        },
-                                        |data: &mut AppState, lens_data: String| {
-                                            data.room_id = Some(lens_data)
-                                        }
-                                    ))
-                                    .expand_height()
-                                , 1.0)
-                                .with_flex_child(
-                                    Flex::column()
-                                    .cross_axis_alignment(CrossAxisAlignment::Start)
-                                    .with_child(Label::new("Paste registration tickets here:"))
-                                    .with_child(
-                                        TextBox::new()
-                                        .expand_width()
-                                        .lens(AppState::registration_ticket)
-                                    )
-                                    .expand_height()
-                                , 1.0)
-                            , 4.0)
-                            .with_flex_spacer(1.0)
-                    , FlexParams::new(1.0, CrossAxisAlignment::Center));
+                // let column_layout = Flex::column()
+                //     .with_child(
+                //         Flex::row()
+                //         .with_child(Padding::new(top_bar_button_padding, Button::new("Back")))
+                //         .with_flex_spacer(1.0)
+                //         .with_child(Label::new("New Remote Game").with_font(font))
+                //         .with_flex_spacer(1.0)
+                //         .with_child(Padding::new(top_bar_button_padding, Button::new("Help")))
+                //     )
+                //     .with_flex_child(
+                //         Flex::row()
+                //             .cross_axis_alignment(CrossAxisAlignment::Start)
+                //             // 1.0, 10.0, 2.0, 4.0, 1.0
+                //             .with_flex_spacer(1.0)
+                //             .with_flex_child(
+                //                 Padding::new(list_padding,
+                //                     Flex::column()
+                //                         .with_child(
+                //                             Padding::new(added_players_label_padding, Label::new("Added Players"))
+                //                         )
+                //                         .with_flex_child(
+                //                             Scroll::new(
+                //                                 List::new(|| { 
+                //                                     Flex::row()
+                //                                         .with_child(
+                //                                             Label::new(|(_, item): &(Vector<&str>, &str), _env: &Env| {
+                //                                                 format!("{}", item)
+                //                                             })
+                //                                         )
+                //                                         .with_flex_spacer(1.0)
+                //                                         .with_child(
+                //                                             Button::new("-")
+                //                                                 .on_click(|_ctx, (list, item): &mut (Vector<&str>, &str), _env| {
+                //                                                     list.retain(|v| v != item) // remove the entry from the list 
+                //                                                 })
+                //                                                 .fix_size(30.0, 30.0)
+                //                                         )
+                //                                         .padding(10.0)
+                //                                         .background(Color::rgb(0.5,0.0,0.5))
+                //                                         .fix_height(50.0)
+                //                                 })
+                //                             )
+                //                             .vertical() // so that the scrolling is vertical, not horizontal
+                //                             .lens(lens::Identity.map(
+                //                                 |data: &AppState| {
+                //                                     if data.create_remote_game_players_added.is_some() {                                    
+                //                                         return (data.create_remote_game_players_added.clone().unwrap(), data.create_remote_game_players_added.clone().unwrap());
+                //                                     } else {
+                //                                         return (Vector::new(), Vector::new())
+                //                                     }
+                //                                 },
+                //                                 |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
+                //                                     data.create_remote_game_players_added = Some(lens_data.0)
+                //                                 }
+                //                             )).expand_width()
+                //                         ,1.0)
+                //                 )
+                //             , 10.0)
+                //             .with_flex_spacer(2.0)
+                //             .with_flex_child(
+                //                 Flex::column()
+                //                 .cross_axis_alignment(CrossAxisAlignment::Start)
+                //                 .with_flex_child(
+                //                     Flex::column()
+                //                     .cross_axis_alignment(CrossAxisAlignment::Start)
+                //                     .with_child(Label::new("Room ID"))
+                //                     .with_child(
+                //                         //WidgetExt::controller(
+                //                         // ValueTextBox::new(
+                //                         TextBox::new() // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
+                //                         //)
+                //                         //.update_data_while_editing(false)
+                //                         //.validate_while_editing(true)
+                //                         .expand_width()
+                //                         //, TextCopyController{}
+                //                         )
+                //                     .lens(lens::Map::new(
+                //                         |data: &AppState| {
+                //                             if data.room_id.is_some() {
+                //                                 return data.clone().room_id.unwrap();
+                //                             } else {
+                //                                 println!("ERROR in build_page_ui when page = AppState::CREATE_REMOTE_GAME: data.room_id is none, which is incorrect");
+                //                                 return String::from("");
+                //                             }
+                //                         },
+                //                         |data: &mut AppState, lens_data: String| {
+                //                             data.room_id = Some(lens_data)
+                //                         }
+                //                     ))
+                //                     .expand_height()
+                //                 , 1.0)
+                //                 .with_flex_child(
+                //                     Flex::column()
+                //                     .cross_axis_alignment(CrossAxisAlignment::Start)
+                //                     .with_child(Label::new("Paste registration tickets here:"))
+                //                     .with_child(
+                //                         TextBox::new()
+                //                         .expand_width()
+                //                         .lens(AppState::registration_ticket)
+                //                     )
+                //                     .expand_height()
+                //                 , 1.0)
+                //             , 4.0)
+                //             .with_flex_spacer(1.0)
+                //     , FlexParams::new(1.0, CrossAxisAlignment::Center));
 
-                return Container::new(Align::centered(column_layout))
+                // return Container::new(Align::centered(column_layout))
             },
             AppPage::JOIN_REMOTE_GAME => {
                 return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
@@ -1073,51 +1230,81 @@ impl MainWidget<AppState> {
             },
             AppPage::NEW_GAME => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-                let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
+                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
 
-                let column_layout = SizedBox::new(Flex::column()
-                    .with_child(
-                        Padding::new(padding_dp,
-                            Label::new("New Game").with_font(font)
-                        )
-                    )
-                    .with_child(
-                        Padding::new(padding_dp,
-                            WidgetExt::fix_width(
-                                Button::new("New Local Game")
-                                .on_click(|_ctx, data : &mut AppState, _env| {
-                                    data.window_type = AppPage::LOCAL_GAME;
-                                    println!("New Local Game button pressed....");
-                                })
-                            , 300.0)
-                        )
-                    )
-                    .with_child(
-                        Padding::new(padding_dp,
-                            WidgetExt::fix_width(
-                                Button::new("New Remote Game")
-                                .on_click(|_ctx, data : &mut AppState, _env| {
-                                    data.window_type = AppPage::CREATE_REMOTE_GAME;
-                                    println!("New Remote Game button pressed....");
-                                })
-                            , 300.0)
-                        )
-                    )
-                    .with_child(
-                        Padding::new(padding_dp,
-                            WidgetExt::fix_width(
-                                Button::new("Back")
-                                .on_click(|_ctx, data : &mut AppState, _env| {
-                                    data.window_type = AppPage::START;
-                                    println!("Back button pressed from new game page....");
-                                })
-                            , 300.0)
-                        )
-                    )
+                //let chinese_checkers_label_background = Color::rgba8(74, 71, 71, 128);
+                
+                let button_color_dark = BUTTON_COLOR_DARK.get();
 
-                ).expand_height();  //.width(300.0).expand_height();
+                let mut chinese_checkers_menu_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
+                if button_color_dark.is_some() { 
+                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
+                    println!("Got here, BUTTON_COLOR_DARK is set!");
+                    chinese_checkers_menu_background_color = Color::rgba(r,g,b,0.4); 
+                };
 
-                return Container::new(Align::centered(column_layout))
+                let menu_background_padding = (10.0, 0.0);
+                
+                let inner_menu = SizedBox::new(
+                    Padding::new(menu_background_padding, Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("New Game").with_font(font)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                WidgetExt::fix_width(
+                                    Button::new("New Local Game")
+                                    .on_click(|_ctx, data : &mut AppState, _env| {
+                                        data.window_type = AppPage::LOCAL_GAME;
+                                        println!("New Local Game button pressed....");
+                                    })
+                                , 300.0)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                WidgetExt::fix_width(
+                                    Button::new("New Remote Game")
+                                    .on_click(|_ctx, data : &mut AppState, _env| {
+                                        data.window_type = AppPage::CREATE_REMOTE_GAME;
+                                        println!("New Remote Game button pressed....");
+                                    })
+                                , 300.0)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                WidgetExt::fix_width(
+                                    Button::new("Back")
+                                    .on_click(|_ctx, data : &mut AppState, _env| {
+                                        data.window_type = AppPage::START;
+                                        println!("Back button pressed from new game page....");
+                                    })
+                                , 300.0)
+                            )
+                        )
+                    )
+                ).background(chinese_checkers_menu_background_color);
+                
+                let new_game_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
+                );
+
+                let painter = Painter::new(|ctx, data: &AppState, env| {
+                    let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
+                        Ok(svg) => svg,
+                        Err(err) => {
+                            error!("{}", err);
+                            error!("Using an empty SVG instead.");
+                            SvgData::default()
+                        }
+                    };
+                    Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
+                });
+
+                return Container::new(new_game_page).background(painter);
             },
             AppPage::SETTINGS => {
                 return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER SETTINGS PAGE"))));
