@@ -93,15 +93,16 @@ static BOARD_CIRCLE_COLOR_b : u8 = 166;
 // static BOARD_CIRCLE_COLOR_b : u8 = 220;
 
 lazy_static! {
-    static ref YELLOW_COLOR:   Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
-    static ref RED_COLOR:      Color = Color::rgba(0.902, 0.110, 0.110, 1.0);
-    static ref BLUE_COLOR:     Color = Color::rgba(0.110, 0.110, 0.902, 1.0);
-    static ref GREEN_COLOR:    Color = Color::rgba(0.059, 0.600, 0.239, 1.0);
-    static ref BLACK_COLOR:    Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
-    static ref WHITE_COLOR:    Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
-    static ref GREY_COLOR:     Color = Color::rgba(0.5, 0.5, 0.5, 1.0);    
-    static ref ORANGE_COLOR:   Color = Color::rgba(0.94, 0.55, 0.05, 1.0);
-    static ref PURPLE_COLOR:   Color = Color::rgba(0.62, 0.05, 0.94, 1.0);
+    static ref YELLOW_COLOR:    Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
+    static ref RED_COLOR:       Color = Color::rgba(0.902, 0.110, 0.110, 1.0);
+    static ref BLUE_COLOR:      Color = Color::rgba(0.110, 0.110, 0.902, 1.0);
+    static ref GREEN_COLOR:     Color = Color::rgba(0.059, 0.600, 0.239, 1.0);
+    static ref BLACK_COLOR:     Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
+    static ref WHITE_COLOR:     Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
+    static ref GREY_COLOR:      Color = Color::rgba(0.5, 0.5, 0.5, 1.0);    
+    static ref ORANGE_COLOR:    Color = Color::rgba(0.94, 0.55, 0.05, 1.0);
+    static ref PURPLE_COLOR:    Color = Color::rgba(0.62, 0.05, 0.94, 1.0);
+    static ref MENU_GREY:       Color = Color::rgba(0.2, 0.2, 0.2, 1.0);
 }
 
 static PLAYER_ONE_NUMBER : usize = 0;
@@ -908,9 +909,11 @@ impl MainWidget<AppState> {
 
                 let mut chinese_checkers_menu_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
                 if button_color_dark.is_some() { 
-                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
+                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba();
                     println!("Got here, BUTTON_COLOR_DARK is set!");
-                    chinese_checkers_menu_background_color = Color::rgba(r,g,b,0.4); 
+                    //let tmp = druid::theme::BACKGROUND_DARK;
+                    //let (tmp_r, tmp_g, tmp_b) = Color::as_rbga(tmp)
+                    chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
                 };
 
                 let menu_background_padding = (10.0, 0.0);
@@ -1240,7 +1243,9 @@ impl MainWidget<AppState> {
                 if button_color_dark.is_some() { 
                     let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
                     println!("Got here, BUTTON_COLOR_DARK is set!");
-                    chinese_checkers_menu_background_color = Color::rgba(r,g,b,0.4); 
+                    //let tmp = druid::theme::BACKGROUND_DARK;
+                    chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
+
                 };
 
                 let menu_background_padding = (10.0, 0.0);
@@ -1321,7 +1326,9 @@ impl MainWidget<AppState> {
                 if button_color_dark.is_some() { 
                     let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
                     println!("Got here, BUTTON_COLOR_DARK is set!");
-                    chinese_checkers_menu_background_color = Color::rgba(r,g,b,0.4); 
+                    //let tmp = druid::theme::BACKGROUND_DARK;
+                    chinese_checkers_menu_background_color = (*MENU_GREY).clone();  
+ 
                 };
 
                 let menu_background_padding = (10.0, 0.0);
