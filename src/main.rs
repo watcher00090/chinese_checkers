@@ -1,32 +1,30 @@
-use druid::widget::{LensWrap, Painter, FillStrat, Svg, SvgData, Controller, TextBox, ValueTextBox, Scroll, ListIter ,List, FlexParams, MainAxisAlignment, CrossAxisAlignment, ControllerHost, Click, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
-use druid::{UnitPoint, WidgetPod, WindowId, Screen, LocalizedString, Affine, Point, Rect, FontDescriptor, TextLayout, Color, Handled, DelegateCtx, AppDelegate, Command, Selector, Target, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt, MouseButton};
-use rand::prelude::*;
+use druid::LocalizedString;
+
+use druid::menu::MenuEventCtx;
+use druid::menu::MenuItem;
+use druid::menu::Menu;
+
+use druid::Command;
+use druid::Target;
+
+use druid::{Point, Rect, FontDescriptor, Color, Selector, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt};
 // use druid::{MenuDesc, MenuItem, ContextMenu};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash,Hasher};
 use druid::widget::prelude::*;
-use std::sync::{Arc, Mutex, MutexGuard};
-use druid::kurbo::{Circle, Shape, BezPath};
-use druid::piet::{FontFamily, FontWeight, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
+use std::sync::{Mutex, MutexGuard};
+use druid::kurbo::{Circle};
+use druid::piet::{FontFamily, FontWeight};
 // use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 use druid::im;
 use druid::im::{vector, Vector};
-use druid::text::format::{Validation, ValidationError, ParseFormatter, Formatter};
 // use druid::text::selection::Selection;
-use std::error::Error;
 // use druid_shell::KeyState;
-use druid::Modifiers;
-use druid::commands;
 use std::convert::TryInto;
-use std::any::Any;
-
-use std::{env,io};
 
 use once_cell::sync::OnceCell;
 
-use druid::Menu;
 use tracing::error;
 
 #[macro_use]
@@ -41,7 +39,7 @@ static mut background_svg_store: Option<Svg> = None;
 lazy_static! {
     // Global mutable variable storing the WidgetId of the root widget. 
     static ref root_widget_id_guard : Mutex::<WidgetId> = Mutex::<WidgetId>::new(WidgetId::next());  // global variable always storing the widget id of the root widget
-    static ref start_game_selector : Selector<usize> = Selector::new("START_GAME");
+    static ref start_game_selector : Selector<usize> = Selector::new("Start_GAME");
     static ref piece_size_bounds : Size = Size::new(20.0, 20.0);
     static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
     // static ref SQUARE_COLOR : Color = Color::rgb8(96,54,15);
@@ -50,6 +48,8 @@ lazy_static! {
     static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8( 200, 144, 103 );
 }
 
+static MIN_WINDOW_WIDTH : f64 = 400f64;
+static MIN_WINDOW_HEIGHT: f64 = 400f64;
 static BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS : f64 = 20f64;
 
 static UPDATE_BEEN_CALLED : OnceCell<bool> = OnceCell::new();
@@ -74,11 +74,11 @@ static CANVAS_HEIGHT: f64 = BOARD_WIDTH + (2f64)*BOARD_RECT_VERTICAL_OFFSET_IN_C
 //static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
 //static ABSTRACT_BOARD_HEIGHT: f64 = 15.0; // vertical length from size to size of the board, with the origin right in the middle
 
-// static START_NEW_GAME_2_PLAYERS_ID : u32 = 1000;
-// static START_NEW_GAME_3_PLAYERS_ID : u32 = 1001;
-// static START_NEW_GAME_4_PLAYERS_ID : u32 = 1002;
-// static START_NEW_GAME_5_PLAYERS_ID : u32 = 1003;
-// static START_NEW_GAME_6_PLAYERS_ID : u32 = 1004;
+// static Start_NewGame_2_PLAYERS_ID : u32 = 1000;
+// static Start_NewGame_3_PLAYERS_ID : u32 = 1001;
+// static Start_NewGame_4_PLAYERS_ID : u32 = 1002;
+// static Start_NewGame_5_PLAYERS_ID : u32 = 1003;
+// static Start_NewGame_6_PLAYERS_ID : u32 = 1004;
 
 static BOARD_CIRCLE_COLOR_r : u8 = 238;
 static BOARD_CIRCLE_COLOR_g : u8 = 206;
@@ -145,7 +145,7 @@ struct BoardRegionBoundaryHexCoords {
 // }
 
 // yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
-static BOTTOM_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static Bottom_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {
     x_min : -4,
     x_max : -1,
@@ -156,7 +156,7 @@ BoardRegionBoundaryHexCoords {
 };
 
 // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
-static BOTTOM_LEFT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static BottomLeft_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: -8,
     x_max: -5,
@@ -167,7 +167,7 @@ BoardRegionBoundaryHexCoords {
 };
 
 // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
-static BOTTOM_RIGHT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static BottomRight_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: 1,
     x_max: 4,
@@ -178,7 +178,7 @@ BoardRegionBoundaryHexCoords {
 };
 
 // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
-static TOP_LEFT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static TopLeft_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: -4,
     x_max: -1,
@@ -189,7 +189,7 @@ BoardRegionBoundaryHexCoords {
 };
 
 // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
-static TOP_RIGHT_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static TopRight_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: 5,
     x_max: 8,
@@ -200,7 +200,7 @@ BoardRegionBoundaryHexCoords {
 };
 
     // //white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
-static TOP_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static Top_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: 1,
     x_max: 4,
@@ -224,46 +224,46 @@ BoardRegionBoundaryHexCoords {
 
 #[derive(PartialEq, Clone, Data, Copy, Debug)]
 enum AppPage {
-    START,
-    NEW_GAME,
-    JOIN_REMOTE_GAME,
-    LOCAL_GAME,
-    REMOTE_GAME,
-    CREATE_REMOTE_GAME,
-    SETTINGS,
+    Start,
+    NewGame,
+    JoinRemoteGame,
+    LocalGame,
+    RemoteGame,
+    CreateRemoteGame,
+    Settings,
 }
 
 #[derive(Clone, Copy, Data, PartialEq)]
 enum StartingRegion {
-    TOP,
-    TOP_LEFT,
-    TOP_RIGHT,
-    BOTTOM_LEFT,
-    BOTTOM_RIGHT,
-    BOTTOM,
+    Top,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    Bottom,
 }
 
 impl StartingRegion {
     // returns the opposite region to the given region
     fn opposite(&self) -> StartingRegion {
         match self {
-            StartingRegion::TOP => {
-                StartingRegion::BOTTOM
+            StartingRegion::Top => {
+                StartingRegion::Bottom
             }, 
-            StartingRegion::BOTTOM => {
-                StartingRegion::TOP
+            StartingRegion::Bottom => {
+                StartingRegion::Top
             },
-            StartingRegion::TOP_LEFT => {
-                StartingRegion::BOTTOM_RIGHT
+            StartingRegion::TopLeft => {
+                StartingRegion::BottomRight
             },
-            StartingRegion::TOP_RIGHT => {
-                StartingRegion::BOTTOM_LEFT
+            StartingRegion::TopRight => {
+                StartingRegion::BottomLeft
             }, 
-            StartingRegion::BOTTOM_LEFT => {
-                StartingRegion::TOP_RIGHT
+            StartingRegion::BottomLeft => {
+                StartingRegion::TopRight
             }, 
-            StartingRegion::BOTTOM_RIGHT => {
-                StartingRegion::TOP_LEFT
+            StartingRegion::BottomRight => {
+                StartingRegion::TopLeft
             }
             _ => {
                 panic!("ERROR: opposite() method of StartingRegion: unrecognized input argument, exiting...");
@@ -888,7 +888,7 @@ impl MainWidget<AppState> {
 
     fn new() -> IdentityWrapper<Self> {           
         let main_widget = MainWidget::<AppState> {
-            main_container: MainWidget::build_page_ui(AppPage::START, None),
+            main_container: MainWidget::build_page_ui(AppPage::Start, None),
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();      
@@ -898,12 +898,10 @@ impl MainWidget<AppState> {
 
     fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
         match page {
-            AppPage::CREATE_REMOTE_GAME => {
+            AppPage::CreateRemoteGame => {
 
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
-
-                //let chinese_checkers_label_background = Color::rgba8(74, 71, 71, 128);
                 
                 let button_color_dark = BUTTON_COLOR_DARK.get();
 
@@ -911,8 +909,6 @@ impl MainWidget<AppState> {
                 if button_color_dark.is_some() { 
                     let (r,g,b,_) = button_color_dark.unwrap().as_rgba();
                     println!("Got here, BUTTON_COLOR_DARK is set!");
-                    //let tmp = druid::theme::BACKGROUND_DARK;
-                    //let (tmp_r, tmp_g, tmp_b) = Color::as_rbga(tmp)
                     chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
                 };
 
@@ -1002,7 +998,7 @@ impl MainWidget<AppState> {
                                                 if data.room_id.is_some() {
                                                     return data.clone().room_id.unwrap();
                                                 } else {
-                                                    println!("ERROR in build_page_ui when page = AppState::CREATE_REMOTE_GAME: data.room_id is none, which is incorrect");
+                                                    println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
                                                     return String::from("");
                                                 }
                                             },
@@ -1195,7 +1191,7 @@ impl MainWidget<AppState> {
                 //                             if data.room_id.is_some() {
                 //                                 return data.clone().room_id.unwrap();
                 //                             } else {
-                //                                 println!("ERROR in build_page_ui when page = AppState::CREATE_REMOTE_GAME: data.room_id is none, which is incorrect");
+                //                                 println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
                 //                                 return String::from("");
                 //                             }
                 //                         },
@@ -1222,16 +1218,80 @@ impl MainWidget<AppState> {
 
                 // return Container::new(Align::centered(column_layout))
             },
-            AppPage::JOIN_REMOTE_GAME => {
+            AppPage::JoinRemoteGame => {
                 return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
             },
-            AppPage::LOCAL_GAME => {
-                return Container::new(Align::centered(Flex::column().with_child(Label::new("LOCAL_GAME"))));
+            AppPage::LocalGame => {
+                return Container::new(
+                    Flex::column()
+                    .with_child(
+                        Flex::row()
+                            .with_flex_child(Padding::new(20.0, 
+                                Container::new(Align::centered(
+                                    Button::new("New Game").on_click(|ctx, data: &mut AppState, _env| {
+                                        let item2 = MenuItem::<AppState>::new(LocalizedString::new("2")).on_activate(
+                                            move |ctx: &mut MenuEventCtx, _data, _env| {
+                                                let root_widget_id = *(root_widget_id_guard.lock().unwrap());        
+                                                ctx.submit_command(Command::new(*start_game_selector, 2, Target::Widget(root_widget_id)));
+                                            }
+                                        );
+                                        let item3 = MenuItem::<AppState>::new(LocalizedString::new("3")).on_activate(
+                                            |ctx: &mut MenuEventCtx, _data, _env| { 
+                                                let root_widget_id = *(root_widget_id_guard.lock().unwrap());        
+                                                ctx.submit_command(Command::new(*start_game_selector, 3, Target::Widget(root_widget_id)));
+                                            }
+                                        );
+                                        let item4 = MenuItem::<AppState>::new(LocalizedString::new("4")).on_activate(
+                                            |ctx: &mut MenuEventCtx, _data, _env| { 
+                                                let root_widget_id = *(root_widget_id_guard.lock().unwrap());        
+                                                ctx.submit_command(Command::new(*start_game_selector, 4, Target::Widget(root_widget_id)));
+                                            }
+                                        );
+                                        let item6 = MenuItem::<AppState>::new(LocalizedString::new("6")).on_activate(
+                                            |ctx: &mut MenuEventCtx, _data, _env| { 
+                                                let root_widget_id = *(root_widget_id_guard.lock().unwrap());        
+                                                ctx.submit_command(Command::new(*start_game_selector, 6, Target::Widget(root_widget_id)));
+                                            }
+                                        );
+                                        let new_game_context_menu = Menu::new("How Many Players?").entry(item2).entry(item3).entry(item4).entry(item6);
+                                        ctx.show_context_menu(new_game_context_menu, data.mouse_location_in_canvas);
+                                // println!("new game buttton pressed!!");
+                            })))),1.0)
+                            .with_flex_child(Container::new(Align::centered(
+                                Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
+                                    data.window_type = AppPage::Start;
+                                    data.board.clear();
+                                    data.pieces.clear();
+                                    data.player_piece_colors.clear();
+                                    data.in_game = false;
+                                    data.whose_turn = None;
+                                    data.last_hopper = None;
+                                    data.num_players = None;
+                                    println!("Quit button pressed in single-player mode....");                                    
+                                })
+                            )),1.0)
+                    )
+                    .with_child(Flex::row()
+                        .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
+                                if data.whose_turn.is_none() { return format!(""); }
+                                return format!("Player {} to move", data.whose_turn.unwrap() + 1);
+                            }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
+                        )
+                    )
+                    .with_child(Flex::row()
+                        .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
+                                data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
+                                data.last_hopper = None;
+                            })
+                        )
+                    )
+                    .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None}))
+                );
             },
-            AppPage::REMOTE_GAME => {
-                return Container::new(Align::centered(Flex::column().with_child(Label::new("REMOTE_GAME"))));
+            AppPage::RemoteGame => {
+                return Container::new(Align::centered(Flex::column().with_child(Label::new("RemoteGame"))));
             },
-            AppPage::NEW_GAME => {
+            AppPage::NewGame => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
 
@@ -1245,7 +1305,6 @@ impl MainWidget<AppState> {
                     println!("Got here, BUTTON_COLOR_DARK is set!");
                     //let tmp = druid::theme::BACKGROUND_DARK;
                     chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
-
                 };
 
                 let menu_background_padding = (10.0, 0.0);
@@ -1262,7 +1321,7 @@ impl MainWidget<AppState> {
                                 WidgetExt::fix_width(
                                     Button::new("New Local Game")
                                     .on_click(|_ctx, data : &mut AppState, _env| {
-                                        data.window_type = AppPage::LOCAL_GAME;
+                                        data.window_type = AppPage::LocalGame;
                                         println!("New Local Game button pressed....");
                                     })
                                 , 300.0)
@@ -1273,7 +1332,7 @@ impl MainWidget<AppState> {
                                 WidgetExt::fix_width(
                                     Button::new("New Remote Game")
                                     .on_click(|_ctx, data : &mut AppState, _env| {
-                                        data.window_type = AppPage::CREATE_REMOTE_GAME;
+                                        data.window_type = AppPage::CreateRemoteGame;
                                         println!("New Remote Game button pressed....");
                                     })
                                 , 300.0)
@@ -1284,7 +1343,7 @@ impl MainWidget<AppState> {
                                 WidgetExt::fix_width(
                                     Button::new("Back")
                                     .on_click(|_ctx, data : &mut AppState, _env| {
-                                        data.window_type = AppPage::START;
+                                        data.window_type = AppPage::Start;
                                         println!("Back button pressed from new game page....");
                                     })
                                 , 300.0)
@@ -1293,7 +1352,7 @@ impl MainWidget<AppState> {
                     )
                 ).background(chinese_checkers_menu_background_color);
                 
-                let new_game_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                let NewGame_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
                     Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
                 );
 
@@ -1309,12 +1368,12 @@ impl MainWidget<AppState> {
                     Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
                 });
 
-                return Container::new(new_game_page).background(painter);
+                return Container::new(NewGame_page).background(painter);
             },
-            AppPage::SETTINGS => {
-                return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER SETTINGS PAGE"))));
+            AppPage::Settings => {
+                return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER Settings PAGE"))));
             },
-            AppPage::START => {
+            AppPage::Start => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
 
@@ -1344,8 +1403,7 @@ impl MainWidget<AppState> {
                             WidgetExt::fix_width(
                                 Button::new("New Game")
                                 .on_click(|_ctx, data : &mut AppState, _env| {
-                                    data.window_type = AppPage::NEW_GAME;
-                                    println!("New game button pressed....");
+                                    data.window_type = AppPage::NewGame;
                                 })
                             , 300.0)
                         )
@@ -1355,7 +1413,7 @@ impl MainWidget<AppState> {
                             WidgetExt::fix_width(
                                 Button::new("Join Game")
                                 .on_click(|_ctx, data : &mut AppState, _env| {
-                                    data.window_type = AppPage::JOIN_REMOTE_GAME;
+                                    data.window_type = AppPage::JoinRemoteGame;
                                     println!("Join game button pressed....");
                                 })
                             , 300.0)
@@ -1435,29 +1493,29 @@ impl MainWidget<AppState> {
 //         env: &Env
 //     ) -> Handled
 //     {
-//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_2_PLAYERS")) {
+//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_2_PLAYERS")) {
 //         //     println!("command to start a new game with 2 players received");
 //         //     data.board = Arc::<Vec::<Hextile>>::new(Vec::new());
 //         //     data.in_game = true;
 //         //     return Handled::Yes;
 //         // }
-//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_3_PLAYERS")) {
 //         //     println!("command to start a new game with 3 players received");
 //         //     return Handled::Yes;
 //         // }
-//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_3_PLAYERS")) {
+//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_3_PLAYERS")) {
 //         //     println!("command to start a new game with 3 players received");
 //         //     return Handled::Yes;
 //         // }
-//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_4_PLAYERS")) {
+//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_4_PLAYERS")) {
 //         //     println!("command to start a new game with 4 players received");
 //         //     return Handled::Yes;
 //         // }
-//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_5_PLAYERS")) {
+//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_5_PLAYERS")) {
 //         //     println!("command to start a new game with 5 players received");
 //         //     return Handled::Yes;
 //         // }
-//         // if cmd.is::<AppState>(Selector::new("START_NEW_GAME_WITH_6_PLAYERS")) {
+//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_6_PLAYERS")) {
 //         //     println!("command to start a new game with 6 players received");
 //         //     return Handled::Yes;
 //         // }
@@ -1498,23 +1556,23 @@ impl MainWidget<AppState> {
 
 fn get_boundary_coords_struct_for_region(region: StartingRegion) -> BoardRegionBoundaryHexCoords {
     match region {
-        StartingRegion::TOP => {
-            return TOP_TRIANGLE_BOUNDARY_COORDS;
+        StartingRegion::Top => {
+            return Top_TRIANGLE_BOUNDARY_COORDS;
         }, 
-        StartingRegion::TOP_RIGHT => {
-            return TOP_RIGHT_TRIANGLE_BOUNDARY_COORDS;
+        StartingRegion::TopRight => {
+            return TopRight_TRIANGLE_BOUNDARY_COORDS;
         }, 
-        StartingRegion::BOTTOM_RIGHT => {
-            return BOTTOM_RIGHT_TRIANGLE_BOUNDARY_COORDS;
+        StartingRegion::BottomRight => {
+            return BottomRight_TRIANGLE_BOUNDARY_COORDS;
         }, 
-        StartingRegion::BOTTOM => {
-            return BOTTOM_TRIANGLE_BOUNDARY_COORDS;
+        StartingRegion::Bottom => {
+            return Bottom_TRIANGLE_BOUNDARY_COORDS;
         },
-        StartingRegion::BOTTOM_LEFT => {
-            return BOTTOM_LEFT_TRIANGLE_BOUNDARY_COORDS;
+        StartingRegion::BottomLeft => {
+            return BottomLeft_TRIANGLE_BOUNDARY_COORDS;
         },
-        StartingRegion::TOP_LEFT => {
-            return TOP_LEFT_TRIANGLE_BOUNDARY_COORDS;
+        StartingRegion::TopLeft => {
+            return TopLeft_TRIANGLE_BOUNDARY_COORDS;
         },
         _ => {
             panic!("Internal Error: get_boundary_coords_struct_for_region(): unrecognized StartingRegion value, exiting immediately....");
@@ -1610,12 +1668,12 @@ impl Widget<AppState> for MainWidget<AppState> {
 
                         let regions_to_players : [StartingRegion; 6] = [
                             // turns proceed clockwise
-                            StartingRegion::TOP,
-                            StartingRegion::TOP_RIGHT,
-                            StartingRegion::BOTTOM_RIGHT,
-                            StartingRegion::BOTTOM,
-                            StartingRegion::BOTTOM_LEFT,
-                            StartingRegion::TOP_LEFT,
+                            StartingRegion::Top,
+                            StartingRegion::TopRight,
+                            StartingRegion::BottomRight,
+                            StartingRegion::Bottom,
+                            StartingRegion::BottomLeft,
+                            StartingRegion::TopLeft,
                         ];                
 
                         data.player_piece_colors = vector![
@@ -1668,7 +1726,7 @@ impl Widget<AppState> for MainWidget<AppState> {
         } else {
             self.main_container.update(ctx, old_data, data, env);
             if data.window_type != old_data.window_type {
-                let extras = if data.window_type == AppPage::CREATE_REMOTE_GAME { Some(String::from(data.room_id.clone().unwrap_or_default())) } else { None };
+                let extras = if data.window_type == AppPage::CreateRemoteGame { Some(String::from(data.room_id.clone().unwrap_or_default())) } else { None };
                 self.main_container = MainWidget::build_page_ui(data.window_type, extras);
                 ctx.children_changed();
             }
@@ -1683,7 +1741,7 @@ impl Widget<AppState> for MainWidget<AppState> {
 
     //     if data.window_type != old_data.window_type {
     //         match data.window_type {
-    //             AppPage::CREATE_REMOTE_GAME => {
+    //             AppPage::CreateRemoteGame => {
     //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
     //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
         
@@ -1738,16 +1796,16 @@ impl Widget<AppState> for MainWidget<AppState> {
         
     //                 self.main_container = Container::new(Align::centered(column_layout))
     //             },
-    //             AppPage::JOIN_REMOTE_GAME => {
+    //             AppPage::JoinRemoteGame => {
     //                 self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
     //             },
-    //             AppPage::LOCAL_GAME => {
-    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("LOCAL_GAME"))));
+    //             AppPage::LocalGame => {
+    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("LocalGame"))));
     //             },
-    //             AppPage::REMOTE_GAME => {
-    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("REMOTE_GAME"))));
+    //             AppPage::RemoteGame => {
+    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("RemoteGame"))));
     //             },
-    //             AppPage::NEW_GAME => {
+    //             AppPage::NewGame => {
     //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
     //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
         
@@ -1761,7 +1819,7 @@ impl Widget<AppState> for MainWidget<AppState> {
     //                         Padding::new(padding_dp,
     //                             Button::new("New Local Game")
     //                             .on_click(|ctx, data : &mut AppState, env| {
-    //                                 data.window_type = AppPage::LOCAL_GAME;
+    //                                 data.window_type = AppPage::LocalGame;
     //                                 println!("New Local Game button pressed....");
     //                             })
     //                         )
@@ -1770,7 +1828,7 @@ impl Widget<AppState> for MainWidget<AppState> {
     //                         Padding::new(padding_dp,
     //                             Button::new("New Remote Game")
     //                             .on_click(|ctx, data : &mut AppState, env| {
-    //                                 data.window_type = AppPage::CREATE_REMOTE_GAME;
+    //                                 data.window_type = AppPage::CreateRemoteGame;
     //                                 println!("New Remote Game button pressed....");
     //                             })
     //                         )
@@ -1779,10 +1837,10 @@ impl Widget<AppState> for MainWidget<AppState> {
         
     //                 self.main_container = Container::new(Align::centered(column_layout))
     //             },
-    //             AppPage::SETTINGS => {
-    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER SETTINGS PAGE"))));
+    //             AppPage::Settings => {
+    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER Settings PAGE"))));
     //             },
-    //             AppPage::START => {
+    //             AppPage::Start => {
     //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
     //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
     //                 let column_layout = SizedBox::new(Flex::column()
@@ -1795,7 +1853,7 @@ impl Widget<AppState> for MainWidget<AppState> {
     //                     Padding::new(padding_dp, 
     //                         Button::new("New Game")
     //                         .on_click(|ctx, data : &mut AppState, env| {
-    //                             data.window_type = AppPage::NEW_GAME;
+    //                             data.window_type = AppPage::NewGame;
     //                             println!("New game button pressed....");
     //                         })
     //                         .expand_width()
@@ -1805,7 +1863,7 @@ impl Widget<AppState> for MainWidget<AppState> {
     //                     Padding::new(padding_dp, 
     //                         Button::new("Join Game")
     //                         .on_click(|ctx, data : &mut AppState, env| {
-    //                             data.window_type = AppPage::JOIN_REMOTE_GAME;
+    //                             data.window_type = AppPage::JoinRemoteGame;
     //                             println!("Join game button pressed....");
     //                         })
     //                         .expand_width()
@@ -2020,10 +2078,12 @@ fn add_appropriate_hextiles_to_board(
 
 fn main() {
     let main_window = WindowDesc::new(MainWidget::<AppState>::new())
-                    .menu(make_menu::<AppState>)
-                    .with_min_size(Size::new(400.0, 400.0));
+                   // .menu(make_menu::<AppState>)
+                    .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
+                    .resizable(true)
+                    .title("Chinese Checkers");
 
-    let initial_state = AppState {whose_turn : None, window_type : AppPage::START, board: im::Vector::new(), 
+    let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
@@ -2043,26 +2103,4 @@ fn main() {
         })
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
-}
-
-#[allow(unused_assignments, unused_mut)]
-fn make_menu<T: Data>(_window: Option<WindowId>, _data: &AppState, _env: &Env) -> Menu<T> {
-    let mut base = Menu::empty();
-    #[cfg(target_os = "macos")]
-    {
-        base = base.entry(druid::platform_menus::mac::application::default())
-    }
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
-    {
-        base = base.entry(druid::platform_menus::win::file::default());
-    }
-    base.entry(
-        Menu::new(LocalizedString::new("common-menu-edit-menu"))
-            .entry(druid::platform_menus::common::undo())
-            .entry(druid::platform_menus::common::redo())
-            .separator()
-            .entry(druid::platform_menus::common::cut())
-            .entry(druid::platform_menus::common::copy())
-            .entry(druid::platform_menus::common::paste()),
-    )
 }
