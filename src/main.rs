@@ -470,7 +470,8 @@ struct AppState {
     regions_to_players : im::Vector<StartingRegion>, // regions_to_players[i] = the starting region of player i
     create_remote_game_players_added : Option<Vector<&'static str>>,
     room_id: Option<String>,
-    registration_ticket: String
+    registration_ticket: String,
+    mouse_click_screen_coordinates: Option<Point>
 }
 
 struct MainWidget<T: Data> {
@@ -1254,7 +1255,7 @@ impl MainWidget<AppState> {
                                             }
                                         );
                                         let new_game_context_menu = Menu::new("How Many Players?").entry(item2).entry(item3).entry(item4).entry(item6);
-                                        ctx.show_context_menu(new_game_context_menu, data.mouse_location_in_canvas);
+                                        ctx.show_context_menu(new_game_context_menu, data.mouse_click_screen_coordinates.unwrap());
                                 // println!("new game buttton pressed!!");
                             })))),1.0)
                             .with_flex_child(Container::new(Align::centered(
@@ -1655,6 +1656,9 @@ impl Widget<AppState> for MainWidget<AppState> {
         self.main_container.event(ctx, event, data, _env);
 
         match event {
+            Event::MouseDown(mouse_event) => {
+                data.mouse_click_screen_coordinates = Some(mouse_event.window_pos);
+            },
             Event::Command(command) => {
                 if command.is::<usize>(*start_game_selector) {
                     data.num_players = Some(*command.get_unchecked::<usize>(*start_game_selector));
@@ -2088,7 +2092,8 @@ fn main() {
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
         room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i")),
-        registration_ticket: String::from("registration ticket")
+        registration_ticket: String::from("registration ticket"),
+        mouse_click_screen_coordinates: None
     };
 
     //let command_handler = ApplicationCommandHandler::new();
