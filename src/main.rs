@@ -230,6 +230,7 @@ enum AppPage {
     LocalGame,
     RemoteGame,
     CreateRemoteGame,
+    CreateLocalGame,
     Settings,
 }
 
@@ -889,16 +890,64 @@ impl MainWidget<AppState> {
 
     fn new() -> IdentityWrapper<Self> {           
         let main_widget = MainWidget::<AppState> {
-            main_container: MainWidget::build_page_ui(AppPage::Start, None),
+            main_container: MainWidget::build_page_ui(AppPage::Start),
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();      
         main_widget.with_id(*widget_id_holder)
-        // NOTE: the mutex will be unlocked here because 'widget_id_holder' is scoped to this block
     } 
 
-    fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
+    fn build_page_ui(page: AppPage) -> Container<AppState> {
         match page {
+            AppPage::CreateLocalGame => {
+                let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
+                
+                let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
+
+                let menu_background_padding = (10.0, 0.0);
+                
+                let inner_menu = SizedBox::new(
+                    Padding::new(menu_background_padding, Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("New Local Game").with_font(font)
+                            )
+                        )
+                        .with_child(
+                            Label::new("Test")
+                        )
+                        .with_child(
+                            Padding::new(padding_dp,
+                                WidgetExt::fix_width(
+                                    Button::new("Start Game")
+                                    .on_click(|_ctx, data : &mut AppState, _env| {
+                                        data.window_type = AppPage::LocalGame;
+                                    })
+                                , 300.0)
+                            )
+                        )
+                    )
+                ).background(chinese_checkers_menu_background_color);
+                
+                let NewGame_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
+                );
+
+                let painter = Painter::new(|ctx, data: &AppState, env| {
+                    let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
+                        Ok(svg) => svg,
+                        Err(err) => {
+                            error!("{}", err);
+                            error!("Using an empty SVG instead.");
+                            SvgData::default()
+                        }
+                    };
+                    Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
+                });
+
+                return Container::new(NewGame_page).background(painter);
+            },
             AppPage::CreateRemoteGame => {
 
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
@@ -1721,7 +1770,7 @@ impl Widget<AppState> for MainWidget<AppState> {
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
         println!("In update() for MainWidget<AppState>....");
         if UPDATE_BEEN_CALLED.get().is_none() { // the OnceCell hasn't been initialized so the app hasn't been launched yet
-            self.main_container = MainWidget::build_page_ui(data.window_type, None);
+            self.main_container = MainWidget::build_page_ui(data.window_type);
             ctx.children_changed();
             let res = UPDATE_BEEN_CALLED.set(true);
             if res.is_err() {
@@ -1731,7 +1780,7 @@ impl Widget<AppState> for MainWidget<AppState> {
             self.main_container.update(ctx, old_data, data, env);
             if data.window_type != old_data.window_type {
                 let extras = if data.window_type == AppPage::CreateRemoteGame { Some(String::from(data.room_id.clone().unwrap_or_default())) } else { None };
-                self.main_container = MainWidget::build_page_ui(data.window_type, extras);
+                self.main_container = MainWidget::build_page_ui(data.window_type);
                 ctx.children_changed();
             }
         }
