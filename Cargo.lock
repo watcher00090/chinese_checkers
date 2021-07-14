@@ -167,6 +167,7 @@ name = "chinese_checkers"
 version = "0.1.0"
 dependencies = [
  "druid",
+ "druid-widget-nursery",
  "lazy_static",
  "once_cell",
  "rand",
@@ -300,7 +301,7 @@ checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 [[package]]
 name = "druid"
 version = "0.7.0"
-source = "git+https://github.com/linebender/druid.git#e2bb4fb94c95e00f216fff25324b22e56545bd44"
+source = "git+https://github.com/linebender/druid?rev=f19ddf1#f19ddf1582552e1e140526cc00e7e8299d72e1d6"
 dependencies = [
  "console_error_panic_hook",
  "druid-derive",
@@ -323,7 +324,7 @@ dependencies = [
 [[package]]
 name = "druid-derive"
 version = "0.4.0"
-source = "git+https://github.com/linebender/druid.git#e2bb4fb94c95e00f216fff25324b22e56545bd44"
+source = "git+https://github.com/linebender/druid?rev=f19ddf1#f19ddf1582552e1e140526cc00e7e8299d72e1d6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -333,7 +334,7 @@ dependencies = [
 [[package]]
 name = "druid-shell"
 version = "0.7.0"
-source = "git+https://github.com/linebender/druid.git#e2bb4fb94c95e00f216fff25324b22e56545bd44"
+source = "git+https://github.com/linebender/druid?rev=f19ddf1#f19ddf1582552e1e140526cc00e7e8299d72e1d6"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -365,6 +366,16 @@ dependencies = [
  "web-sys",
  "winapi",
  "wio",
+]
+
+[[package]]
+name = "druid-widget-nursery"
+version = "0.1.0"
+source = "git+https://github.com/linebender/druid-widget-nursery#ae661d215a7af6a838c6665613d79240cb0e27e4"
+dependencies = [
+ "druid",
+ "log",
+ "tracing",
 ]
 
 [[package]]
