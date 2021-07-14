@@ -23,6 +23,8 @@ use druid::im::{vector, Vector};
 // use druid_shell::KeyState;
 use std::convert::TryInto;
 
+use druid_widget_nursery::{DropdownSelect, ListSelect};
+
 use once_cell::sync::OnceCell;
 
 use tracing::error;
@@ -46,7 +48,14 @@ lazy_static! {
     //static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8(189, 143, 64);
     static ref SQUARE_COLOR : Color = Color::rgb8( 200, 144, 103 );    
     static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8( 200, 144, 103 );
+    static ref FONT_SIZE_H1 : f64 = 36.0;
+    static ref FONT_SIZE_H2 : f64 = 25.0;
+    static ref FONT_SIZE_H3 : f64 = 16.0;
+    static ref MENU_BUTTON_PADDING : (f64, f64) = (5.0, 10.0);
+    static ref TOP_BAR_BUTTON_PADDING : (f64, f64) = (10.0, 10.0);
 }
+
+static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
 
 static MIN_WINDOW_WIDTH : f64 = 400f64;
 static MIN_WINDOW_HEIGHT: f64 = 400f64;
@@ -229,6 +238,7 @@ enum AppPage {
     JoinRemoteGame,
     LocalGame,
     RemoteGame,
+    CreateLocalGame,
     CreateRemoteGame,
     Settings,
 }
@@ -241,6 +251,14 @@ enum StartingRegion {
     BottomLeft,
     BottomRight,
     Bottom,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Data)]
+enum PlayerCount {
+    TwoPlayerGame,
+    ThreePlayerGame,
+    FourPlayerGame,
+    SixPlayerGame
 }
 
 impl StartingRegion {
@@ -471,7 +489,8 @@ struct AppState {
     create_remote_game_players_added : Option<Vector<&'static str>>,
     room_id: Option<String>,
     registration_ticket: String,
-    mouse_click_screen_coordinates: Option<Point>
+    mouse_click_screen_coordinates: Option<Point>,
+    number_of_players_selected: PlayerCount
 }
 
 struct MainWidget<T: Data> {
@@ -889,7 +908,7 @@ impl MainWidget<AppState> {
 
     fn new() -> IdentityWrapper<Self> {           
         let main_widget = MainWidget::<AppState> {
-            main_container: MainWidget::build_page_ui(AppPage::Start, None),
+            main_container: MainWidget::build_page_ui(AppPage::Start),
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();      
@@ -897,29 +916,86 @@ impl MainWidget<AppState> {
         // NOTE: the mutex will be unlocked here because 'widget_id_holder' is scoped to this block
     } 
 
-    fn build_page_ui(page: AppPage, extras: Option<String>) -> Container<AppState> {
+    fn build_page_ui(page: AppPage) -> Container<AppState> {
         match page {
+            AppPage::CreateLocalGame => {
+                let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(*FONT_SIZE_H2).with_weight(FontWeight::BOLD);
+                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
+                
+                let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
+                
+                let inner_menu = SizedBox::new(
+                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("New Local Game").with_font(font)
+                            )
+                        )
+                        .with_child(Label::new("Number of players:"))
+                        .with_child(
+                            DropdownSelect::new(
+                                vec![
+                                    ("2", PlayerCount::TwoPlayerGame),
+                                    ("3", PlayerCount::ThreePlayerGame),
+                                    ("4", PlayerCount::FourPlayerGame),
+                                    ("6", PlayerCount::SixPlayerGame),
+                                ]
+                            ).lens(AppState::number_of_players_selected)
+                        )        
+                        .with_child(
+                            Button::new("Start Game").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                data.window_type = AppPage::LocalGame;
+                            })
+                        )
+                    )   
+                ).background(chinese_checkers_menu_background_color);
+                                
+                let inner_menu_aligned = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_size(inner_menu, 400.0, 400.0))
+                );
+
+                let create_local_game_page = Flex::column()
+                    .with_child(
+                        Flex::row()
+                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, 
+                            Button::new("Back")
+                            .on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                data.window_type = AppPage::NewGame;
+                            })))
+                        .with_flex_spacer(1.0)
+                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Help")))
+                    )
+                    .with_flex_spacer(1.0)
+                    .with_child(inner_menu_aligned)
+                    .with_flex_spacer(1.0);
+
+                let painter = Painter::new(|ctx, data: &AppState, env| {
+                    let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
+                        Ok(svg) => svg,
+                        Err(err) => {
+                            error!("{}", err);
+                            error!("Using an empty SVG instead.");
+                            SvgData::default()
+                        }
+                    };
+                    Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
+                });
+
+                return Container::new(create_local_game_page).background(painter);
+
+            },
             AppPage::CreateRemoteGame => {
 
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
                 
-                let button_color_dark = BUTTON_COLOR_DARK.get();
+                let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
 
-                let mut chinese_checkers_menu_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
-                if button_color_dark.is_some() { 
-                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba();
-                    println!("Got here, BUTTON_COLOR_DARK is set!");
-                    chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
-                };
-
-                let menu_background_padding = (10.0, 0.0);
-                let top_bar_button_padding = (10.0, 0.0); // 10dp of horizontal padding, 0dp of vertical padding
                 let list_padding = (30.0, 10.0);
                 let added_players_label_padding = (0.0, 10.0);
                 
                 let inner_menu = SizedBox::new(
-                    Padding::new(menu_background_padding, Flex::column()
+                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                         .with_child(
                             Padding::new(padding_dp,
                                 Label::new("New Remote Game").with_font(font)
@@ -1032,9 +1108,9 @@ impl MainWidget<AppState> {
                 let create_remote_game_page = Flex::column()
                     .with_child(
                         Flex::row()
-                        .with_child(Padding::new(top_bar_button_padding, Button::new("Back")))
+                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Back")))
                         .with_flex_spacer(1.0)
-                        .with_child(Padding::new(top_bar_button_padding, Button::new("Help")))
+                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Help")))
                     )
                     .with_flex_spacer(1.0)
                     .with_child(inner_menu_aligned)
@@ -1295,23 +1371,11 @@ impl MainWidget<AppState> {
             AppPage::NewGame => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
-
-                //let chinese_checkers_label_background = Color::rgba8(74, 71, 71, 128);
                 
-                let button_color_dark = BUTTON_COLOR_DARK.get();
-
-                let mut chinese_checkers_menu_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
-                if button_color_dark.is_some() { 
-                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
-                    println!("Got here, BUTTON_COLOR_DARK is set!");
-                    //let tmp = druid::theme::BACKGROUND_DARK;
-                    chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
-                };
-
-                let menu_background_padding = (10.0, 0.0);
+                let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
                 
                 let inner_menu = SizedBox::new(
-                    Padding::new(menu_background_padding, Flex::column()
+                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                         .with_child(
                             Padding::new(padding_dp,
                                 Label::new("New Game").with_font(font)
@@ -1322,7 +1386,7 @@ impl MainWidget<AppState> {
                                 WidgetExt::fix_width(
                                     Button::new("New Local Game")
                                     .on_click(|_ctx, data : &mut AppState, _env| {
-                                        data.window_type = AppPage::LocalGame;
+                                        data.window_type = AppPage::CreateLocalGame;
                                         println!("New Local Game button pressed....");
                                     })
                                 , 300.0)
@@ -1390,10 +1454,8 @@ impl MainWidget<AppState> {
                     chinese_checkers_menu_background_color = (*MENU_GREY).clone();  
  
                 };
-
-                let menu_background_padding = (10.0, 0.0);
                 
-                let inner_menu = SizedBox::new(Padding::new(menu_background_padding, Flex::column()
+                let inner_menu = SizedBox::new(Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                     .with_child(
                         Padding::new((0.0, 10.0, 0.0, 5.0), 
                             Label::new("Chinese Checkers").with_font(font)
@@ -1721,7 +1783,7 @@ impl Widget<AppState> for MainWidget<AppState> {
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
         println!("In update() for MainWidget<AppState>....");
         if UPDATE_BEEN_CALLED.get().is_none() { // the OnceCell hasn't been initialized so the app hasn't been launched yet
-            self.main_container = MainWidget::build_page_ui(data.window_type, None);
+            self.main_container = MainWidget::build_page_ui(data.window_type);
             ctx.children_changed();
             let res = UPDATE_BEEN_CALLED.set(true);
             if res.is_err() {
@@ -1731,7 +1793,7 @@ impl Widget<AppState> for MainWidget<AppState> {
             self.main_container.update(ctx, old_data, data, env);
             if data.window_type != old_data.window_type {
                 let extras = if data.window_type == AppPage::CreateRemoteGame { Some(String::from(data.room_id.clone().unwrap_or_default())) } else { None };
-                self.main_container = MainWidget::build_page_ui(data.window_type, extras);
+                self.main_container = MainWidget::build_page_ui(data.window_type);
                 ctx.children_changed();
             }
         }
@@ -2093,7 +2155,8 @@ fn main() {
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
         room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i")),
         registration_ticket: String::from("registration ticket"),
-        mouse_click_screen_coordinates: None
+        mouse_click_screen_coordinates: None,
+        number_of_players_selected: PlayerCount::TwoPlayerGame
     };
 
     //let command_handler = ApplicationCommandHandler::new();
