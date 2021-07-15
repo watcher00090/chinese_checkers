@@ -955,7 +955,7 @@ impl MainWidget<AppState> {
                                     ,
                                     Flex::row()
                                        // .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| data.name.clone().unwrap()))
-                                       .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| "Hi There!".to_string()))
+                                       .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| if (*data).is_compound { "".to_string() } else { (*data).name.clone().unwrap() } ))
                                 )
                             }).lens(AppState::game_advanced_settings_root)
                         )
