@@ -1,0 +1,21 @@
+1) Swap your peg with your opponents peg in the destination's triangle
+
+2) As long as all available squares in the destination triangle are 
+occuiped, you win. 
+
+ (-) And you have at least one of your pieces in the triangle
+
+ (-) Not necessary to have your piece in the destination triangle
+     to win
+
+3) Must move all pieces out of your starting square and
+   can only enter your own destination square
+
+(*) Prohibit leaving destination triangle once entered 
+
+(*) 3 players each getting 2 starting triangles
+
+(*) 2 players each getting 3 starting triangles
+
+(*) Keep playing even after someone has won
+
