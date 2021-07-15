@@ -1,0 +1,19 @@
+[> Advanced Settings]
+   [> Anti Spoiling Rules]
+	      
+    [] Allow swapping your peg with any opponents peg in the destination's triangle
+
+    [] As long as all available squares in the destination triangle are 
+       occuiped, you win. 
+
+    [] As long as all available squares in the destination triangle are 
+       occuiped And you have at least one of your pieces in the triangle, you win.  
+
+    [] Must move all pieces out of your starting square and
+       can only enter your own destination square
+
+   [> End of Game]
+   [> Variations]
+   [> Draw]
+   
+   
