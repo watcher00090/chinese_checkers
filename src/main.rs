@@ -2220,10 +2220,11 @@ fn main() {
                     .title("Chinese Checkers");
 
     let game_advanced_settings_tree = GameAdvancedSettingsTreeNode::new("Advanced Settings".to_string())
-                                        .add_child(GameAdvancedSettingsTreeNode::new("Anti-Spoiling Rules".to_string()))
+                                        .add_child(GameAdvancedSettingsTreeNode::new("Anti-Spoiling Rules".to_string())
                                             .add_child(GameAdvancedSettingsTreeNode::new_compound())
                                             .add_child(GameAdvancedSettingsTreeNode::new_compound())
                                             .add_child(GameAdvancedSettingsTreeNode::new_compound())
+                                        )
                                         .add_child(GameAdvancedSettingsTreeNode::new("Variations".to_string()))
                                         .add_child(GameAdvancedSettingsTreeNode::new("End of Game".to_string()));
 
