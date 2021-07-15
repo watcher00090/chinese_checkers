@@ -340,6 +340,7 @@ where
         ), data, env);
 
         let mut size = Size::new(indent + widget_size.width, inner_widget_size.height + basic_size);
+        // let mut size = Size::new(indent + widget_size.width, basic_size);
 
         // Below, the children nodes, but only if expanded
         if self.expanded && max_width > indent {
