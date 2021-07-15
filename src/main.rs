@@ -1,4 +1,4 @@
-use druid::widget::{MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
 use druid::LocalizedString;
@@ -28,6 +28,9 @@ use druid_widget_nursery::{DropdownSelect, ListSelect};
 use once_cell::sync::OnceCell;
 
 use tracing::error;
+
+mod tree;
+use tree::{Tree, TreeNode};
 
 #[macro_use]
 extern crate lazy_static;
@@ -490,7 +493,8 @@ struct AppState {
     room_id: Option<String>,
     registration_ticket: String,
     mouse_click_screen_coordinates: Option<Point>,
-    number_of_players_selected: PlayerCount
+    number_of_players_selected: PlayerCount,
+    game_advanced_settings_root: GameAdvancedSettingsTreeNode
 }
 
 struct MainWidget<T: Data> {
@@ -942,6 +946,19 @@ impl MainWidget<AppState> {
                                 ]
                             ).lens(AppState::number_of_players_selected)
                         )        
+                        .with_child(
+                            Tree::new(|| {
+                                Either::new(
+                                    |data: &GameAdvancedSettingsTreeNode, _env| (*data).is_compound,
+                                    Flex::row()
+                                        .with_child(WidgetExt::fix_size(Button::new("Test"), 250.0, 50.0))
+                                    ,
+                                    Flex::row()
+                                       // .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| data.name.clone().unwrap()))
+                                       .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| "Hi There!".to_string()))
+                                )
+                            }).lens(AppState::game_advanced_settings_root)
+                        )
                         .with_child(
                             Button::new("Start Game").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
                                 data.window_type = AppPage::LocalGame;
@@ -2142,12 +2159,73 @@ fn add_appropriate_hextiles_to_board(
     }
 }
 
+#[derive(Data, Clone, Lens, Debug, PartialEq, Eq)]
+struct GameAdvancedSettingsTreeNode {
+    name: Option<String>,
+    is_compound: bool,
+    children: Vector<GameAdvancedSettingsTreeNode>,
+}
+
+/// We use Taxonomy as a tree node, implementing the TreeNode trait.
+impl GameAdvancedSettingsTreeNode {
+    fn new(name: String) -> Self {
+        GameAdvancedSettingsTreeNode {
+            name: Some(name),
+            is_compound: false,
+            children: Vector::new(),
+        }
+    }
+
+    fn new_compound() -> Self {
+        GameAdvancedSettingsTreeNode {
+            name: None,
+            is_compound: true,
+            children: Vector::new() 
+        }
+    }
+
+    fn add_child(mut self, child: Self) -> Self {
+        if !self.is_compound { self.children.push_back(child); }
+        self
+    }
+
+    fn ref_add_child(&mut self, child: Self) {
+        if !self.is_compound { self.children.push_back(child); }
+    }
+}
+
+impl TreeNode for GameAdvancedSettingsTreeNode {
+    fn children_count(&self) -> usize {
+        self.children.len()
+    }
+
+    fn get_child(&self, index: usize) -> &GameAdvancedSettingsTreeNode {
+        &self.children[index]
+    }
+
+    fn get_child_mut(&mut self, index: usize) -> &mut GameAdvancedSettingsTreeNode {
+        &mut self.children[index]
+    }
+
+    fn rm_child(&mut self, index: usize) {
+        if !self.is_compound { self.children.remove(index); }
+    }
+}
+
 fn main() {
     let main_window = WindowDesc::new(MainWidget::<AppState>::new())
                    // .menu(make_menu::<AppState>)
                     .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
                     .resizable(true)
                     .title("Chinese Checkers");
+
+    let game_advanced_settings_tree = GameAdvancedSettingsTreeNode::new("Advanced Settings".to_string())
+                                        .add_child(GameAdvancedSettingsTreeNode::new("Anti-Spoiling Rules".to_string()))
+                                            .add_child(GameAdvancedSettingsTreeNode::new_compound())
+                                            .add_child(GameAdvancedSettingsTreeNode::new_compound())
+                                            .add_child(GameAdvancedSettingsTreeNode::new_compound())
+                                        .add_child(GameAdvancedSettingsTreeNode::new("Variations".to_string()))
+                                        .add_child(GameAdvancedSettingsTreeNode::new("End of Game".to_string()));
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
@@ -2156,7 +2234,8 @@ fn main() {
         room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i")),
         registration_ticket: String::from("registration ticket"),
         mouse_click_screen_coordinates: None,
-        number_of_players_selected: PlayerCount::TwoPlayerGame
+        number_of_players_selected: PlayerCount::TwoPlayerGame,
+        game_advanced_settings_root: game_advanced_settings_tree 
     };
 
     //let command_handler = ApplicationCommandHandler::new();

@@ -19,3 +19,6 @@ occuiped, you win.
 
 (*) Keep playing even after someone has won
 
+(*) Every turn, players have to make a move if they can, and if they can't they pass
+      
+(*) If all players pass their turns consecutively, the game is a draw
