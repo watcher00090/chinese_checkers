@@ -29,6 +29,8 @@ use once_cell::sync::OnceCell;
 
 use tracing::error;
 
+use std::cmp;
+
 mod tree;
 use tree::{Tree, TreeNode};
 
@@ -56,6 +58,8 @@ lazy_static! {
     static ref FONT_SIZE_H3 : f64 = 16.0;
     static ref MENU_BUTTON_PADDING : (f64, f64) = (5.0, 10.0);
     static ref TOP_BAR_BUTTON_PADDING : (f64, f64) = (10.0, 10.0);
+
+    static ref inner_menu_expand_height : Mutex<bool> = Mutex::<bool>::new(false);
 }
 
 static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
@@ -967,8 +971,14 @@ impl MainWidget<AppState> {
                     )   
                 ).background(chinese_checkers_menu_background_color);
                                 
+                // let mut inner_menu_height = 400.0;
+                // if *(inner_menu_expand_height.lock().unwrap()) {
+                //     inner_menu_height = 800.0;
+                // }
+
                 let inner_menu_aligned = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
-                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_size(inner_menu, 400.0, 400.0))
+                    //Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_size(inner_menu, 400.0, 400.0))
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_width(inner_menu, 400.0))
                 );
 
                 let create_local_game_page = Flex::column()
