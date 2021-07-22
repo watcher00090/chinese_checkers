@@ -268,6 +268,12 @@ enum PlayerCount {
     SixPlayerGame
 }
 
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+enum WidgetType {
+    CheckBox,
+    RadioGroup
+}
+
 impl StartingRegion {
     // returns the opposite region to the given region
     fn opposite(&self) -> StartingRegion {
@@ -953,13 +959,13 @@ impl MainWidget<AppState> {
                         .with_child(
                             Tree::new(|| {
                                 Either::new(
-                                    |data: &GameAdvancedSettingsTreeNode, _env| (*data).is_compound,
+                                    |data: &GameAdvancedSettingsTreeNode, _env| (*data).is_arbitrary,
                                     Flex::row()
                                         .with_child(WidgetExt::fix_size(Button::new("Test"), 250.0, 50.0))
                                     ,
                                     Flex::row()
                                        // .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| data.name.clone().unwrap()))
-                                       .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| if (*data).is_compound { "".to_string() } else { (*data).name.clone().unwrap() } ))
+                                       .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| if (*data).is_arbitrary { "".to_string() } else { (*data).name.clone().unwrap() } ))
                                 )
                             }).lens(AppState::game_advanced_settings_root)
                         )
@@ -2172,8 +2178,10 @@ fn add_appropriate_hextiles_to_board(
 #[derive(Data, Clone, Lens, Debug, PartialEq, Eq)]
 struct GameAdvancedSettingsTreeNode {
     name: Option<String>,
-    is_compound: bool,
+    is_arbitrary: bool,
     children: Vector<GameAdvancedSettingsTreeNode>,
+    additional_data: Vector<String>,
+    ux_type: WidgetType,
 }
 
 /// We use Taxonomy as a tree node, implementing the TreeNode trait.
@@ -2181,26 +2189,38 @@ impl GameAdvancedSettingsTreeNode {
     fn new(name: String) -> Self {
         GameAdvancedSettingsTreeNode {
             name: Some(name),
-            is_compound: false,
+            is_arbitrary: false,
             children: Vector::new(),
         }
     }
 
-    fn new_compound() -> Self {
+    fn new_arbitrary(ux_type: WidgetType) -> Self {
         GameAdvancedSettingsTreeNode {
             name: None,
-            is_compound: true,
-            children: Vector::new() 
+            is_arbitrary: true,
+            children: Vector::new(),
+            additional_data: Vector::new(),
+            ux_type: ux_type,
+        }
+    }
+
+    fn new_arbitrary(ux_type: WidgetType, data: Vector<String>) -> Self {
+        GameAdvancedSettingsTreeNode {
+            name: None,
+            is_arbitrary: true,
+            children: Vector::new(),
+            additional_data: data.clone(),
+            ux_type: ux_type,
         }
     }
 
     fn add_child(mut self, child: Self) -> Self {
-        if !self.is_compound { self.children.push_back(child); }
+        if !self.is_arbitrary { self.children.push_back(child); }
         self
     }
 
     fn ref_add_child(&mut self, child: Self) {
-        if !self.is_compound { self.children.push_back(child); }
+        if !self.is_arbitrary { self.children.push_back(child); }
     }
 }
 
@@ -2218,7 +2238,7 @@ impl TreeNode for GameAdvancedSettingsTreeNode {
     }
 
     fn rm_child(&mut self, index: usize) {
-        if !self.is_compound { self.children.remove(index); }
+        if !self.is_arbitrary { self.children.remove(index); }
     }
 }
 
@@ -2231,9 +2251,9 @@ fn main() {
 
     let game_advanced_settings_tree = GameAdvancedSettingsTreeNode::new("Advanced Settings".to_string())
                                         .add_child(GameAdvancedSettingsTreeNode::new("Anti-Spoiling Rules".to_string())
-                                            .add_child(GameAdvancedSettingsTreeNode::new_compound())
-                                            .add_child(GameAdvancedSettingsTreeNode::new_compound())
-                                            .add_child(GameAdvancedSettingsTreeNode::new_compound())
+                                            .add_child(GameAdvancedSettingsTreeNode::new_arbitrary(WidgetType::RadioGroup, vec!["Rule1".to_string(), "Rule2".to_string(), "Rule3".to_string()]))
+                                            //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
+                                            //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
                                         )
                                         .add_child(GameAdvancedSettingsTreeNode::new("Variations".to_string()))
                                         .add_child(GameAdvancedSettingsTreeNode::new("End of Game".to_string()));
