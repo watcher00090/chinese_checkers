@@ -9,9 +9,6 @@
     [] As long as all available squares in the destination triangle are 
        occuiped And you have at least one of your pieces in the triangle, you win.  
 
-    [] Must move all pieces out of your starting square and
-       can only enter your own destination square
-
    [> End of Game]
    [> Variations]
    [> Draw]

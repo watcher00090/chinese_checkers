@@ -1,4 +1,4 @@
-use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{RadioGroup, Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
 use druid::LocalizedString;
@@ -268,10 +268,11 @@ enum PlayerCount {
     SixPlayerGame
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug, Data)]
 enum WidgetType {
     CheckBox,
-    RadioGroup
+    RadioGroup,
+    Expander
 }
 
 impl StartingRegion {
@@ -486,6 +487,13 @@ impl Piece {
     }
 }
 
+#[derive(Eq, PartialEq, Clone, Data, Debug)]
+enum GameAntiSpoilingRuleSelected {
+    SwapWithOpponentsPieces,
+    TargetSquareFilledEqualsVictory,
+    TargetSquareFilledEqualsVictoryAndYouHaveYourPieceInIt,
+}
+
 // Stores which window we're in and the entire state of the game 
 #[derive(PartialEq, Clone, Data, Lens)]
 struct AppState {
@@ -504,7 +512,7 @@ struct AppState {
     registration_ticket: String,
     mouse_click_screen_coordinates: Option<Point>,
     number_of_players_selected: PlayerCount,
-    game_advanced_settings_root: GameAdvancedSettingsTreeNode
+    game_advanced_settings_root: GameAdvancedSettingsTreeNode,
 }
 
 struct MainWidget<T: Data> {
@@ -883,20 +891,7 @@ impl RoomIDFormatter<String> {
 //         if String::from(input) ==  self.base {
 //             return Validation::success();
 //         } else {
-//             return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-//         }
-//     }
-
-//     fn value(&self, input: &str) -> Result<String, ValidationError> {
-//         if String::from(input) == self.base {
-//             return Ok(self.base.clone())
-//         } else {
-//             return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
-//         }
-//     }
-
-
-// }
+//             return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));&game_advanced_settings_root
 
 #[derive(Debug, Default)]
 pub struct TextCopyController {}
@@ -960,12 +955,12 @@ impl MainWidget<AppState> {
                             Tree::new(|| {
                                 Either::new(
                                     |data: &GameAdvancedSettingsTreeNode, _env| (*data).is_arbitrary,
-                                    Flex::row()
-                                        .with_child(WidgetExt::fix_size(Button::new("Test"), 250.0, 50.0))
-                                    ,
-                                    Flex::row()
-                                       // .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| data.name.clone().unwrap()))
-                                       .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| if (*data).is_arbitrary { "".to_string() } else { (*data).name.clone().unwrap() } ))
+                                    Either::new(|data: &GameAdvancedSettingsTreeNode, _env| (*data).ux_type == WidgetType::RadioGroup,
+                                        Button::new("Hi"),// RadioGroup::new(vector![("Rule 1", GameAntiSpoilingRuleSelected::SwapWithOpponentsPieces), ("Rule 2", GameAntiSpoilingRuleSelected::TargetSquareFilledEqualsVictory), ("Rule 3", GameAntiSpoilingRuleSelected::TargetSquareFilledEqualsVictoryAndYouHaveYourPieceInIt)]),
+                                        WidgetExt::fix_size(Button::new("Test"), 250.0, 50.0) 
+                                    ),
+                                    // .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| data.name.clone().unwrap()))
+                                    Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| if (*data).is_arbitrary { "".to_string() } else { (*data).name.clone().unwrap() } )
                                 )
                             }).lens(AppState::game_advanced_settings_root)
                         )
@@ -2175,42 +2170,89 @@ fn add_appropriate_hextiles_to_board(
     }
 }
 
-#[derive(Data, Clone, Lens, Debug, PartialEq, Eq)]
+impl Data for &'static GameAdvancedSettingsTreeNode {
+    fn same(&self, other: &Self) -> bool {
+        return *self == *other
+    }
+}
+
+#[derive(Data, Clone, Lens, Debug, PartialEq, Eq, Copy)]
 struct GameAdvancedSettingsTreeNode {
     name: Option<String>,
     is_arbitrary: bool,
     children: Vector<GameAdvancedSettingsTreeNode>,
     additional_data: Vector<String>,
     ux_type: WidgetType,
+    rootnode_ref: Option<&'static GameAdvancedSettingsTreeNode>,
+    
+    // The root node of the tree is the only node that will have these initialized
+    game_anti_spoiling_rule_selected: Option<GameAntiSpoilingRuleSelected>,
+    game_end_checkboxes_data: Option<Vector<bool>>,
+    game_variations_checkboxes_data: Option<Vector<bool>>
 }
+
+
 
 /// We use Taxonomy as a tree node, implementing the TreeNode trait.
 impl GameAdvancedSettingsTreeNode {
+
+    fn new_root(name: String, default_anti_spoiling_rule: GameAntiSpoilingRuleSelected, default_variations_checkbox_values: Vector<bool>, default_end_of_game_checkbox_values: Vector<bool>) -> Self {
+        GameAdvancedSettingsTreeNode {
+            name: Some(name),
+            is_arbitrary: false,
+            children: Vector::new(),
+            additional_data: Vector::new(),
+            ux_type: WidgetType::Expander,
+            rootnode_ref: None,
+
+            game_anti_spoiling_rule_selected: Some(default_anti_spoiling_rule),
+            game_variations_checkboxes_data: Some(default_variations_checkbox_values),
+            game_end_checkboxes_data: Some(default_variations_checkbox_values),
+        }
+    }
+
     fn new(name: String) -> Self {
         GameAdvancedSettingsTreeNode {
             name: Some(name),
             is_arbitrary: false,
             children: Vector::new(),
+            additional_data: Vector::new(),
+            ux_type: WidgetType::Expander,
+            rootnode_ref: None,
+
+            game_anti_spoiling_rule_selected: None,
+            game_variations_checkboxes_data: None,
+            game_end_checkboxes_data: None,
         }
     }
 
-    fn new_arbitrary(ux_type: WidgetType) -> Self {
+    fn new_arbitrary(ux_type: WidgetType, rootnode_ref: &'static GameAdvancedSettingsTreeNode) -> Self {
         GameAdvancedSettingsTreeNode {
             name: None,
             is_arbitrary: true,
             children: Vector::new(),
             additional_data: Vector::new(),
             ux_type: ux_type,
+            rootnode_ref: Some(rootnode_ref),
+
+            game_anti_spoiling_rule_selected: None,
+            game_variations_checkboxes_data: None,
+            game_end_checkboxes_data: None
         }
     }
 
-    fn new_arbitrary(ux_type: WidgetType, data: Vector<String>) -> Self {
+    fn new_arbitrary_with_data(ux_type: WidgetType, data: Vector<String>, rootnode_ref: &'static GameAdvancedSettingsTreeNode) -> Self {
         GameAdvancedSettingsTreeNode {
             name: None,
             is_arbitrary: true,
             children: Vector::new(),
             additional_data: data.clone(),
             ux_type: ux_type,
+            rootnode_ref: Some(rootnode_ref),
+
+            game_anti_spoiling_rule_selected: None,
+            game_variations_checkboxes_data: None,
+            game_end_checkboxes_data: None
         }
     }
 
@@ -2243,42 +2285,48 @@ impl TreeNode for GameAdvancedSettingsTreeNode {
 }
 
 fn main() {
-    let main_window = WindowDesc::new(MainWidget::<AppState>::new())
-                   // .menu(make_menu::<AppState>)
-                    .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
-                    .resizable(true)
-                    .title("Chinese Checkers");
+    unsafe {
+        let main_window = WindowDesc::new(MainWidget::<AppState>::new())
+                    // .menu(make_menu::<AppState>)
+                        .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
+                        .resizable(true)
+                        .title("Chinese Checkers");
 
-    let game_advanced_settings_tree = GameAdvancedSettingsTreeNode::new("Advanced Settings".to_string())
-                                        .add_child(GameAdvancedSettingsTreeNode::new("Anti-Spoiling Rules".to_string())
-                                            .add_child(GameAdvancedSettingsTreeNode::new_arbitrary(WidgetType::RadioGroup, vec!["Rule1".to_string(), "Rule2".to_string(), "Rule3".to_string()]))
-                                            //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
-                                            //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
-                                        )
-                                        .add_child(GameAdvancedSettingsTreeNode::new("Variations".to_string()))
-                                        .add_child(GameAdvancedSettingsTreeNode::new("End of Game".to_string()));
+        
+        let mut game_advanced_settings_root_box = Box::new(GameAdvancedSettingsTreeNode::new_root("Advanced_Settings".to_string(), GameAntiSpoilingRuleSelected::SwapWithOpponentsPieces, vector![false, false, false, false, false], vector![false, false, false]));
 
-    let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
-        in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
-        player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
-        create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
-        room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i")),
-        registration_ticket: String::from("registration ticket"),
-        mouse_click_screen_coordinates: None,
-        number_of_players_selected: PlayerCount::TwoPlayerGame,
-        game_advanced_settings_root: game_advanced_settings_tree 
-    };
 
-    //let command_handler = ApplicationCommandHandler::new();
+        let game_advanced_settings_tree = Box::leak(game_advanced_settings_root_box)
+                                            .add_child(GameAdvancedSettingsTreeNode::new("Anti-Spoiling Rules".to_string())
+                                                .add_child(GameAdvancedSettingsTreeNode::new_arbitrary_with_data(WidgetType::RadioGroup, vector!["Rule1".to_string(), "Rule2".to_string(), "Rule3".to_string()], Box::leak(game_advanced_settings_root_box)))
+                                                //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
+                                                //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
+                                            )
+                                            .add_child(GameAdvancedSettingsTreeNode::new("Variations".to_string()))
+                                            .add_child(GameAdvancedSettingsTreeNode::new("End of Game".to_string()));
 
-    AppLauncher::with_window(main_window)
-        //.delegate(command_handler)
-        .configure_env(|env, _data| {
-           let res = BUTTON_COLOR_DARK.set(env.get(druid::theme::BUTTON_DARK));
-           if res.is_err() {
-               println!("ERROR: attempting to set BUTTON_COLOR_DARK in configure_env produced an error...");
-           }
-        })
-        .launch(initial_state)
-        .expect("ERROR: Failed to launch application, exiting immediately....");
+        let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
+            in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
+            player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
+            create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
+            room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i")),
+            registration_ticket: String::from("registration ticket"),
+            mouse_click_screen_coordinates: None,
+            number_of_players_selected: PlayerCount::TwoPlayerGame,
+            game_advanced_settings_root: game_advanced_settings_tree 
+        };
+
+        //let command_handler = ApplicationCommandHandler::new();
+
+        AppLauncher::with_window(main_window)
+            //.delegate(command_handler)
+            .configure_env(|env, _data| {
+            let res = BUTTON_COLOR_DARK.set(env.get(druid::theme::BUTTON_DARK));
+            if res.is_err() {
+                println!("ERROR: attempting to set BUTTON_COLOR_DARK in configure_env produced an error...");
+            }
+            })
+            .launch(initial_state)
+            .expect("ERROR: Failed to launch application, exiting immediately....");
+    }
 }

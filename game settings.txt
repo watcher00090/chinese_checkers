@@ -1,24 +1,29 @@
+[Anti-spoiling rules]
+
 1) Swap your peg with your opponents peg in the destination's triangle
 
 2) As long as all available squares in the destination triangle are 
 occuiped, you win. 
 
- (-) And you have at least one of your pieces in the triangle
+3) As long as all available squares in the destination triangle are 
+occuiped and you have at least one of your pieces in that triangle, you win.  
 
- (-) Not necessary to have your piece in the destination triangle
-     to win
+[Variations]
 
-3) Must move all pieces out of your starting square and
-   can only enter your own destination square
+(*) And you have at least one of your pieces in the triangle
 
-(*) Prohibit leaving destination triangle once entered 
+(*) Prohibit moving a piece into a triangle that is not the destination triangle
 
-(*) 3 players each getting 2 starting triangles
+(*) Prohibit leaving the destination triangle once entered 
 
-(*) 2 players each getting 3 starting triangles
+(*) If playing with 3 players, have each get 2 starting triangles and a player only wins after taking over both destination triangles
 
-(*) Keep playing even after someone has won
+(*) If playing with 2 players, have each get 3 starting triangles and only win after taking over all three destination triangles
+
+[End of game]
 
 (*) Every turn, players have to make a move if they can, and if they can't they pass
       
 (*) If all players pass their turns consecutively, the game is a draw
+
+(*) If the game ever cycles through three identical board states, the game is a draw
