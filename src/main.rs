@@ -11,16 +11,12 @@ use druid::Command;
 use druid::Target;
 
 use druid::{Point, Rect, FontDescriptor, Color, Selector, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt};
-// use druid::{MenuDesc, MenuItem, ContextMenu};
 use druid::widget::prelude::*;
 use std::sync::{Mutex, MutexGuard};
 use druid::kurbo::{Circle};
 use druid::piet::{FontFamily, FontWeight};
-// use druid_shell::{Menu, HotKey, KbKey, KeyEvent, RawMods, SysMods};
 use druid::im;
 use druid::im::{vector, Vector};
-// use druid::text::selection::Selection;
-// use druid_shell::KeyState;
 use std::convert::TryInto;
 
 use druid_widget_nursery::{DropdownSelect, ListSelect};
@@ -49,8 +45,6 @@ lazy_static! {
     static ref start_game_selector : Selector<usize> = Selector::new("Start_GAME");
     static ref piece_size_bounds : Size = Size::new(20.0, 20.0);
     static ref square_edge_bounds : Size = Size::new(26.5, 26.5);
-    // static ref SQUARE_COLOR : Color = Color::rgb8(96,54,15);
-    //static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8(189, 143, 64);
     static ref SQUARE_COLOR : Color = Color::rgb8( 200, 144, 103 );    
     static ref INTERMEDIATE_CIRCLE_COLOR : Color = Color::rgb8( 200, 144, 103 );
     static ref FONT_SIZE_H1 : f64 = 36.0;
@@ -86,27 +80,10 @@ static ABSTRACT_INNER_CIRCLE_OFFSET : f64 = SQRT_3 / 2.0;
 
 static CANVAS_WIDTH : f64 = 600.0;
 static CANVAS_HEIGHT: f64 = BOARD_WIDTH + (2f64)*BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS;
-//static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
-//static ABSTRACT_BOARD_WIDTH: f64 = 25.0;  // horizontal length from size to size of the board, with the origin right in the middle
-//static ABSTRACT_BOARD_HEIGHT: f64 = 15.0; // vertical length from size to size of the board, with the origin right in the middle
-
-// static Start_NewGame_2_PLAYERS_ID : u32 = 1000;
-// static Start_NewGame_3_PLAYERS_ID : u32 = 1001;
-// static Start_NewGame_4_PLAYERS_ID : u32 = 1002;
-// static Start_NewGame_5_PLAYERS_ID : u32 = 1003;
-// static Start_NewGame_6_PLAYERS_ID : u32 = 1004;
 
 static BOARD_CIRCLE_COLOR_r : u8 = 238;
 static BOARD_CIRCLE_COLOR_g : u8 = 206;
 static BOARD_CIRCLE_COLOR_b : u8 = 166;
-
-// static BOARD_CIRCLE_COLOR_r : u8 = 212;
-// static BOARD_CIRCLE_COLOR_g : u8 = 179;
-// static BOARD_CIRCLE_COLOR_b : u8 = 137;
-
-// static BOARD_CIRCLE_COLOR_r : u8 = 255;
-// static BOARD_CIRLCE_COLOR_g : u8 = 248;
-// static BOARD_CIRCLE_COLOR_b : u8 = 220;
 
 lazy_static! {
     static ref YELLOW_COLOR:    Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
@@ -248,6 +225,7 @@ enum AppPage {
     CreateLocalGame,
     CreateRemoteGame,
     Settings,
+    AdvancedSettings,
 }
 
 #[derive(Clone, Copy, Data, PartialEq)]
@@ -272,6 +250,13 @@ enum PlayerCount {
 enum WidgetType {
     CheckBox,
     RadioGroup
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Data)]
+enum AntiSpoilingRules {
+    Swapping,
+    FilledDestWeak,
+    FilledDestStrong,
 }
 
 impl StartingRegion {
@@ -504,7 +489,13 @@ struct AppState {
     registration_ticket: String,
     mouse_click_screen_coordinates: Option<Point>,
     number_of_players_selected: PlayerCount,
-    game_advanced_settings_root: GameAdvancedSettingsTreeNode
+    ranked_winner: bool,
+    all_pass_equals_draw: bool,
+    three_identical_equals_draw: bool,
+    three_players_two_triangles: bool,
+    two_players_three_triangles: bool,
+    forced_move_if_available: bool,
+    only_enter_own_dest: bool,
 }
 
 struct MainWidget<T: Data> {
@@ -583,20 +574,11 @@ fn check_step(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     return false;
 }
 
-// Dir::top_left -> get_tl()
-// Dir::top_right -> get_tr()
-// Dir::left -> get_lf()
-// ....... 
-// fn get_method_handle_for_direction(dir: Direction) -> i32 {
-//     return 0;
-// }
-
 fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     let mut tmp_var_tl = start.get_tl(data);
     if tmp_var_tl.is_some() && data.board[tmp_var_tl.unwrap()].piece_idx.is_some() {
         tmp_var_tl = data.board[tmp_var_tl.unwrap()].get_tl(data);
         if tmp_var_tl.is_some() && data.board[tmp_var_tl.unwrap()].same_hex_coords(dest) {
-            // println!("hop through tl");
             return true;
         }
     }
@@ -604,7 +586,6 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     if tmp_var_tr.is_some() && data.board[tmp_var_tr.unwrap()].piece_idx.is_some() {
         tmp_var_tr = data.board[tmp_var_tr.unwrap()].get_tr(data);
         if tmp_var_tr.is_some() && data.board[tmp_var_tr.unwrap()].same_hex_coords(dest) {
-            // println!("hop through tr");
             return true; 
         }
     }
@@ -612,7 +593,6 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     if tmp_var_lf.is_some() && data.board[tmp_var_lf.unwrap()].piece_idx.is_some() {
         tmp_var_lf = data.board[tmp_var_lf.unwrap()].get_lf(data);
         if tmp_var_lf.is_some() && data.board[tmp_var_lf.unwrap()].same_hex_coords(dest) {
-            // println!("hop through lf");
             return true;
         }
     }
@@ -620,7 +600,6 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     if tmp_var_br.is_some() && data.board[tmp_var_br.unwrap()].piece_idx.is_some() {
         tmp_var_br = data.board[tmp_var_br.unwrap()].get_br(data);
         if tmp_var_br.is_some() && data.board[tmp_var_br.unwrap()].same_hex_coords(dest) {
-            // println!("hop through br");
             return true;
         }
     }
@@ -628,7 +607,6 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     if tmp_var_bl.is_some() && data.board[tmp_var_bl.unwrap()].piece_idx.is_some() {
         tmp_var_bl = data.board[tmp_var_bl.unwrap()].get_bl(data);
         if tmp_var_bl.is_some() && data.board[tmp_var_bl.unwrap()].same_hex_coords(dest) {
-            // println!("hop through bl");
             return true;
         }
     }
@@ -636,7 +614,6 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     if tmp_var_rt.is_some() && data.board[tmp_var_rt.unwrap()].piece_idx.is_some() {
         tmp_var_rt = data.board[tmp_var_rt.unwrap()].get_rt(data);
         if tmp_var_rt.is_some() && data.board[tmp_var_rt.unwrap()].same_hex_coords(dest) {
-            // println!("hop through rt");
             return true;
         }
     }
@@ -734,10 +711,7 @@ impl Widget<AppState> for CanvasWidget {
                 self.piece_being_dragged = None;
             }
             Event::MouseMove(mouse_event) => {
-                //println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.window_pos.x, mouse_y = mouse_event.window_pos.y);
-                // println!("mouse_x = {mouse_x}, mouse_y = {mouse_y}", mouse_x = mouse_event.pos.x, mouse_y = mouse_event.pos.y);
                 data.mouse_location_in_canvas = mouse_event.pos;
-                // println!("================================================");
                 ctx.request_paint();
             },
             _ => {}
@@ -767,11 +741,6 @@ impl Widget<AppState> for CanvasWidget {
         // If bx.max() is used in a scrolling widget things will probably
         // not work correctly.
         if bc.is_width_bounded() | bc.is_height_bounded() {
-            //println!("Min width = {}", bc.min().width);
-            //println!("Min height = {}", bc.min().height);
-            //println!("Max width = {}", bc.max().width);
-            //println!("Max height = {}", bc.max()data.height);
-
             let size = Size::new(CANVAS_WIDTH, CANVAS_HEIGHT);
             //bc.constrain(size)
             size
@@ -811,31 +780,16 @@ impl Widget<AppState> for CanvasWidget {
         );
 
         // loop through the board, draw each hextile
-        // let size_bounds = Size::new(20.0,20.0);
-        // let edge_bounds = Size::new(22.0,22.0);
-
-        //ctx.paint_with_z_index(1, move |ctx| {
-        
-        //println!("Size of board Vec = {}", board.len());
-
-        // let mut x_hex_saved : i32 = 0;
-        // let mut y_hex_saved : i32 = 0;
-        // let mut z_hex_saved : i32 = 0;
         let mut will_draw_piece_later : bool = false;
         let mut saved_piece_color : Option<&Color> = None;
 
         for hextile in data.board.iter() {
-            //println!("x_hex = {x_hex}, y_hex = {y_hex}, z = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex);
-            //let bounding_rect = Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds);
-            //println!("x_screen = {x_screen}, y_screen = {y_screen}", x_screen = screen_x(hextile.cartesian_x()), y_screen = screen_y(hextile.cartesian_y()));
 
             // draw the square beneath the piece
             ctx.fill(Rect::from_center_size(Point::new(cartesian_x_to_canvas_x(hextile.cartesian_x()), cartesian_y_to_canvas_y(hextile.cartesian_y())), *square_edge_bounds).to_ellipse(), &*SQUARE_COLOR);
         }
 
         for piece in data.pieces.iter() {
-            //ctx.fill(Rect::from_center_size(Point::new(screen_x(hextile.cartesian_x()), screen_y(hextile.cartesian_y())),size_bounds).to_ellipse(), &hextile.c)
-            // println!("Painting coordinate: (x, y) = ({cartesian_x}, {cartesian_y})  |  x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = hextile.x_hex, y_hex = hextile.y_hex, z_hex = hextile.z_hex, cartesian_x = hextile.cartesian_x(), cartesian_y = hextile.cartesian_y());
             if self.piece_being_dragged.is_some() 
                     && piece.x_hex == self.piece_being_dragged.unwrap().x_hex 
                         && piece.y_hex == self.piece_being_dragged.unwrap().y_hex 
@@ -845,18 +799,13 @@ impl Widget<AppState> for CanvasWidget {
                     will_draw_piece_later = true;
                     saved_piece_color = Some(data.player_piece_colors[piece.player_num].to_druid_color());
 
-                    // println!("will draw some hextile later!");
-
             } else {
                 // draw the piece in its resting state spot
-                // println!("from inside paint(): piece.hextile_idx = {0}, data.board.len() = {1}", piece.hextile_idx, data.board.len());
                 ctx.fill(Rect::from_center_size(Point::new(cartesian_x_to_canvas_x(data.board[piece.hextile_idx].cartesian_x()), cartesian_y_to_canvas_y(data.board[piece.hextile_idx].cartesian_y())), *piece_size_bounds).to_ellipse(), data.player_piece_colors[piece.player_num].to_druid_color());
             }
         }
 
         if will_draw_piece_later {
-            // println!("x_hex_saved = {x_hex_saved}, y_hex_saved = {y_hex_saved}, z_hex_saved = {z_hex_saved}", x_hex_saved = x_hex_saved, y_hex_saved = y_hex_saved, z_hex_saved = z_hex_saved);
-            // println!("DRAWING THE PIECE!!!");
             ctx.fill(Rect::from_center_size(Point::new(data.mouse_location_in_canvas.x, data.mouse_location_in_canvas.y), *piece_size_bounds).to_ellipse(), saved_piece_color.unwrap());
         }
     }
@@ -873,42 +822,12 @@ impl RoomIDFormatter<String> {
     }
 }
 
-// Dummy formatter that ensures that the user can't edit the room id in the create_remote_game page
-// impl Formatter<String> for RoomIDFormatter<String> {
-//     fn format(&self, value: &String) -> String {
-//         return self.base.clone();
-//     }
-
-//     fn validate_partial_input(&self, input: &str, sel: &Selection) -> Validation {
-//         if String::from(input) ==  self.base {
-//             return Validation::success();
-//         } else {
-//             return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-//         }
-//     }
-
-//     fn value(&self, input: &str) -> Result<String, ValidationError> {
-//         if String::from(input) == self.base {
-//             return Ok(self.base.clone())
-//         } else {
-//             return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
-//         }
-//     }
-
-
-// }
-
 #[derive(Debug, Default)]
 pub struct TextCopyController {}
 
 impl<W: Widget<String>> Controller<String, W> for TextCopyController {
     fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut String, env: &Env) {
         match event {
-            // Event::KeyDown(key_event) => {
-            //     if key_event.state == KeyState::Down && key_event.code == druid::Code::KeyC && (key_event.mods & Modifiers::CONTROL == Modifiers::CONTROL) { // attempting to copy the text
-            //         ctx.submit_command(druid::commands::COPY)
-            //     }     
-            // }, 
             other => child.event(ctx, other, data, env)
         }
     }  
@@ -955,19 +874,11 @@ impl MainWidget<AppState> {
                                     ("6", PlayerCount::SixPlayerGame),
                                 ]
                             ).lens(AppState::number_of_players_selected)
-                        )        
+                        )   
                         .with_child(
-                            Tree::new(|| {
-                                Either::new(
-                                    |data: &GameAdvancedSettingsTreeNode, _env| (*data).is_arbitrary,
-                                    Flex::row()
-                                        .with_child(WidgetExt::fix_size(Button::new("Test"), 250.0, 50.0))
-                                    ,
-                                    Flex::row()
-                                       // .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| data.name.clone().unwrap()))
-                                       .with_child(Label::dynamic(|data: &GameAdvancedSettingsTreeNode, _env: &Env| if (*data).is_arbitrary { "".to_string() } else { (*data).name.clone().unwrap() } ))
-                                )
-                            }).lens(AppState::game_advanced_settings_root)
+                            Button::new("Advanced Settings").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                data.window_type = AppPage::AdvancedSettings;
+                            })
                         )
                         .with_child(
                             Button::new("Start Game").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
@@ -976,14 +887,77 @@ impl MainWidget<AppState> {
                         )
                     )   
                 ).background(chinese_checkers_menu_background_color);
-                                
-                // let mut inner_menu_height = 400.0;
-                // if *(inner_menu_expand_height.lock().unwrap()) {
-                //     inner_menu_height = 800.0;
-                // }
 
                 let inner_menu_aligned = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
-                    //Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_size(inner_menu, 400.0, 400.0))
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_width(inner_menu, 400.0))
+                );
+
+                let create_local_game_page = Flex::column()
+                    .with_child(
+                        Flex::row()
+                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, 
+                            Button::new("Back")
+                            .on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                data.window_type = AppPage::NewGame;
+                            })))
+                        .with_flex_spacer(1.0)
+                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Help")))
+                    )
+                    .with_flex_spacer(1.0)
+                    .with_child(inner_menu_aligned)
+                    .with_flex_spacer(1.0);
+
+                let painter = Painter::new(|ctx, data: &AppState, env| {
+                    let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
+                        Ok(svg) => svg,
+                        Err(err) => {
+                            error!("{}", err);
+                            error!("Using an empty SVG instead.");
+                            SvgData::default()
+                        }
+                    };
+                    Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
+                });
+
+                return Container::new(create_local_game_page).background(painter);
+
+            },
+
+            AppPage::AdvancedSettings => {
+                let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(*FONT_SIZE_H2).with_weight(FontWeight::BOLD);
+                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
+                
+                let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
+                let little_font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(*FONT_SIZE_H3).with_weight(FontWeight::BOLD);
+                
+                let inner_menu = SizedBox::new(
+                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("Advanced Settings").with_font(font.clone())
+                            )
+                        )
+                        .with_child(
+                            Label::new("Anti-Spoiling Rules").with_font(little_font.clone())
+                            .with_child(
+                                RadioGroup::new(vector![])
+                            )
+                        )
+                        .with_child(
+                            Label::new("End of Game").with_font(little_font.clone())
+                        )
+                        .with_child(
+                            Label::new("Variations").with_font(little_font.clone())
+                        )
+                        .with_child(
+                            Button::new("Back").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                data.window_type = AppPage::CreateLocalGame;
+                            })
+                        )
+                    )   
+                ).background(chinese_checkers_menu_background_color);
+
+                let inner_menu_aligned = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
                     Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_width(inner_menu, 400.0))
                 );
 
@@ -1163,170 +1137,6 @@ impl MainWidget<AppState> {
 
                 return Container::new(create_remote_game_page).background(painter);
 
-
-                // let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-                // let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
-
-                // let column_layout = Flex::column()
-                //     .with_child(
-                //         Padding::new(padding_dp,
-                //             Label::new("New Remote Game").with_font(font)
-                //         )
-                //     )
-                //     .with_child(
-                //         Flex::row()
-                //         .with_flex_child(
-                //             Flex::column()
-                //             .with_child(
-                //                 Padding::new(padding_dp,
-                //                     Label::new("Add Players")
-                //                 )
-                //             )
-                //             .with_child(
-                //                 Padding::new(padding_dp,
-                //                     Button::new("Test button").expand_width().expand_height()
-                //                 )
-                //             ).expand_width()
-                //         , 1.0)
-                //         .with_flex_spacer(1.0)
-                //         .with_flex_child(
-                //             Flex::column()
-                //             .with_child(
-                //                 Padding::new(padding_dp,
-                //                     Label::new("Room ID")
-                //                 )
-                //             )
-                //             .with_child(
-                //                 Padding::new(padding_dp,
-                //                     Button::new("Copy this").expand_width() // TODO replace with textfield
-                //                 )
-                //             )
-                //             .with_child(
-                //                 Padding::new(padding_dp,
-                //                     Label::new("Registration ticket pastebin")
-                //                 )
-                //             )
-                //             .with_child(
-                //                 Padding::new(padding_dp,
-                //                     Button::new("Paste here").expand_width()
-                //                 )
-                //             )
-                //         , 1.0)
-                //     ).expand_height();
-
-                // let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-                // let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding 
-                // let top_bar_button_padding = (10.0, 0.0); // 10dp of horizontal padding, 0dp of vertical padding
-                // let list_padding = (30.0, 10.0);
-                // let added_players_label_padding = (0.0, 10.0);
-
-                // let column_layout = Flex::column()
-                //     .with_child(
-                //         Flex::row()
-                //         .with_child(Padding::new(top_bar_button_padding, Button::new("Back")))
-                //         .with_flex_spacer(1.0)
-                //         .with_child(Label::new("New Remote Game").with_font(font))
-                //         .with_flex_spacer(1.0)
-                //         .with_child(Padding::new(top_bar_button_padding, Button::new("Help")))
-                //     )
-                //     .with_flex_child(
-                //         Flex::row()
-                //             .cross_axis_alignment(CrossAxisAlignment::Start)
-                //             // 1.0, 10.0, 2.0, 4.0, 1.0
-                //             .with_flex_spacer(1.0)
-                //             .with_flex_child(
-                //                 Padding::new(list_padding,
-                //                     Flex::column()
-                //                         .with_child(
-                //                             Padding::new(added_players_label_padding, Label::new("Added Players"))
-                //                         )
-                //                         .with_flex_child(
-                //                             Scroll::new(
-                //                                 List::new(|| { 
-                //                                     Flex::row()
-                //                                         .with_child(
-                //                                             Label::new(|(_, item): &(Vector<&str>, &str), _env: &Env| {
-                //                                                 format!("{}", item)
-                //                                             })
-                //                                         )
-                //                                         .with_flex_spacer(1.0)
-                //                                         .with_child(
-                //                                             Button::new("-")
-                //                                                 .on_click(|_ctx, (list, item): &mut (Vector<&str>, &str), _env| {
-                //                                                     list.retain(|v| v != item) // remove the entry from the list 
-                //                                                 })
-                //                                                 .fix_size(30.0, 30.0)
-                //                                         )
-                //                                         .padding(10.0)
-                //                                         .background(Color::rgb(0.5,0.0,0.5))
-                //                                         .fix_height(50.0)
-                //                                 })
-                //                             )
-                //                             .vertical() // so that the scrolling is vertical, not horizontal
-                //                             .lens(lens::Identity.map(
-                //                                 |data: &AppState| {
-                //                                     if data.create_remote_game_players_added.is_some() {                                    
-                //                                         return (data.create_remote_game_players_added.clone().unwrap(), data.create_remote_game_players_added.clone().unwrap());
-                //                                     } else {
-                //                                         return (Vector::new(), Vector::new())
-                //                                     }
-                //                                 },
-                //                                 |data: &mut AppState, lens_data: (Vector<&str>, Vector<&str>)| {
-                //                                     data.create_remote_game_players_added = Some(lens_data.0)
-                //                                 }
-                //                             )).expand_width()
-                //                         ,1.0)
-                //                 )
-                //             , 10.0)
-                //             .with_flex_spacer(2.0)
-                //             .with_flex_child(
-                //                 Flex::column()
-                //                 .cross_axis_alignment(CrossAxisAlignment::Start)
-                //                 .with_flex_child(
-                //                     Flex::column()
-                //                     .cross_axis_alignment(CrossAxisAlignment::Start)
-                //                     .with_child(Label::new("Room ID"))
-                //                     .with_child(
-                //                         //WidgetExt::controller(
-                //                         // ValueTextBox::new(
-                //                         TextBox::new() // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
-                //                         //)
-                //                         //.update_data_while_editing(false)
-                //                         //.validate_while_editing(true)
-                //                         .expand_width()
-                //                         //, TextCopyController{}
-                //                         )
-                //                     .lens(lens::Map::new(
-                //                         |data: &AppState| {
-                //                             if data.room_id.is_some() {
-                //                                 return data.clone().room_id.unwrap();
-                //                             } else {
-                //                                 println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
-                //                                 return String::from("");
-                //                             }
-                //                         },
-                //                         |data: &mut AppState, lens_data: String| {
-                //                             data.room_id = Some(lens_data)
-                //                         }
-                //                     ))
-                //                     .expand_height()
-                //                 , 1.0)
-                //                 .with_flex_child(
-                //                     Flex::column()
-                //                     .cross_axis_alignment(CrossAxisAlignment::Start)
-                //                     .with_child(Label::new("Paste registration tickets here:"))
-                //                     .with_child(
-                //                         TextBox::new()
-                //                         .expand_width()
-                //                         .lens(AppState::registration_ticket)
-                //                     )
-                //                     .expand_height()
-                //                 , 1.0)
-                //             , 4.0)
-                //             .with_flex_spacer(1.0)
-                //     , FlexParams::new(1.0, CrossAxisAlignment::Center));
-
-                // return Container::new(Align::centered(column_layout))
             },
             AppPage::JoinRemoteGame => {
                 return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
@@ -1365,7 +1175,6 @@ impl MainWidget<AppState> {
                                         );
                                         let new_game_context_menu = Menu::new("How Many Players?").entry(item2).entry(item3).entry(item4).entry(item6);
                                         ctx.show_context_menu(new_game_context_menu, data.mouse_click_screen_coordinates.unwrap());
-                                // println!("new game buttton pressed!!");
                             })))),1.0)
                             .with_flex_child(Container::new(Align::centered(
                                 Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
@@ -1474,8 +1283,6 @@ impl MainWidget<AppState> {
             AppPage::Start => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
-
-                //let chinese_checkers_label_background = Color::rgba8(74, 71, 71, 128);
                 
                 let button_color_dark = BUTTON_COLOR_DARK.get();
 
@@ -1483,7 +1290,6 @@ impl MainWidget<AppState> {
                 if button_color_dark.is_some() { 
                     let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
                     println!("Got here, BUTTON_COLOR_DARK is set!");
-                    //let tmp = druid::theme::BACKGROUND_DARK;
                     chinese_checkers_menu_background_color = (*MENU_GREY).clone();  
  
                 };
@@ -1558,98 +1364,6 @@ impl MainWidget<AppState> {
 
 }
 
-// struct ApplicationCommandHandler {}
-
-// impl ApplicationCommandHandler {
-//     fn new() -> Self {
-//         ApplicationCommandHandler {}
-//     }
-
-// }
-
-// impl AppDelegate<AppState> for ApplicationCommandHandler {
-//     fn event(
-//         &mut self,
-//         ctx: &mut DelegateCtx<'_>,
-//         window_id: WindowId,
-//         event: Event,
-//         data: &mut AppState,
-//         env: &Env
-//     ) -> Option<Event> 
-//     {
-//         return Some(event)
-//     }
-
-//     fn command(
-//         &mut self,
-//         ctx: &mut DelegateCtx,
-//         target: Target,
-//         cmd: &Command,
-//         data: &mut AppState,
-//         env: &Env
-//     ) -> Handled
-//     {
-//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_2_PLAYERS")) {
-//         //     println!("command to start a new game with 2 players received");
-//         //     data.board = Arc::<Vec::<Hextile>>::new(Vec::new());
-//         //     data.in_game = true;
-//         //     return Handled::Yes;
-//         // }
-//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_3_PLAYERS")) {
-//         //     println!("command to start a new game with 3 players received");
-//         //     return Handled::Yes;
-//         // }
-//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_3_PLAYERS")) {
-//         //     println!("command to start a new game with 3 players received");
-//         //     return Handled::Yes;
-//         // }
-//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_4_PLAYERS")) {
-//         //     println!("command to start a new game with 4 players received");
-//         //     return Handled::Yes;
-//         // }
-//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_5_PLAYERS")) {
-//         //     println!("command to start a new game with 5 players received");
-//         //     return Handled::Yes;
-//         // }
-//         // if cmd.is::<AppState>(Selector::new("Start_NewGame_WITH_6_PLAYERS")) {
-//         //     println!("command to start a new game with 6 players received");
-//         //     return Handled::Yes;
-//         // }
-
-//         return Handled::No;
-//     }
-
-//     fn window_added(
-//         &mut self,
-//         id: WindowId,
-//         data: &mut AppState,
-//         env: &Env,
-//         ctx: &mut DelegateCtx
-//     ) {}
-
-//     fn window_removed(
-//         &mut self,
-//         id: WindowId,
-//         data: &mut AppState,
-//         env: &Env,
-//         ctx: &mut DelegateCtx
-//     ) {}
-// }
-
-impl MainWidget<AppState> {
-    // fn create_start_game_popup_window_layout<'a>() -> Label<AppState> {
-    //     return Label::<AppState>::new("Enter a number, between 1 and 6");
-    // }
-
-    // 1. Create the pieces for the board
-    // 2. Link the pieces to the board
-    // fn initialize_pieces_for_board(board: Arc<Vec<Hextile>>, pieces: im::Vector<Piece>, num_players: u32) {
-    //     if num_players == 6 {
-
-    //     }
-    // }   
-}
-
 fn get_boundary_coords_struct_for_region(region: StartingRegion) -> BoardRegionBoundaryHexCoords {
     match region {
         StartingRegion::Top => {
@@ -1708,7 +1422,6 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
                 for y in boundary_coords.y_min..boundary_coords.y_max+1 {
                     for z in boundary_coords.z_min..boundary_coords.z_max+1 {
                         if x + y + z == 0 {
-                            // println!("from inside initialize_pieces_for_board(): x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
 
                             let hextile_idx_wrapper : Option<usize> = hextile_idx_at_coordinates(x,y,z,board);
 
@@ -1757,7 +1470,6 @@ impl Widget<AppState> for MainWidget<AppState> {
             Event::Command(command) => {
                 if command.is::<usize>(*start_game_selector) {
                     data.num_players = Some(*command.get_unchecked::<usize>(*start_game_selector));
-                    //let num_players : u32 = *command.get_unchecked::<u32>(*start_game_selector);
                     println!("Received a start game command for {} players", data.num_players.unwrap());
                     if data.num_players.unwrap() == 6 {
 
@@ -1790,7 +1502,6 @@ impl Widget<AppState> for MainWidget<AppState> {
 
                         data.regions_to_players = im::vector![regions_to_players[0], regions_to_players[1], regions_to_players[2], regions_to_players[3], regions_to_players[4], regions_to_players[5]];
 
-                        // data.whose_turn = Some(0);
                         data.whose_turn = Some(0);
 
                         ctx.request_paint();
@@ -1831,165 +1542,6 @@ impl Widget<AppState> for MainWidget<AppState> {
             }
         }
     }
-
-
-    // fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
-    //     println!("Update() of MainWidget<AppState> being called..");
-
-    //     self.main_container.update(ctx,old_data,data,env);
-
-    //     if data.window_type != old_data.window_type {
-    //         match data.window_type {
-    //             AppPage::CreateRemoteGame => {
-    //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-    //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
-        
-    //                 let column_layout = SizedBox::new(Flex::column()
-    //                     .with_child(
-    //                         Padding::new(padding_dp,
-    //                             Label::new("New Remote Game").with_font(font)
-    //                         )
-    //                     )
-    //                     .with_child(
-    //                         Flex::row()
-    //                         .with_flex_child(
-    //                             Flex::column()
-    //                             .with_child(
-    //                                 Padding::new(padding_dp,
-    //                                     Label::new("Add Players")
-    //                                 )
-    //                             )
-    //                             .with_child(
-    //                                 Padding::new(padding_dp,
-    //                                     Button::new("").expand_width().expand_height()
-    //                                 )
-    //                             )
-    //                         , 0.3333)
-    //                         .with_flex_spacer(0.3333)
-    //                         .with_flex_child(
-    //                             Flex::column()
-    //                             .with_child(
-    //                                 Padding::new(padding_dp,
-    //                                     Label::new("Room ID")
-    //                                 )
-    //                             )
-    //                             .with_child(
-    //                                 Padding::new(padding_dp,
-    //                                     Button::new("Copy this").expand_width() // TODO replace with textfield
-    //                                 )
-    //                             )
-    //                             .with_child(
-    //                                 Padding::new(padding_dp,
-    //                                     Label::new("Registration ticket pastebin")
-    //                                 )
-    //                             )
-    //                             .with_child(
-    //                                 Padding::new(padding_dp,
-    //                                     Button::new("Paste here").expand_width()
-    //                                 )
-    //                             )
-    //                         , 0.3333)
-        
-    //                     )
-    //                 ).width(300.0).expand_height();
-        
-    //                 self.main_container = Container::new(Align::centered(column_layout))
-    //             },
-    //             AppPage::JoinRemoteGame => {
-    //                 self.main_container =  Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
-    //             },
-    //             AppPage::LocalGame => {
-    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("LocalGame"))));
-    //             },
-    //             AppPage::RemoteGame => {
-    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("RemoteGame"))));
-    //             },
-    //             AppPage::NewGame => {
-    //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-    //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
-        
-    //                 let column_layout = SizedBox::new(Flex::column()
-    //                     .with_child(
-    //                         Padding::new(padding_dp,
-    //                             Label::new("New Game").with_font(font)
-    //                         )
-    //                     )
-    //                     .with_child(
-    //                         Padding::new(padding_dp,
-    //                             Button::new("New Local Game")
-    //                             .on_click(|ctx, data : &mut AppState, env| {
-    //                                 data.window_type = AppPage::LocalGame;
-    //                                 println!("New Local Game button pressed....");
-    //                             })
-    //                         )
-    //                     )
-    //                     .with_child(
-    //                         Padding::new(padding_dp,
-    //                             Button::new("New Remote Game")
-    //                             .on_click(|ctx, data : &mut AppState, env| {
-    //                                 data.window_type = AppPage::CreateRemoteGame;
-    //                                 println!("New Remote Game button pressed....");
-    //                             })
-    //                         )
-    //                     )
-    //                 ).width(300.0).expand_height();
-        
-    //                 self.main_container = Container::new(Align::centered(column_layout))
-    //             },
-    //             AppPage::Settings => {
-    //                 self.main_container = Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER Settings PAGE"))));
-    //             },
-    //             AppPage::Start => {
-    //                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
-    //                 let padding_dp = (0.0, 10.0); // 10dp of vertical padding, 0dp of horizontal padding 
-    //                 let column_layout = SizedBox::new(Flex::column()
-    //                 .with_child(
-    //                     Padding::new(padding_dp, 
-    //                         Label::new("Chinese Checkers").with_font(font)
-    //                     )
-    //                 )
-    //                 .with_child(
-    //                     Padding::new(padding_dp, 
-    //                         Button::new("New Game")
-    //                         .on_click(|ctx, data : &mut AppState, env| {
-    //                             data.window_type = AppPage::NewGame;
-    //                             println!("New game button pressed....");
-    //                         })
-    //                         .expand_width()
-    //                     )
-    //                 )
-    //                 .with_child(
-    //                     Padding::new(padding_dp, 
-    //                         Button::new("Join Game")
-    //                         .on_click(|ctx, data : &mut AppState, env| {
-    //                             data.window_type = AppPage::JoinRemoteGame;
-    //                             println!("Join game button pressed....");
-    //                         })
-    //                         .expand_width()
-    //                     )
-    //                 )
-    //                 .with_child(
-    //                     Padding::new(padding_dp, 
-    //                         Button::new("Settings")
-    //                         .expand_width()
-    //                     )
-    //                 )
-    //                 .with_child(
-    //                     Padding::new(padding_dp, 
-    //                         Button::new("Quit")
-    //                         .on_click(|ctx, data: &mut AppState, env| {
-    //                             println!("closing the application....");
-    //                             ctx.window().close();
-    //                         })
-    //                         .expand_width()
-    //                     )
-    //                 )).width(300.0).expand_height();
-            
-    //                 self.main_container = Container::new(Align::centered(column_layout));
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 // Create the main (root) Widget 
@@ -2147,7 +1699,6 @@ fn create_board() -> im::Vector<Hextile> {
 }
 
 // add the valid tiles in the given range to the board
-//fn add_appropriate_hextiles_to_board(mut board: &mut Vec<Hextile>, x_min: i32, x_max: i32, y_min: i32, y_max: i32, z_min: i32, z_max: i32) {
 fn add_appropriate_hextiles_to_board(
     board: &mut im::Vector<Hextile>,
     x_min: i32,
@@ -2161,7 +1712,6 @@ fn add_appropriate_hextiles_to_board(
         for y in y_min..(y_max + 1) {
             for z in z_min..(z_max + 1) {
                 if x + y + z == 0 {
-                    //let tile : Hextile = Hextile{y_hex: y, x_hex: x, z_hex: z, c: [0.0,0.0,0.0,0.0], p: None};
                     let tile: Hextile = Hextile {
                         y_hex: y,
                         x_hex: x,
@@ -2175,88 +1725,13 @@ fn add_appropriate_hextiles_to_board(
     }
 }
 
-#[derive(Data, Clone, Lens, Debug, PartialEq, Eq)]
-struct GameAdvancedSettingsTreeNode {
-    name: Option<String>,
-    is_arbitrary: bool,
-    children: Vector<GameAdvancedSettingsTreeNode>,
-    additional_data: Vector<String>,
-    ux_type: WidgetType,
-}
 
-/// We use Taxonomy as a tree node, implementing the TreeNode trait.
-impl GameAdvancedSettingsTreeNode {
-    fn new(name: String) -> Self {
-        GameAdvancedSettingsTreeNode {
-            name: Some(name),
-            is_arbitrary: false,
-            children: Vector::new(),
-        }
-    }
-
-    fn new_arbitrary(ux_type: WidgetType) -> Self {
-        GameAdvancedSettingsTreeNode {
-            name: None,
-            is_arbitrary: true,
-            children: Vector::new(),
-            additional_data: Vector::new(),
-            ux_type: ux_type,
-        }
-    }
-
-    fn new_arbitrary(ux_type: WidgetType, data: Vector<String>) -> Self {
-        GameAdvancedSettingsTreeNode {
-            name: None,
-            is_arbitrary: true,
-            children: Vector::new(),
-            additional_data: data.clone(),
-            ux_type: ux_type,
-        }
-    }
-
-    fn add_child(mut self, child: Self) -> Self {
-        if !self.is_arbitrary { self.children.push_back(child); }
-        self
-    }
-
-    fn ref_add_child(&mut self, child: Self) {
-        if !self.is_arbitrary { self.children.push_back(child); }
-    }
-}
-
-impl TreeNode for GameAdvancedSettingsTreeNode {
-    fn children_count(&self) -> usize {
-        self.children.len()
-    }
-
-    fn get_child(&self, index: usize) -> &GameAdvancedSettingsTreeNode {
-        &self.children[index]
-    }
-
-    fn get_child_mut(&mut self, index: usize) -> &mut GameAdvancedSettingsTreeNode {
-        &mut self.children[index]
-    }
-
-    fn rm_child(&mut self, index: usize) {
-        if !self.is_arbitrary { self.children.remove(index); }
-    }
-}
 
 fn main() {
     let main_window = WindowDesc::new(MainWidget::<AppState>::new())
-                   // .menu(make_menu::<AppState>)
                     .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
                     .resizable(true)
                     .title("Chinese Checkers");
-
-    let game_advanced_settings_tree = GameAdvancedSettingsTreeNode::new("Advanced Settings".to_string())
-                                        .add_child(GameAdvancedSettingsTreeNode::new("Anti-Spoiling Rules".to_string())
-                                            .add_child(GameAdvancedSettingsTreeNode::new_arbitrary(WidgetType::RadioGroup, vec!["Rule1".to_string(), "Rule2".to_string(), "Rule3".to_string()]))
-                                            //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
-                                            //.add_child(GameAdvancedSettingsTreeNode::new_arbitrary())
-                                        )
-                                        .add_child(GameAdvancedSettingsTreeNode::new("Variations".to_string()))
-                                        .add_child(GameAdvancedSettingsTreeNode::new("End of Game".to_string()));
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
@@ -2266,13 +1741,9 @@ fn main() {
         registration_ticket: String::from("registration ticket"),
         mouse_click_screen_coordinates: None,
         number_of_players_selected: PlayerCount::TwoPlayerGame,
-        game_advanced_settings_root: game_advanced_settings_tree 
     };
 
-    //let command_handler = ApplicationCommandHandler::new();
-
     AppLauncher::with_window(main_window)
-        //.delegate(command_handler)
         .configure_env(|env, _data| {
            let res = BUTTON_COLOR_DARK.set(env.get(druid::theme::BUTTON_DARK));
            if res.is_err() {
