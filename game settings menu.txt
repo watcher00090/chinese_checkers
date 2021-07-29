@@ -1,0 +1,29 @@
+[> Advanced Settings]
+
+   [> Anti Spoiling Rules]
+	      
+    [] Allow swapping your peg with any opponents peg in the destination's triangle (two variations of this)
+
+    [] As long as all available squares in the destination triangle are 
+       occuiped after the first move, you win. 
+
+    [] As long as all available squares in the destination triangle are 
+       occuiped And you have at least one of your pieces in the triangle, you win.  
+
+   [> End of Game]
+   
+     (*) Keep playing even after someone has won
+ 
+   [> Variations]
+   
+    (*) 3 players each getting 2 starting triangles
+
+    (*) 2 players each getting 3 starting triangles
+
+    (*) Every turn, players have to make a move if they can, and if they can't they pass
+
+    (*) You can only enter your own destination square
+
+   [> Draw]
+   
+   (*) If all players pass their turns consecutively, the game is a draw
