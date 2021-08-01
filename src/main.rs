@@ -1,4 +1,4 @@
-use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{Checkbox, RadioGroup, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
 use druid::LocalizedString;
@@ -19,16 +19,15 @@ use druid::im;
 use druid::im::{vector, Vector};
 use std::convert::TryInto;
 
+use druid::TextAlignment;
+
 use druid_widget_nursery::{DropdownSelect, ListSelect};
 
 use once_cell::sync::OnceCell;
 
 use tracing::error;
 
-use std::cmp;
-
 mod tree;
-use tree::{Tree, TreeNode};
 
 #[macro_use]
 extern crate lazy_static;
@@ -52,8 +51,9 @@ lazy_static! {
     static ref FONT_SIZE_H3 : f64 = 16.0;
     static ref MENU_BUTTON_PADDING : (f64, f64) = (5.0, 10.0);
     static ref TOP_BAR_BUTTON_PADDING : (f64, f64) = (10.0, 10.0);
-
-    static ref inner_menu_expand_height : Mutex<bool> = Mutex::<bool>::new(false);
+    static ref ADVANCED_SETTINGS_MENU_ITEMS_PADDING : (f64, f64, f64, f64) = (0.0, 5.0, 0.0, 5.0);
+    static ref ADVANCED_SETTINGS_MENU_HEADER_PADDING : (f64, f64, f64, f64) = (0.0, 10.0, 0.0, 5.0);
+    static ref ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING : (f64, f64, f64, f64) = (0.0, 10.0, 0.0, 5.0);
 }
 
 static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
@@ -84,6 +84,18 @@ static CANVAS_HEIGHT: f64 = BOARD_WIDTH + (2f64)*BOARD_RECT_VERTICAL_OFFSET_IN_C
 static BOARD_CIRCLE_COLOR_r : u8 = 238;
 static BOARD_CIRCLE_COLOR_g : u8 = 206;
 static BOARD_CIRCLE_COLOR_b : u8 = 166;
+
+static SWAPPING_ANTI_SPOILING_RULE_TEXT           : &str = "Allow swapping your peg with any opponents peg \nin the destination's triangle";
+static FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT   : &str = "As long as all available squares in the destination \ntriangle are occuiped after the first move, you win";
+static FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT : &str = "As long as all available squares in the destination \ntriangle are occuiped and you have at least one of \nyour pieces in the triangle, you win";
+
+static RANKED_WINNER_CHECKBOX_LABEL_TEXT                              : &str = "Keep playing even after someone has won";
+static ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT                       : &str = "If all players pass their turns consecutively, \nthe game is a draw"; 
+static THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT : &str = "If the same board state is reached three times, \nthe game is a draw";
+static THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a three player game, give each player two \nstarting sets of pegs, and victory is only obtained \nwhen all a player's starting pegs reach the \ncorresponding respective destination triangles";
+static TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a two player game, give each player three \nstarting sets of pegs, and victory is only obtained \nwhen all a player's starting pegs reach the \ncorresponding respective destination triangles";
+static FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT                   : &str = "Every turn, players have to make a move if they can, \nand if they can't they pass";
+static ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT                        : &str = "You can only enter your own destination triangle";
 
 lazy_static! {
     static ref YELLOW_COLOR:    Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
@@ -246,14 +258,14 @@ enum PlayerCount {
     SixPlayerGame
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-enum WidgetType {
-    CheckBox,
-    RadioGroup
-}
+// #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+// enum WidgetType {
+//     CheckBox,
+//     RadioGroup
+// }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Data)]
-enum AntiSpoilingRules {
+enum AntiSpoilingRule {
     Swapping,
     FilledDestWeak,
     FilledDestStrong,
@@ -489,6 +501,7 @@ struct AppState {
     registration_ticket: String,
     mouse_click_screen_coordinates: Option<Point>,
     number_of_players_selected: PlayerCount,
+    anti_spoiling_rule: AntiSpoilingRule,
     ranked_winner: bool,
     all_pass_equals_draw: bool,
     three_identical_equals_draw: bool,
@@ -925,34 +938,69 @@ impl MainWidget<AppState> {
 
             AppPage::AdvancedSettings => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(*FONT_SIZE_H2).with_weight(FontWeight::BOLD);
-                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
                 
                 let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
                 let little_font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(*FONT_SIZE_H3).with_weight(FontWeight::BOLD);
                 
                 let inner_menu = SizedBox::new(
-                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
+                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column().cross_axis_alignment(CrossAxisAlignment::Start)
                         .with_child(
-                            Padding::new(padding_dp,
-                                Label::new("Advanced Settings").with_font(font.clone())
+                            Padding::new(*ADVANCED_SETTINGS_MENU_HEADER_PADDING,
+                                WidgetExt::expand_width(Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(Label::new("Advanced Settings").with_font(font.clone())))
                             )
                         )
                         .with_child(
-                            Label::new("Anti-Spoiling Rules").with_font(little_font.clone())
-                            .with_child(
-                                RadioGroup::new(vector![])
+                            Padding::new(*ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING,
+                                WidgetExt::expand_width(Label::new("Anti-Spoiling Rules").with_font(little_font.clone()))
                             )
                         )
                         .with_child(
-                            Label::new("End of Game").with_font(little_font.clone())
+                            RadioGroup::new(vector![(SWAPPING_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::Swapping), (FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::FilledDestWeak), (FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::FilledDestStrong)]).lens(AppState::anti_spoiling_rule)
                         )
                         .with_child(
-                            Label::new("Variations").with_font(little_font.clone())
+                            Padding::new(*ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING,
+                                WidgetExt::expand_width(Label::new("Variations").with_font(little_font.clone()))
+                            )
                         )
                         .with_child(
-                            Button::new("Back").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                                data.window_type = AppPage::CreateLocalGame;
-                            })
+                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
+                                Checkbox::new(TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::two_players_three_triangles)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
+                                Checkbox::new(THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::three_players_two_triangles)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
+                                Checkbox::new(FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT).lens(AppState::forced_move_if_available)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
+                                Checkbox::new(ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT).lens(AppState::only_enter_own_dest)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(*ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING,
+                                WidgetExt::expand_width(Label::new("End of Game").with_font(little_font.clone()))
+                            )
+                        )
+                        .with_child(
+                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
+                                Checkbox::new(RANKED_WINNER_CHECKBOX_LABEL_TEXT).lens(AppState::ranked_winner)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
+                                WidgetExt::fix_width(Checkbox::new(THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT), 200.0).lens(AppState::three_identical_equals_draw)
+                            )
+                        )
+                        .with_child(
+                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
+                                Checkbox::new(ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT).lens(AppState::all_pass_equals_draw)
+                            )
                         )
                     )   
                 ).background(chinese_checkers_menu_background_color);
@@ -1741,6 +1789,14 @@ fn main() {
         registration_ticket: String::from("registration ticket"),
         mouse_click_screen_coordinates: None,
         number_of_players_selected: PlayerCount::TwoPlayerGame,
+        anti_spoiling_rule: AntiSpoilingRule::FilledDestStrong,
+        ranked_winner: false,
+        all_pass_equals_draw: false,
+        three_identical_equals_draw: false,
+        three_players_two_triangles: false,
+        two_players_three_triangles: false,
+        forced_move_if_available: false,
+        only_enter_own_dest: false    
     };
 
     AppLauncher::with_window(main_window)
