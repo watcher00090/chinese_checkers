@@ -12,20 +12,18 @@ use druid::Target;
 
 use druid::{Point, Rect, FontDescriptor, Color, Selector, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt};
 use druid::widget::prelude::*;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use druid::kurbo::{Circle};
 use druid::piet::{FontFamily, FontWeight};
 use druid::im;
 use druid::im::{vector, Vector};
 use std::convert::TryInto;
 
-use druid::TextAlignment;
-
-use druid_widget_nursery::{DropdownSelect, ListSelect};
-
-use once_cell::sync::OnceCell;
+use druid_widget_nursery::{DropdownSelect};
 
 use tracing::error;
+
+use druid::text::{Selection, Validation, ValidationError, Formatter};
 
 mod tree;
 
@@ -36,9 +34,12 @@ lazy_static! {
     static ref whose_turn_FONT : FontDescriptor = FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0);
 }
 
+
 static mut background_svg_store: Option<Svg> = None;
 
 lazy_static! {
+    // Global mutable variable storing the room_id of the remote gameplay room most recently created by this user
+    static ref last_room_id : Arc::<Mutex::<String>> = Arc::new(Mutex::<String>::new(String::from("")));
     // Global mutable variable storing the WidgetId of the root widget. 
     static ref root_widget_id_guard : Mutex::<WidgetId> = Mutex::<WidgetId>::new(WidgetId::next());  // global variable always storing the widget id of the root widget
     static ref start_game_selector : Selector<usize> = Selector::new("Start_GAME");
@@ -61,9 +62,6 @@ static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
 static MIN_WINDOW_WIDTH : f64 = 400f64;
 static MIN_WINDOW_HEIGHT: f64 = 400f64;
 static BOARD_RECT_VERTICAL_OFFSET_IN_CANVAS : f64 = 20f64;
-
-static UPDATE_BEEN_CALLED : OnceCell<bool> = OnceCell::new();
-static BUTTON_COLOR_DARK : OnceCell<Color> = OnceCell::new();    
 
 // the number of squares on the board
 const N_SQUARES : usize = 121;
@@ -825,6 +823,7 @@ impl Widget<AppState> for CanvasWidget {
 
 }
 
+// Formatter that ensures that the user can't edit the room id in the create_remote_game page
 struct RoomIDFormatter<String> {
     base: String
 }
@@ -833,6 +832,29 @@ impl RoomIDFormatter<String> {
     fn new(input: String) -> Self {
         return RoomIDFormatter::<String>{base: input}
     }
+}
+
+impl Formatter<String> for RoomIDFormatter<String> {
+    fn format(&self, _: &String) -> String {
+        return self.base.clone();
+    }
+
+    fn validate_partial_input(&self, input: &str, _sel: &Selection) -> Validation {
+        if String::from(input) ==  self.base {
+            return Validation::success();
+        } else {
+            return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+        }
+    }
+
+    fn value(&self, input: &str) -> Result<String, ValidationError> {
+        if String::from(input) == self.base {
+            return Ok(self.base.clone())
+        } else {
+            return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
+        }
+    }
+
 }
 
 #[derive(Debug, Default)]
@@ -1049,6 +1071,9 @@ impl MainWidget<AppState> {
                 let list_padding = (30.0, 10.0);
                 let added_players_label_padding = (0.0, 10.0);
                 
+                let last_room_id_mutex = (*last_room_id).lock().unwrap();
+                let room_id = (*last_room_id_mutex).clone();
+
                 let inner_menu = SizedBox::new(
                     Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                         .with_child(
@@ -1113,10 +1138,10 @@ impl MainWidget<AppState> {
                                         Flex::column()
                                         .cross_axis_alignment(CrossAxisAlignment::Start)
                                         .with_child(Label::new("Room ID"))
-                                        .with_child(
+                                        .with_child( 
                                             //WidgetExt::controller(
                                             // ValueTextBox::new(
-                                            WidgetExt::fix_width(TextBox::new(), 150.0)
+                                            WidgetExt::fix_width(TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new(room_id)), 150.0)
                                             // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
                                             //)
                                             //.update_data_while_editing(false)
@@ -1332,15 +1357,7 @@ impl MainWidget<AppState> {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
                 
-                let button_color_dark = BUTTON_COLOR_DARK.get();
-
-                let mut chinese_checkers_menu_background_color = Color::rgba(1.0, 1.0, 1.0, 0.0);
-                if button_color_dark.is_some() { 
-                    let (r,g,b,_) = button_color_dark.unwrap().as_rgba(); 
-                    println!("Got here, BUTTON_COLOR_DARK is set!");
-                    chinese_checkers_menu_background_color = (*MENU_GREY).clone();  
- 
-                };
+                let chinese_checkers_menu_background_color = (*MENU_GREY).clone();  
                 
                 let inner_menu = SizedBox::new(Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                     .with_child(
@@ -1505,10 +1522,6 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
 impl Widget<AppState> for MainWidget<AppState> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
-        if UPDATE_BEEN_CALLED.get().is_none() {
-            ctx.request_update();
-        }
-
         self.main_container.event(ctx, event, data, _env);
 
         match event {
@@ -1573,23 +1586,19 @@ impl Widget<AppState> for MainWidget<AppState> {
     }
 
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
-        println!("In update() for MainWidget<AppState>....");
-        if UPDATE_BEEN_CALLED.get().is_none() { // the OnceCell hasn't been initialized so the app hasn't been launched yet
+        self.main_container.update(ctx, old_data, data, env);
+        if data.window_type != old_data.window_type {
+
+            if data.window_type == AppPage::CreateRemoteGame {
+                let mut last_room_id_mutex = (*last_room_id).lock().unwrap();
+                *last_room_id_mutex = data.room_id.clone().unwrap();
+            }
+
             self.main_container = MainWidget::build_page_ui(data.window_type);
             ctx.children_changed();
-            let res = UPDATE_BEEN_CALLED.set(true);
-            if res.is_err() {
-                println!("ERROR: attempting to set the UPDATE_BEEN_CALLED boolean in update() produced an error, which was unexpected.")
-            }
-        } else {
-            self.main_container.update(ctx, old_data, data, env);
-            if data.window_type != old_data.window_type {
-                let extras = if data.window_type == AppPage::CreateRemoteGame { Some(String::from(data.room_id.clone().unwrap_or_default())) } else { None };
-                self.main_container = MainWidget::build_page_ui(data.window_type);
-                ctx.children_changed();
-            }
         }
     }
+    
 }
 
 // Create the main (root) Widget 
@@ -1785,7 +1794,7 @@ fn main() {
         in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
-        room_id: Some(String::from("hHfk8L6H38HGNEmkdbf63728Hf6i")),
+        room_id: Some(String::from("1515")),
         registration_ticket: String::from("registration ticket"),
         mouse_click_screen_coordinates: None,
         number_of_players_selected: PlayerCount::TwoPlayerGame,
@@ -1800,12 +1809,12 @@ fn main() {
     };
 
     AppLauncher::with_window(main_window)
-        .configure_env(|env, _data| {
-           let res = BUTTON_COLOR_DARK.set(env.get(druid::theme::BUTTON_DARK));
-           if res.is_err() {
-               println!("ERROR: attempting to set BUTTON_COLOR_DARK in configure_env produced an error...");
-           }
-        })
+        // .configure_env(|env, _data| { // OnceCell
+        //    let res = BUTTON_COLOR_DARK.set(env.get(druid::theme::BUTTON_DARK));
+        //    if res.is_err() {
+        //        println!("ERROR: attempting to set BUTTON_COLOR_DARK in configure_env produced an error...");
+        //    }
+        // })
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
 }
