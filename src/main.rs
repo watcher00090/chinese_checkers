@@ -1074,6 +1074,8 @@ impl MainWidget<AppState> {
                 let last_room_id_mutex = (*last_room_id).lock().unwrap();
                 let room_id = (*last_room_id_mutex).clone();
 
+                let right_column_item_padding = (0.0, 10.0, 0.0, 10.0);
+
                 let inner_menu = SizedBox::new(
                     Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                         .with_child(
@@ -1084,12 +1086,11 @@ impl MainWidget<AppState> {
                         .with_child(
                             Flex::row()
                                 .cross_axis_alignment(CrossAxisAlignment::Start)
-                                // 1.0, 10.0, 2.0, 4.0, 1.0
                                 .with_flex_child(
                                     Padding::new(list_padding,
                                         Flex::column()
                                             .with_child(
-                                                Padding::new(added_players_label_padding, Label::new("Added Players"))
+                                                Padding::new(added_players_label_padding, Label::new("Added Players:"))
                                             )
                                             .with_flex_child(
                                                 Scroll::new(
@@ -1109,6 +1110,7 @@ impl MainWidget<AppState> {
                                                                     // .fix_size(30.0, 30.0)
                                                             )
                                                             .padding(10.0)
+                                                            //.background(Color::rgba(0.3,0.3,0.3,0.5))
                                                             .background(Color::rgba(0.0,0.0,0.0,0.5))
                                                             .fix_height(50.0)
                                                             .fix_width(100.0)
@@ -1134,50 +1136,75 @@ impl MainWidget<AppState> {
                                 .with_flex_child(
                                     Flex::column()
                                     .cross_axis_alignment(CrossAxisAlignment::Start)
-                                    .with_flex_child(
-                                        Flex::column()
-                                        .cross_axis_alignment(CrossAxisAlignment::Start)
-                                        .with_child(Label::new("Room ID"))
-                                        .with_child( 
-                                            //WidgetExt::controller(
-                                            // ValueTextBox::new(
-                                            WidgetExt::fix_width(TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new(room_id)), 150.0)
-                                            // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
-                                            //)
-                                            //.update_data_while_editing(false)
-                                            //.validate_while_editing(true)
-                                            //.expand_width()
-                                            //, TextCopyController{}
-                                            
-                                        )
-                                        .lens(lens::Map::new(
-                                            |data: &AppState| {
-                                                if data.room_id.is_some() {
-                                                    return data.clone().room_id.unwrap();
-                                                } else {
-                                                    println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
-                                                    return String::from("");
+                                    .with_child(
+                                        Padding::new(right_column_item_padding,
+                                            Flex::column()
+                                            .cross_axis_alignment(CrossAxisAlignment::Start)
+                                            .with_child(Label::new("Room ID:"))
+                                            .with_child( 
+                                                //WidgetExt::controller(
+                                                // ValueTextBox::new(
+                                                WidgetExt::fix_width(TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new(room_id)), 150.0)
+                                                // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
+                                                //)
+                                                //.update_data_while_editing(false)
+                                                //.validate_while_editing(true)
+                                                //.expand_width()
+                                                //, TextCopyController{}
+                                            )
+                                            .lens(lens::Map::new(
+                                                |data: &AppState| {
+                                                    if data.room_id.is_some() {
+                                                        return data.clone().room_id.unwrap();
+                                                    } else {
+                                                        println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
+                                                        return String::from("");
+                                                    }
+                                                },
+                                                |data: &mut AppState, lens_data: String| {
+                                                    data.room_id = Some(lens_data)
                                                 }
-                                            },
-                                            |data: &mut AppState, lens_data: String| {
-                                                data.room_id = Some(lens_data)
-                                            }
-                                        ))
-                                        //.expand_height()
-                                    , 1.0)
-                                    .with_flex_child(
-                                        Flex::column()
-                                        .cross_axis_alignment(CrossAxisAlignment::Start)
-                                        .with_child(Label::new("Paste Registration Tickets Here:"))
-                                        .with_child(
-                                            WidgetExt::fix_width(TextBox::new(), 150.0)
-                                            //.expand_width()
-                                            .lens(AppState::registration_ticket)
+                                            ))
                                         )
-                                        //.expand_height()
-                                    , 1.0)
-                                , 1.0)
-                        ) // , FlexParams::new(1.0, CrossAxisAlignment::Center))
+                                    )
+                                    .with_child(
+                                        Padding::new(right_column_item_padding,
+                                            Flex::column()
+                                            .cross_axis_alignment(CrossAxisAlignment::Start)
+                                            .with_child(Label::new("Process Tickets:"))
+                                            .with_child(
+                                                
+                                                // WidgetExt::fix_width(
+                                                    Flex::row()
+                                                    .with_flex_child(
+                                                        TextBox::new().expand_width().lens(AppState::registration_ticket)
+                                                    , 1.0)
+                                                    .with_child(
+                                                        WidgetExt::fix_height(
+                                                            Padding::new((5.0, 0.0),
+                                                                Button::new("Go")
+                                                                .on_click(|_ctx, data: &mut AppState, _env| {
+                                                                    println!("Go button pressed!")
+                                                                })
+                                                            )
+                                                        , 30.0)
+                                                    ),
+                                                // 150.0)  
+                                                //.expand_width()
+                                            )
+                                            //.expand_height()
+                                        )
+                                    )
+                                    .with_child(
+                                        Padding::new(right_column_item_padding,
+                                            Button::new("Advanced Settings").on_click(|_ctx, data: &mut AppState, _env| {
+                                                data.window_type = AppPage::AdvancedSettings;
+                                            }).expand_width()
+                                        )
+                                    )
+                                    .with_child(Button::new("Start Game").expand_width())
+                            , 1.0)
+                        )
                     )
                 ).background(chinese_checkers_menu_background_color);
                                 
@@ -1188,7 +1215,12 @@ impl MainWidget<AppState> {
                 let create_remote_game_page = Flex::column()
                     .with_child(
                         Flex::row()
-                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Back")))
+                        .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, 
+                            Button::new("Back")
+                            .on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                data.window_type = AppPage::NewGame;
+                            })
+                        ))
                         .with_flex_spacer(1.0)
                         .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Help")))
                     )
