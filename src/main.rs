@@ -21,7 +21,15 @@ use std::convert::TryInto;
 
 use druid_widget_nursery::{DropdownSelect};
 
+// extern crate pem;
+use openssl::rsa::{Rsa, RsaPrivateKeyBuilder};
+use openssl::pkey::{Private};
+use openssl::bn::BigNum;
+use rand::Rng;
+
 use tracing::error;
+
+use once_cell::sync::OnceCell;
 
 use druid::text::{Selection, Validation, ValidationError, Formatter};
 
@@ -55,6 +63,8 @@ lazy_static! {
     static ref ADVANCED_SETTINGS_MENU_ITEMS_PADDING : (f64, f64, f64, f64) = (0.0, 5.0, 0.0, 5.0);
     static ref ADVANCED_SETTINGS_MENU_HEADER_PADDING : (f64, f64, f64, f64) = (0.0, 10.0, 0.0, 5.0);
     static ref ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING : (f64, f64, f64, f64) = (0.0, 10.0, 0.0, 5.0);
+    static ref PUBLIC_KEY  : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
+    static ref PRIVATE_KEY : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
 }
 
 static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
@@ -496,6 +506,7 @@ struct AppState {
     regions_to_players : im::Vector<StartingRegion>, // regions_to_players[i] = the starting region of player i
     create_remote_game_players_added : Option<Vector<&'static str>>,
     room_id: Option<String>,
+    join_remote_game_entered_room_id: String,
     registration_ticket: String,
     mouse_click_screen_coordinates: Option<Point>,
     number_of_players_selected: PlayerCount,
@@ -874,18 +885,75 @@ impl<W: Widget<String>> Controller<String, W> for TextCopyController {
 
 impl MainWidget<AppState> {
 
-    fn new() -> IdentityWrapper<Self> {           
+    fn new() -> IdentityWrapper<Self> {    
+        // Create the user's public/private key pair
+        let mut rng = rand::thread_rng();
+        let mut builder = RsaPrivateKeyBuilder::new(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
+        builder = builder.set_factors(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
+        let result = builder.build();
+        (*PUBLIC_KEY).set(result.public_key_to_pem().unwrap());
+        (*PRIVATE_KEY).set(result.private_key_to_pem().unwrap());         
+        
         let main_widget = MainWidget::<AppState> {
             main_container: MainWidget::build_page_ui(AppPage::Start),
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();      
         main_widget.with_id(*widget_id_holder)
-        // NOTE: the mutex will be unlocked here because 'widget_id_holder' is scoped to this block
     } 
 
     fn build_page_ui(page: AppPage) -> Container<AppState> {
         match page {
+            AppPage::JoinRemoteGame => {
+                let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
+                let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
+                
+                let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
+                
+                let inner_menu = SizedBox::new(
+                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
+                        .with_child(
+                            Padding::new(padding_dp,
+                                Label::new("Join Remote Game").with_font(font)
+                            )
+                        )
+                        .with_child(
+                            Flex::column()
+                            .cross_axis_alignment(CrossAxisAlignment::Start)
+                            .with_child(
+                                Label::new("Enter Room ID:")
+                            )
+                            .with_child(
+                                Flex::row()
+                                .with_flex_child(
+                                    TextBox::new().expand_width().lens(AppState::join_remote_game_entered_room_id)
+                                , 1.0)
+                                .with_child(
+                                    Padding::new((5.0, 0.0), WidgetExt::fix_height(Button::new("Make Ticket"), 30.0))
+                                )
+                            )
+                        )
+                    )
+                ).background(chinese_checkers_menu_background_color);
+                
+                let join_remote_game_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_size(inner_menu, 400.0, 400.0))
+                );
+
+                let painter = Painter::new(|ctx, data: &AppState, env| {
+                    let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
+                        Ok(svg) => svg,
+                        Err(err) => {
+                            error!("{}", err);
+                            error!("Using an empty SVG instead.");
+                            SvgData::default()
+                        }
+                    };
+                    Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
+                });
+
+                return Container::new(join_remote_game_page).background(painter);
+            },
             AppPage::CreateLocalGame => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(*FONT_SIZE_H2).with_weight(FontWeight::BOLD);
                 let padding_dp = (0.0, 10.0); // 0dp of horizontal padding, 10dp of vertical padding,
@@ -1173,7 +1241,6 @@ impl MainWidget<AppState> {
                                             .cross_axis_alignment(CrossAxisAlignment::Start)
                                             .with_child(Label::new("Process Tickets:"))
                                             .with_child(
-                                                
                                                 // WidgetExt::fix_width(
                                                     Flex::row()
                                                     .with_flex_child(
@@ -1184,7 +1251,7 @@ impl MainWidget<AppState> {
                                                             Padding::new((5.0, 0.0),
                                                                 Button::new("Go")
                                                                 .on_click(|_ctx, data: &mut AppState, _env| {
-                                                                    println!("Go button pressed!")
+                                                                    MainWidget::process_registration_ticket(data);
                                                                 })
                                                             )
                                                         , 30.0)
@@ -1242,9 +1309,6 @@ impl MainWidget<AppState> {
 
                 return Container::new(create_remote_game_page).background(painter);
 
-            },
-            AppPage::JoinRemoteGame => {
-                return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO JOIN REMOTE GAME"))));
             },
             AppPage::LocalGame => {
                 return Container::new(
@@ -1364,7 +1428,7 @@ impl MainWidget<AppState> {
                     )
                 ).background(chinese_checkers_menu_background_color);
                 
-                let NewGame_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
+                let new_game_page = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
                     Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
                 );
 
@@ -1380,7 +1444,7 @@ impl MainWidget<AppState> {
                     Svg::new(svg_background.clone()).fill_mode(FillStrat::Contain).paint(ctx,data,env);        
                 });
 
-                return Container::new(NewGame_page).background(painter);
+                return Container::new(new_game_page).background(painter);
             },
             AppPage::Settings => {
                 return Container::new(Align::centered(Flex::column().with_child(Label::new("ATTEMPTED TO ENTER Settings PAGE"))));
@@ -1457,6 +1521,10 @@ impl MainWidget<AppState> {
                 return Container::new(start_page).background(painter);
             }
         }
+    }
+
+    fn process_registration_ticket(data: &mut AppState) {
+
     }
 
 }
@@ -1827,6 +1895,7 @@ fn main() {
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
         room_id: Some(String::from("1515")),
+        join_remote_game_entered_room_id: String::from("jHfjHsdkmcjFhdkSjfjf"),
         registration_ticket: String::from("registration ticket"),
         mouse_click_screen_coordinates: None,
         number_of_players_selected: PlayerCount::TwoPlayerGame,
