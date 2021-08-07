@@ -19,7 +19,7 @@ use druid::im;
 use druid::im::{vector, Vector};
 use std::convert::TryInto;
 
-use druid_widget_nursery::{DropdownSelect};
+use druid_widget_nursery::DropdownSelect;
 
 // extern crate pem;
 use openssl::rsa::{Rsa, RsaPrivateKeyBuilder};
@@ -41,7 +41,6 @@ extern crate lazy_static;
 lazy_static! {
     static ref whose_turn_FONT : FontDescriptor = FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0);
 }
-
 
 static mut background_svg_store: Option<Svg> = None;
 
@@ -507,6 +506,7 @@ struct AppState {
     create_remote_game_players_added : Option<Vector<&'static str>>,
     room_id: Option<String>,
     join_remote_game_entered_room_id: String,
+    join_remote_game_ticket: Option<String>,
     registration_ticket: String,
     mouse_click_screen_coordinates: Option<Point>,
     number_of_players_selected: PlayerCount,
@@ -910,6 +910,17 @@ impl MainWidget<AppState> {
                 
                 let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
                 
+                // let partial = DisablePrismWrap::new(
+                //     Label::new("Hi"),
+                //     String::new(),
+                //     Closures(
+                //         |_outer| {
+                //             return None
+                //         },
+                //         |_data, _inner| {}
+                //     )
+                // );
+
                 let inner_menu = SizedBox::new(
                     Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                         .with_child(
@@ -932,6 +943,9 @@ impl MainWidget<AppState> {
                                     Padding::new((5.0, 0.0), WidgetExt::fix_height(Button::new("Make Ticket"), 30.0))
                                 )
                             )
+                           // .with_child(
+                           //     Flex::row()
+                           // )
                         )
                     )
                 ).background(chinese_checkers_menu_background_color);
@@ -960,6 +974,12 @@ impl MainWidget<AppState> {
                 
                 let chinese_checkers_menu_background_color = (*MENU_GREY).clone(); 
                 
+                let mut number_of_players_dropdown_entries = druid::im::Vector::new();
+                number_of_players_dropdown_entries.push_back(("2", PlayerCount::TwoPlayerGame));
+                number_of_players_dropdown_entries.push_back(("3", PlayerCount::ThreePlayerGame));
+                number_of_players_dropdown_entries.push_back(("4", PlayerCount::FourPlayerGame));
+                number_of_players_dropdown_entries.push_back(("6", PlayerCount::SixPlayerGame));
+
                 let inner_menu = SizedBox::new(
                     Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                         .with_child(
@@ -970,12 +990,7 @@ impl MainWidget<AppState> {
                         .with_child(Label::new("Number of players:"))
                         .with_child(
                             DropdownSelect::new(
-                                vec![
-                                    ("2", PlayerCount::TwoPlayerGame),
-                                    ("3", PlayerCount::ThreePlayerGame),
-                                    ("4", PlayerCount::FourPlayerGame),
-                                    ("6", PlayerCount::SixPlayerGame),
-                                ]
+                                number_of_players_dropdown_entries
                             ).lens(AppState::number_of_players_selected)
                         )   
                         .with_child(
@@ -1896,6 +1911,7 @@ fn main() {
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
         room_id: Some(String::from("1515")),
         join_remote_game_entered_room_id: String::from("jHfjHsdkmcjFhdkSjfjf"),
+        join_remote_game_ticket: None,
         registration_ticket: String::from("registration ticket"),
         mouse_click_screen_coordinates: None,
         number_of_players_selected: PlayerCount::TwoPlayerGame,
