@@ -1247,29 +1247,34 @@ impl MainWidget<AppState> {
                                             .cross_axis_alignment(CrossAxisAlignment::Start)
                                             .with_child(Label::new("Room ID:"))
                                             .with_child( 
-                                                //WidgetExt::controller(
-                                                // ValueTextBox::new(
-                                                WidgetExt::fix_width(TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new(room_id)), 150.0)
-                                                // , RoomIDFormatter::new(extras.clone().unwrap_or_default())
-                                                //)
-                                                //.update_data_while_editing(false)
-                                                //.validate_while_editing(true)
-                                                //.expand_width()
-                                                //, TextCopyController{}
-                                            )
-                                            .lens(lens::Map::new(
-                                                |data: &AppState| {
-                                                    if data.room_id.is_some() {
-                                                        return data.clone().room_id.unwrap();
-                                                    } else {
-                                                        println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
-                                                        return String::from("");
-                                                    }
-                                                },
-                                                |data: &mut AppState, lens_data: String| {
-                                                    data.room_id = Some(lens_data)
-                                                }
-                                            ))
+                                                Flex::row()
+                                                .with_flex_child(
+                                                    TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new(room_id)).expand_width()
+                                                    .lens(lens::Map::new(
+                                                        |data: &AppState| {
+                                                            if data.room_id.is_some() {
+                                                                return data.clone().room_id.unwrap();
+                                                            } else {
+                                                                println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
+                                                                return String::from("");
+                                                            }
+                                                        },
+                                                        |data: &mut AppState, lens_data: String| {
+                                                            data.room_id = Some(lens_data)
+                                                        }
+                                                    ))        
+                                                , 1.0)
+                                                .with_child(
+                                                    WidgetExt::fix_height(
+                                                        Padding::new((5.0, 0.0),
+                                                            Button::new("Copy")
+                                                            .on_click(|ctx, data: &mut AppState, _env| {
+                                                                ctx.submit_command(druid::commands::COPY);
+                                                            })
+                                                        )
+                                                    , 30.0)
+                                                )
+                                            )   
                                         )
                                     )
                                     .with_child(
@@ -1278,25 +1283,21 @@ impl MainWidget<AppState> {
                                             .cross_axis_alignment(CrossAxisAlignment::Start)
                                             .with_child(Label::new("Process Tickets:"))
                                             .with_child(
-                                                // WidgetExt::fix_width(
-                                                    Flex::row()
-                                                    .with_flex_child(
-                                                        TextBox::new().expand_width().lens(AppState::registration_ticket)
-                                                    , 1.0)
-                                                    .with_child(
-                                                        WidgetExt::fix_height(
-                                                            Padding::new((5.0, 0.0),
-                                                                Button::new("Go")
-                                                                .on_click(|_ctx, data: &mut AppState, _env| {
-                                                                    MainWidget::process_registration_ticket(data);
-                                                                })
-                                                            )
-                                                        , 30.0)
-                                                    ),
-                                                // 150.0)  
-                                                //.expand_width()
+                                                Flex::row()
+                                                .with_flex_child(
+                                                    TextBox::new().expand_width().lens(AppState::registration_ticket)
+                                                , 1.0)
+                                                .with_child(
+                                                    WidgetExt::fix_height(
+                                                        Padding::new((5.0, 0.0),
+                                                            Button::new("Go")
+                                                            .on_click(|_ctx, data: &mut AppState, _env| {
+                                                                MainWidget::process_registration_ticket(data);
+                                                            })
+                                                        )
+                                                    , 30.0)
+                                                ),
                                             )
-                                            //.expand_height()
                                         )
                                     )
                                     .with_child(
