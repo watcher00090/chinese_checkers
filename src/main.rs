@@ -1,4 +1,4 @@
-use druid::widget::{Checkbox, RadioGroup, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
 use druid::LocalizedString;
@@ -33,7 +33,13 @@ use once_cell::sync::OnceCell;
 
 use druid::text::{Selection, Validation, ValidationError, Formatter};
 
-mod tree;
+// Use our modified version of the Checkbox
+mod checkbox;
+use checkbox::Checkbox;
+
+// Use our modified version of the RadioGroup
+mod radio;
+use radio::RadioGroup;
 
 #[macro_use]
 extern crate lazy_static;
@@ -96,13 +102,22 @@ static SWAPPING_ANTI_SPOILING_RULE_TEXT           : &str = "Allow swapping your 
 static FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT   : &str = "As long as all available squares in the destination \ntriangle are occuiped after the first move, you win";
 static FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT : &str = "As long as all available squares in the destination \ntriangle are occuiped and you have at least one of \nyour pieces in the triangle, you win";
 
+static OLD_RANKED_WINNER_CHECKBOX_LABEL_TEXT                              : &str = "Keep playing even after someone has won";
+static OLD_ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT                       : &str = "If all players pass their turns consecutively, \nthe game is a draw"; 
+static OLD_THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT : &str = "If the same board state is reached three times, \nthe game is a draw";
+static OLD_THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a three player game, give each player two \nstarting sets of pegs, and victory is only obtained \nwhen all a player's starting pegs reach the \ncorresponding respective destination triangles";
+static OLD_TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a two player game, give each player three \nstarting sets of pegs, and victory is only obtained \nwhen all a player's starting pegs reach the \ncorresponding respective destination triangles";
+static OLD_FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT                   : &str = "Every turn, players have to make a move if they can, \nand if they can't they pass";
+static OLD_ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT                        : &str = "You can only enter your own destination triangle";
+
 static RANKED_WINNER_CHECKBOX_LABEL_TEXT                              : &str = "Keep playing even after someone has won";
-static ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT                       : &str = "If all players pass their turns consecutively, \nthe game is a draw"; 
-static THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT : &str = "If the same board state is reached three times, \nthe game is a draw";
-static THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a three player game, give each player two \nstarting sets of pegs, and victory is only obtained \nwhen all a player's starting pegs reach the \ncorresponding respective destination triangles";
-static TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a two player game, give each player three \nstarting sets of pegs, and victory is only obtained \nwhen all a player's starting pegs reach the \ncorresponding respective destination triangles";
-static FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT                   : &str = "Every turn, players have to make a move if they can, \nand if they can't they pass";
+static ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT                       : &str = "If all players pass their turns consecutively, the game is a draw"; 
+static THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT : &str = "If the same board state is reached three times, the game is a draw";
+static THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a three player game, give each player two starting sets of pegs, and victory is only obtained when all a player's starting pegs reach the corresponding respective destination triangles";
+static TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a two player game, give each player three starting sets of pegs, and victory is only obtained when all a player's starting pegs reach the corresponding respective destination triangles";
+static FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT                   : &str = "Every turn, players have to make a move if they can, and if they can't they pass";
 static ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT                        : &str = "You can only enter your own destination triangle";
+
 
 lazy_static! {
     static ref YELLOW_COLOR:    Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
