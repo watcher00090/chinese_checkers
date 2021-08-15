@@ -73,6 +73,9 @@ lazy_static! {
 }
 
 static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
+// static INNER_MENU_CONTAINER_PADDING_ADVANCED_SETTINGS_PAGE : (f64, f64) = (25.0, 10.0);
+static INNER_MENU_CONTAINER_PADDING_ADVANCED_SETTINGS_PAGE : (f64, f64, f64, f64) = (25.0, 10.0, 25.0, 15.0);
+
 
 static MIN_WINDOW_WIDTH : f64 = 400f64;
 static MIN_WINDOW_HEIGHT: f64 = 400f64;
@@ -98,9 +101,9 @@ static BOARD_CIRCLE_COLOR_r : u8 = 238;
 static BOARD_CIRCLE_COLOR_g : u8 = 206;
 static BOARD_CIRCLE_COLOR_b : u8 = 166;
 
-static SWAPPING_ANTI_SPOILING_RULE_TEXT           : &str = "Allow swapping your peg with any opponents peg \nin the destination's triangle";
-static FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT   : &str = "As long as all available squares in the destination \ntriangle are occuiped after the first move, you win";
-static FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT : &str = "As long as all available squares in the destination \ntriangle are occuiped and you have at least one of \nyour pieces in the triangle, you win";
+static OLD_SWAPPING_ANTI_SPOILING_RULE_TEXT           : &str = "Allow swapping your peg with any opponents peg \nin the destination's triangle";
+static OLD_FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT   : &str = "As long as all available squares in the destination \ntriangle are occuiped after the first move, you win";
+static OLD_FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT : &str = "As long as all available squares in the destination \ntriangle are occuiped and you have at least one of \nyour pieces in the triangle, you win";
 
 static OLD_RANKED_WINNER_CHECKBOX_LABEL_TEXT                              : &str = "Keep playing even after someone has won";
 static OLD_ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT                       : &str = "If all players pass their turns consecutively, \nthe game is a draw"; 
@@ -109,6 +112,10 @@ static OLD_THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str
 static OLD_TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT                : &str = "If starting a two player game, give each player three \nstarting sets of pegs, and victory is only obtained \nwhen all a player's starting pegs reach the \ncorresponding respective destination triangles";
 static OLD_FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT                   : &str = "Every turn, players have to make a move if they can, \nand if they can't they pass";
 static OLD_ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT                        : &str = "You can only enter your own destination triangle";
+
+static SWAPPING_ANTI_SPOILING_RULE_TEXT           : &str = "Allow swapping your peg with any opponents peg in the destination's triangle";
+static FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT   : &str = "As long as all available squares in the destination triangle are occuiped after the first move, you win";
+static FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT : &str = "As long as all available squares in the destination triangle are occuiped and you have at least one of your pieces in the triangle, you win";
 
 static RANKED_WINNER_CHECKBOX_LABEL_TEXT                              : &str = "Keep playing even after someone has won";
 static ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT                       : &str = "If all players pass their turns consecutively, the game is a draw"; 
@@ -1063,7 +1070,7 @@ impl MainWidget<AppState> {
                 let little_font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(*FONT_SIZE_H3).with_weight(FontWeight::BOLD);
                 
                 let inner_menu = SizedBox::new(
-                    Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column().cross_axis_alignment(CrossAxisAlignment::Start)
+                    Padding::new(INNER_MENU_CONTAINER_PADDING_ADVANCED_SETTINGS_PAGE, Flex::column().cross_axis_alignment(CrossAxisAlignment::Start)
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_HEADER_PADDING,
                                 WidgetExt::expand_width(Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(Label::new("Advanced Settings").with_font(font.clone())))
@@ -1114,7 +1121,7 @@ impl MainWidget<AppState> {
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                WidgetExt::fix_width(Checkbox::new(THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT), 200.0).lens(AppState::three_identical_equals_draw)
+                                Checkbox::new(THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT).lens(AppState::three_identical_equals_draw)
                             )
                         )
                         .with_child(
