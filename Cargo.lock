@@ -425,7 +425,7 @@ dependencies = [
 [[package]]
 name = "druid-widget-nursery"
 version = "0.1.0"
-source = "git+https://github.com/linebender/druid-widget-nursery#ae661d215a7af6a838c6665613d79240cb0e27e4"
+source = "git+https://github.com/linebender/druid-widget-nursery?rev=08c7e22#08c7e22f44f3997a6abb748382796a21bd4e4f87"
 dependencies = [
  "druid",
  "log",
