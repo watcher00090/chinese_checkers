@@ -23,15 +23,25 @@ use druid_widget_nursery::DropdownSelect;
 
 // extern crate pem;
 use openssl::rsa::{Rsa, RsaPrivateKeyBuilder};
+use openssl::pkey::PKey;
+
+use core::convert::TryFrom;
+
 use openssl::pkey::{Private};
 use openssl::bn::BigNum;
 use rand::Rng;
+
+use std::iter;
+
+use openssl::encrypt::{Encrypter, Decrypter};
 
 use tracing::error;
 
 use once_cell::sync::OnceCell;
 
 use druid::text::{Selection, Validation, ValidationError, Formatter};
+
+use local_ip_address::local_ip;
 
 // Use our modified version of the Checkbox
 mod checkbox;
@@ -49,6 +59,8 @@ lazy_static! {
 }
 
 static mut background_svg_store: Option<Svg> = None;
+
+static DATA_BUF_LEN : usize = 20000;
 
 lazy_static! {
     // Global mutable variable storing the room_id of the remote gameplay room most recently created by this user
@@ -70,6 +82,9 @@ lazy_static! {
     static ref ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING : (f64, f64, f64, f64) = (0.0, 10.0, 0.0, 5.0);
     static ref PUBLIC_KEY  : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
     static ref PRIVATE_KEY : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
+
+    static ref DATA_BUF : Arc::<std::vec::Vec<u8>> = Arc::new(vec![0u8; DATA_BUF_LEN]);
+    static ref ROOM_ID : OnceCell<String> = OnceCell::<String>::new();
 }
 
 static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
@@ -907,15 +922,7 @@ impl<W: Widget<String>> Controller<String, W> for TextCopyController {
 
 impl MainWidget<AppState> {
 
-    fn new() -> IdentityWrapper<Self> {    
-        // Create the user's public/private key pair
-        let mut rng = rand::thread_rng();
-        let mut builder = RsaPrivateKeyBuilder::new(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
-        builder = builder.set_factors(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
-        let result = builder.build();
-        (*PUBLIC_KEY).set(result.public_key_to_pem().unwrap());
-        (*PRIVATE_KEY).set(result.private_key_to_pem().unwrap());         
-        
+    fn new() -> IdentityWrapper<Self> {                    
         let main_widget = MainWidget::<AppState> {
             main_container: MainWidget::build_page_ui(AppPage::Start),
         };
@@ -1249,20 +1256,22 @@ impl MainWidget<AppState> {
                                             .with_child( 
                                                 Flex::row()
                                                 .with_flex_child(
-                                                    TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new(room_id)).expand_width()
-                                                    .lens(lens::Map::new(
-                                                        |data: &AppState| {
-                                                            if data.room_id.is_some() {
-                                                                return data.clone().room_id.unwrap();
-                                                            } else {
-                                                                println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: data.room_id is none, which is incorrect");
-                                                                return String::from("");
-                                                            }
-                                                        },
-                                                        |data: &mut AppState, lens_data: String| {
-                                                            data.room_id = Some(lens_data)
-                                                        }
-                                                    ))        
+                                                    TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new((*ROOM_ID).get().unwrap().clone())).expand_width()
+                                                    .lens(
+                                                        lens::Map::new(
+                                                            |data: &AppState| -> String {
+                                                                let res = (*ROOM_ID).get();
+                                                                if res.is_some() {
+                                                                    let tmp : String = res.unwrap().clone();
+                                                                    return tmp;
+                                                                } else {
+                                                                    println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: the ROOM_ID OnceCell has not been set yet even though it should have been...");
+                                                                    return String::from("");
+                                                                }
+                                                            },
+                                                            |_data: &mut AppState, _lens_data: String| {}
+                                                        )
+                                                    )
                                                 , 1.0)
                                                 .with_child(
                                                     WidgetExt::fix_height(
@@ -1920,7 +1929,11 @@ fn add_appropriate_hextiles_to_board(
     }
 }
 
+// RoomID: str(private_key_of_creator_encrypt(public_ip_address_of_creator)) + str(public_key_of_creator)
 
+// Ticket: private_key_of_joiner_encrypt(public_ip_address_of_joiner + private_key_of_joiner + public_key_of_joiner)
+
+// Creator sends their private key to the joiner, but encrypted with the public key of the joiner
 
 fn main() {
     let main_window = WindowDesc::new(MainWidget::<AppState>::new())
@@ -1949,12 +1962,47 @@ fn main() {
     };
 
     AppLauncher::with_window(main_window)
-        // .configure_env(|env, _data| { // OnceCell
-        //    let res = BUTTON_COLOR_DARK.set(env.get(druid::theme::BUTTON_DARK));
-        //    if res.is_err() {
-        //        println!("ERROR: attempting to set BUTTON_COLOR_DARK in configure_env produced an error...");
-        //    }
-        // })
+        .configure_env(|_env, _data| { // OnceCell
+
+            // Create the user's public/private key pair
+            // let mut rng = rand::thread_rng();
+            // let mut builder = RsaPrivateKeyBuilder::new(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
+            // builder = builder.set_factors(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
+            let result = Rsa::generate(2048).unwrap();
+            let public_key_bytes = result.public_key_to_pem().unwrap();
+
+            let ip_addr : String = local_ip().unwrap().to_string();
+           
+            let keypair : PKey<Private>= openssl::pkey::PKey::try_from(result).unwrap();
+
+            let encrypter = Encrypter::new(&keypair).unwrap();
+
+            let s = ip_addr.to_owned();
+            let input = &s[..];
+
+            let buffer_len = encrypter.encrypt_len(&input.as_bytes()).unwrap();
+            let mut encrypted = std::vec::Vec::<u8>::new();
+            encrypted.extend(iter::repeat(0).take(buffer_len));
+
+            let encrypted_len = encrypter.encrypt(input.as_bytes(), &mut encrypted).unwrap();
+
+            println!("encyrpted_len = {}", encrypted_len);
+
+            encrypted.truncate(encrypted_len);
+
+            let string_list : std::vec::Vec<String> = encrypted.iter().map(|val| val.to_string()).collect();
+            let room_id_str = string_list.join("-");
+
+            // let public_key_bytes = &public_key_bytes_tmp[..];
+
+            let res = ROOM_ID.set(
+                room_id_str + "@" + &String::from_utf8(public_key_bytes).unwrap()
+            );
+
+            if res.is_err() {
+                println!("ERROR: attempting to set the ROOM_ID OnceCell in configure_env produced an error...");
+            }
+        })
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
 }
