@@ -1935,6 +1935,16 @@ fn add_appropriate_hextiles_to_board(
 
 // Creator sends their private key to the joiner, but encrypted with the public key of the joiner
 
+// Alternatively,
+
+// Both players exchange public keys beforehand
+
+// The creator sends their public ip encrypyed with the joiner's public key to the joiner
+
+// Upon receiving this the joiner decrypts the message, extracts the creator's public ip, and then sends their own public ip encrypted with the creator's public key to the creator
+
+// Now both players have each others ip addresses as well as the ability to securely send messages to them
+
 fn main() {
     let main_window = WindowDesc::new(MainWidget::<AppState>::new())
                     .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
@@ -1993,10 +2003,13 @@ fn main() {
             let string_list : std::vec::Vec<String> = encrypted.iter().map(|val| val.to_string()).collect();
             let room_id_str = string_list.join("-");
 
+            let pubkey_bytes : std::vec::Vec<String> = public_key_bytes.iter().map(|val| val.to_string()).collect();
+            let pubkey_str = pubkey_bytes.join("-");
+
             // let public_key_bytes = &public_key_bytes_tmp[..];
 
             let res = ROOM_ID.set(
-                room_id_str + "@" + &String::from_utf8(public_key_bytes).unwrap()
+                room_id_str + "@" + &pubkey_str
             );
 
             if res.is_err() {
