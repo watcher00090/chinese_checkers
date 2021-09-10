@@ -162,6 +162,22 @@ static PLAYER_FIVE_NUMBER : usize = 4;
 static PLAYER_SIX_NUMBER : usize = 5;
 static NO_PLAYER : usize = usize::MAX;
 
+// Furthest points of the board
+// let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
+// let top_left : Hextile = Hextile{y_hex : 8, x_hex : -4, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
+// let top_right : Hextile = Hextile{y_hex : -4, x_hex : 8, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
+// let bottom : Hextile = Hextile{y_hex : -4, x_hex : -4, z_hex : 8, c : [0.0,0.0,0.0,0.0], p : None};
+// let bottom_left : Hextile = Hextile{y_hex : 4, x_hex : -8, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
+// let bottom_right : Hextile = Hextile{y_hex : -8, x_hex : 4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
+
+// Points at the edges of the hexagon
+// let hex_top_left : Hextile = Hextile{y_hex : 4, x_hex : 0, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
+// let hex_top_right : Hextile = Hextile{y_hex : 0, x_hex : 4, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
+// let hex_left : Hextile = Hextile{y_hex : 4, x_hex : -4, z_hex : 0, c : [0.0,0.0,0.0,0.0], p : None};
+// let hex_right : Hextile = Hextile{y_hex : -4, x_hex : 4, z_hex : 0, c : [0.0,0.0,0.0,0.0], p : None};
+// let hex_bottom_left : Hextile = Hextile{y_hex : 0, x_hex : -4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
+// let hex_bottom_right : Hextile = Hextile{y_hex : -4, x_hex : 0, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
+
 #[derive(Clone, Copy)]
 struct BoardRegionBoundaryHexCoords {
     x_min: i32,
@@ -1058,37 +1074,40 @@ impl MainWidget<AppState> {
                                 let player_count = data.number_of_players_selected;
                                 data.num_players = Some(player_count);
                                 println!("Attempting to start a new game with {} players...", player_count);
+                                
+                                
                                 if player_count == 6 {
-            
-                                    data.board = create_board();
-            
+                        
+                                    data.board.clear();
                                     data.pieces.clear();
             
-                                    let regions_to_players : [StartingRegion; 6] = [
-                                        // turns proceed clockwise
-                                        StartingRegion::Top,
-                                        StartingRegion::TopRight,
-                                        StartingRegion::BottomRight,
-                                        StartingRegion::Bottom,
-                                        StartingRegion::BottomLeft,
-                                        StartingRegion::TopLeft,
-                                    ];                
+                                    let mut regions_to_players  = std::vec::Vec::new();
+                                    let mut player_piece_colors = std::vec::Vec::new();
+
+                                    // Turns proceed clockwise
+                                    regions_to_players.push(StartingRegion::Top);
+                                    regions_to_players.push(StartingRegion::TopRight);
+                                    regions_to_players.push(StartingRegion::BottomRight);
+                                    regions_to_players.push(StartingRegion::Bottom);
+                                    regions_to_players.push(StartingRegion::BottomLeft);
+                                    regions_to_players.push(StartingRegion::TopLeft);
             
-                                    data.player_piece_colors = vector![
-                                        PieceColor::RED, 
-                                        PieceColor::YELLOW,
-                                        PieceColor::GREEN,
-                                        PieceColor::BLUE,
-                                        PieceColor::BLACK,
-                                        PieceColor::WHITE            
-                                    ];
+                                    player_piece_colors.push(PieceColor::RED);
+                                    player_piece_colors.push(PieceColor::YELLOW);
+                                    player_piece_colors.push(PieceColor::GREEN);
+                                    player_piece_colors.push(PieceColor::BLUE);
+                                    player_piece_colors.push(PieceColor::BLACK);
+                                    player_piece_colors.push(PieceColor::WHITE);          
+
+                                    data.board = create_board(regions_to_players.clone(), player_piece_colors.clone());
             
-                                    initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap(), &regions_to_players[..]);
+                                    initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap(), regions_to_players.clone());
             
                                     data.in_game = true;
             
-                                    data.regions_to_players = im::vector![regions_to_players[0], regions_to_players[1], regions_to_players[2], regions_to_players[3], regions_to_players[4], regions_to_players[5]];
-            
+                                    data.regions_to_players  = im::vector::Vector::from(regions_to_players.clone());
+                                    data.player_piece_colors = im::vector::Vector::from(player_piece_colors.clone());
+
                                     data.whose_turn = Some(0);
             
                                     ctx.request_paint();
@@ -1665,18 +1684,17 @@ fn hextile_idx_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board: &im::Ve
     return None;
 }
 
-fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: usize, regions_to_players_slice: &[StartingRegion]) {
+fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: usize, regions_to_players_vec: std::vec::Vec<StartingRegion>) {
 
     println!("From inside initialize_pieces_for_board(): size of board Vec = {x}", x = board.len());
 
     if num_players == 6 {
 
-        let regions_to_players : [StartingRegion; 6] = regions_to_players_slice.try_into().expect("ERROR: intialize_pieces_for_board(): slice with incorrect length, exiting...");
+        let regions_to_players: &[StartingRegion] = &regions_to_players_vec;
 
         for i in 0..6 {
-            let starting_region : StartingRegion = regions_to_players[i];
-
             let player_num = i;
+            let starting_region : StartingRegion = regions_to_players[i];
 
             let boundary_coords = get_boundary_coords_struct_for_region(starting_region);
             
@@ -1725,49 +1743,6 @@ impl Widget<AppState> for MainWidget<AppState> {
             Event::MouseDown(mouse_event) => {
                 data.mouse_click_screen_coordinates = Some(mouse_event.window_pos);
             },
-            Event::Command(command) => {
-                println!("Received a command submission...");
-                if command.is::<usize>(*start_game_selector) {
-                    let player_count = *command.get_unchecked::<usize>(*start_game_selector);
-                    data.num_players = Some(player_count);
-                    println!("Received a start game command for {} players", player_count);
-                    if player_count == 6 {
-
-                        data.board = create_board();
-
-                        data.pieces.clear();
-
-                        let regions_to_players : [StartingRegion; 6] = [
-                            // turns proceed clockwise
-                            StartingRegion::Top,
-                            StartingRegion::TopRight,
-                            StartingRegion::BottomRight,
-                            StartingRegion::Bottom,
-                            StartingRegion::BottomLeft,
-                            StartingRegion::TopLeft,
-                        ];                
-
-                        data.player_piece_colors = vector![
-                            PieceColor::RED, 
-                            PieceColor::YELLOW,
-                            PieceColor::GREEN,
-                            PieceColor::BLUE,
-                            PieceColor::BLACK,
-                            PieceColor::WHITE            
-                        ];
-
-                        initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap(), &regions_to_players[..]);
-
-                        data.in_game = true;
-
-                        data.regions_to_players = im::vector![regions_to_players[0], regions_to_players[1], regions_to_players[2], regions_to_players[3], regions_to_players[4], regions_to_players[5]];
-
-                        data.whose_turn = Some(0);
-
-                        ctx.request_paint();
-                    }
-                }   
-            }
             _ => {} // handle the event as normal
         }
     }
@@ -1805,153 +1780,145 @@ fn build_root_widget() -> impl Widget<AppState> {
     MainWidget::<AppState>::new()
 }
 
-fn create_board() -> im::Vector<Hextile> {
-    let mut board: im::Vector<Hextile> = im::Vector::new();
+fn create_board(playersToRegions: std::vec::Vec<StartingRegion>, playersToColors: std::vec::Vec<PieceColor>) -> im::Vector<Hextile> {
+    if playersToRegions.len() != playersToColors.len() {
+        panic!("INTERNAL ERROR: in create_board, playersToRegions.size() != playersToColors.size(), exiting....")
+    }
 
-    // furthest points of the board
-    // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
-    // let top_left : Hextile = Hextile{y_hex : 8, x_hex : -4, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let top_right : Hextile = Hextile{y_hex : -4, x_hex : 8, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let bottom : Hextile = Hextile{y_hex : -4, x_hex : -4, z_hex : 8, c : [0.0,0.0,0.0,0.0], p : None};
-    // let bottom_left : Hextile = Hextile{y_hex : 4, x_hex : -8, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let bottom_right : Hextile = Hextile{y_hex : -8, x_hex : 4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
+    if playersToRegions.len() == 6 {
+        let mut board: im::Vector<Hextile> = im::Vector::new();
 
-    // points at the edges of the hexagon
-    // let hex_top_left : Hextile = Hextile{y_hex : 4, x_hex : 0, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_top_right : Hextile = Hextile{y_hex : 0, x_hex : 4, z_hex : -4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_left : Hextile = Hextile{y_hex : 4, x_hex : -4, z_hex : 0, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_right : Hextile = Hextile{y_hex : -4, x_hex : 4, z_hex : 0, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_bottom_left : Hextile = Hextile{y_hex : 0, x_hex : -4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
-    // let hex_bottom_right : Hextile = Hextile{y_hex : -4, x_hex : 0, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
+        let yellow_color_array: Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
+        let red_color_array: Color = Color::rgba(0.902, 0.110, 0.110, 1.0);
+        let blue_color_array: Color = Color::rgba(0.110, 0.110, 0.902, 1.0);
+        let green_color_array: Color = Color::rgba(0.059, 0.600, 0.239, 1.0);
+        let black_color_array: Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
+        let white_color_array: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
+        let center_color_array: Color = Color::rgba(0.5, 0.5, 0.5, 1.0);
 
-    let yellow_color_array: Color = Color::rgba(0.902, 0.886, 0.110, 1.0);
-    let red_color_array: Color = Color::rgba(0.902, 0.110, 0.110, 1.0);
-    let blue_color_array: Color = Color::rgba(0.110, 0.110, 0.902, 1.0);
-    let green_color_array: Color = Color::rgba(0.059, 0.600, 0.239, 1.0);
-    let black_color_array: Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
-    let white_color_array: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
-    let center_color_array: Color = Color::rgba(0.5, 0.5, 0.5, 1.0);
+        // yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
+        let x_min: i32 = -4;
+        let x_max: i32 = -1;
+        let y_min: i32 = -4;
+        let y_max: i32 = -1;
+        let z_min: i32 = 5;
+        let z_max: i32 = 8;
+        add_appropriate_hextiles_to_board(
+            &mut board,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            z_min,
+            z_max,
+        );
 
-    // yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
-    let x_min: i32 = -4;
-    let x_max: i32 = -1;
-    let y_min: i32 = -4;
-    let y_max: i32 = -1;
-    let z_min: i32 = 5;
-    let z_max: i32 = 8;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
+        // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
+        let x_min: i32 = -8;
+        let x_max: i32 = -5;
+        let y_min: i32 = 1;
+        let y_max: i32 = 4;
+        let z_min: i32 = 1;
+        let z_max: i32 = 4;
+        add_appropriate_hextiles_to_board(
+            &mut board,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            z_min,
+            z_max,
+        );
 
-    // red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
-    let x_min: i32 = -8;
-    let x_max: i32 = -5;
-    let y_min: i32 = 1;
-    let y_max: i32 = 4;
-    let z_min: i32 = 1;
-    let z_max: i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
+        // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
+        let x_min: i32 = 1;
+        let x_max: i32 = 4;
+        let y_min: i32 = -8;
+        let y_max: i32 = -5;
+        let z_min: i32 = 1;
+        let z_max: i32 = 4;
+        add_appropriate_hextiles_to_board(
+            &mut board,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            z_min,
+            z_max,
+        );
 
-    // blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
-    let x_min: i32 = 1;
-    let x_max: i32 = 4;
-    let y_min: i32 = -8;
-    let y_max: i32 = -5;
-    let z_min: i32 = 1;
-    let z_max: i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
+        // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
+        let x_min: i32 = -4;
+        let x_max: i32 = -1;
+        let y_min: i32 = 5;
+        let y_max: i32 = 8;
+        let z_min: i32 = -4;
+        let z_max: i32 = -1;
+        add_appropriate_hextiles_to_board(
+            &mut board,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            z_min,
+            z_max,
+        );
 
-    // black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
-    let x_min: i32 = -4;
-    let x_max: i32 = -1;
-    let y_min: i32 = 5;
-    let y_max: i32 = 8;
-    let z_min: i32 = -4;
-    let z_max: i32 = -1;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
+        // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
+        let x_min: i32 = 5;
+        let x_max: i32 = 8;
+        let y_min: i32 = -4;
+        let y_max: i32 = -1;
+        let z_min: i32 = -4;
+        let z_max: i32 = -1;
+        add_appropriate_hextiles_to_board(
+            &mut board,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            z_min,
+            z_max,
+        );
 
-    // green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
-    let x_min: i32 = 5;
-    let x_max: i32 = 8;
-    let y_min: i32 = -4;
-    let y_max: i32 = -1;
-    let z_min: i32 = -4;
-    let z_max: i32 = -1;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
+        //white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
+        let x_min: i32 = 1;
+        let x_max: i32 = 4;
+        let y_min: i32 = 1;
+        let y_max: i32 = 4;
+        let z_min: i32 = -8;
+        let z_max: i32 = -5;
+        add_appropriate_hextiles_to_board(
+            &mut board,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            z_min,
+            z_max,
+        );
 
-    //white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
-    let x_min: i32 = 1;
-    let x_max: i32 = 4;
-    let y_min: i32 = 1;
-    let y_max: i32 = 4;
-    let z_min: i32 = -8;
-    let z_max: i32 = -5;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
-
-    // center squares
-    let x_min : i32 = -4;
-    let x_max : i32 = 4;
-    let y_min : i32 = -4;
-    let y_max : i32 = 4;
-    let z_min : i32 = -4;
-    let z_max : i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board, 
-        x_min, 
-        x_max, 
-        y_min, 
-        y_max, 
-        z_min, 
-        z_max,
-    );
-    println!("Being called from create_board, size of board Vec = {}", board.len());
-    return board; 
+        // center squares
+        let x_min : i32 = -4;
+        let x_max : i32 = 4;
+        let y_min : i32 = -4;
+        let y_max : i32 = 4;
+        let z_min : i32 = -4;
+        let z_max : i32 = 4;
+        add_appropriate_hextiles_to_board(
+            &mut board, 
+            x_min, 
+            x_max, 
+            y_min, 
+            y_max, 
+            z_min, 
+            z_max,
+        );
+        println!("Being called from create_board, size of board Vec = {}", board.len());
+        return board; 
+    }
+    
+    return im::Vector::new()
 }
 
 // add the valid tiles in the given range to the board
