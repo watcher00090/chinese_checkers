@@ -1096,15 +1096,15 @@ impl MainWidget<AppState> {
 
         } else if player_count == 4 {
 
-            players_to_regions.push(StartingRegion::TopLeft);
             players_to_regions.push(StartingRegion::TopRight);
-            players_to_regions.push(StartingRegion::BottomLeft);
             players_to_regions.push(StartingRegion::BottomRight);
+            players_to_regions.push(StartingRegion::BottomLeft);
+            players_to_regions.push(StartingRegion::TopLeft);
 
-            players_to_colors.push(PieceColor::Black);
             players_to_colors.push(PieceColor::White);
-            players_to_colors.push(PieceColor::Red);
             players_to_colors.push(PieceColor::Blue);
+            players_to_colors.push(PieceColor::Red);
+            players_to_colors.push(PieceColor::Black);
 
         } else {
             panic!("INTERNAL ERROR: in default_initialize(), unrecognized value for player_count, exiting....")
