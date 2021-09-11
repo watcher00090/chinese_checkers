@@ -701,6 +701,10 @@ fn check_step(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     return false;
 }
 
+fn check_swap(start: Hextile, dest: Hextile, data: &AppState) -> bool {
+    return false;
+}
+
 fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     let mut tmp_var_tl = start.get_tl(data);
     if tmp_var_tl.is_some() && data.board[tmp_var_tl.unwrap()].piece_idx.is_some() {
@@ -781,10 +785,13 @@ impl Widget<AppState> for CanvasWidget {
                     target_square = self.hextile_over_which_mouse_event_happened.unwrap();
 
                     // Move the piece
-                    if target_square.piece_idx.is_some() {
+                    if target_square.piece_idx.is_some() && data.anti_spoiling_rule != AntiSpoilingRule::Swapping {
 
                         println!("Error: Square already occupied: please move to an occupied square instead");
 
+                    } else if data.anti_spoiling_rule == AntiSpoilingRule::Swapping && check_swap(starting_square, target_square, data) && data.last_hopper.is_none() {
+                        
+                        
                     } else if check_step(starting_square, target_square, data) && data.last_hopper.is_none() {
 
                         let player_to_move = data.whose_turn.unwrap();
@@ -795,42 +802,17 @@ impl Widget<AppState> for CanvasWidget {
 
                         let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
 
-                        let mut starting_square : Hextile;
-                        let mut target_square : Hextile;
-                        let mut piece : Piece = data.pieces.remove(piece_idx);
+                        data.board[starting_square_idx].piece_idx = None;
+                        data.board[target_square_idx].piece_idx = Some(piece_idx);
 
-                        // Temporarily remove the Hextiles from the board vector
-                        if starting_square_idx < target_square_idx {
-                            target_square = data.board.remove(target_square_idx);
-                            starting_square = data.board.remove(starting_square_idx);
-                        } else { // target_square_idx < starting_square_idx
-                            starting_square = data.board.remove(starting_square_idx);
-                            target_square = data.board.remove(target_square_idx);
-                        }
-
-                        starting_square.piece_idx = None;
-                        target_square.piece_idx = Some(piece_idx);
-
-                        piece.x_hex = target_square.x_hex;
-                        piece.y_hex = target_square.y_hex;
-                        piece.z_hex = target_square.z_hex;
+                        data.pieces[piece_idx].x_hex = target_square.x_hex;
+                        data.pieces[piece_idx].y_hex = target_square.y_hex;
+                        data.pieces[piece_idx].z_hex = target_square.z_hex;
 
                         println!("Starting square coordinates: x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = starting_square.x_hex, y_hex = starting_square.y_hex, z_hex = starting_square.z_hex);
                         
-                        piece.hextile_idx = target_square_idx;
+                        data.pieces[piece_idx].hextile_idx = target_square_idx;
     
-                        // Add the Hextiles back into the board vector
-                        if starting_square_idx < target_square_idx {
-                            data.board.insert(starting_square_idx, starting_square);
-                            data.board.insert(target_square_idx, target_square);
-                        } else { // target_square_idx < starting_square_idx
-                            data.board.insert(target_square_idx, target_square);
-                            data.board.insert(starting_square_idx, starting_square);
-                        }
-
-                        // Add the piece back into the Pieces vector
-                        data.pieces.insert(piece_idx, piece);
-
                         data.last_hopper = None;
 
                         let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
