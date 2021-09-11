@@ -188,29 +188,8 @@ struct BoardRegionBoundaryHexCoords {
     z_max: i32,
 }
 
-// the background svg is stored globally by a OnceCell
-// fn background_svg() -> Svg {
-//     let ptr = Arc::as_ptr(&background_svg_arc);
-//     unsafe {
-//         if (*ptr).is_none() {
-//             let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
-//                 Ok(svg) => svg,
-//                 Err(err) => {
-//                     error!("{}", err);
-//                     error!("Using an empty SVG instead.");
-//                     SvgData::default()
-//                 }
-//             };
-//             *ptr = Some(Svg::new(svg_background.clone()).fill_mode(FillStrat::FitWidth));
-//             return (*ptr).unwrap();
-//         } else { // the background svg has been initialized
-//             return (*ptr).unwrap();
-//         }
-//     }
-// }
-
 // yellow triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
-static Bottom_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static BottomTriangleBoundaryCoords : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {
     x_min : -4,
     x_max : -1,
@@ -220,8 +199,7 @@ BoardRegionBoundaryHexCoords {
     z_max : 8,
 };
 
-// red triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
-static BottomLeft_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static BottomLeftTriangleBoundaryCoords: BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: -8,
     x_max: -5,
@@ -231,8 +209,7 @@ BoardRegionBoundaryHexCoords {
     z_max: 4,
 };
 
-// blue triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
-static BottomRight_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static BottomRightTriangleBoundaryCoords : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: 1,
     x_max: 4,
@@ -242,8 +219,7 @@ BoardRegionBoundaryHexCoords {
     z_max: 4,
 };
 
-// black triangle:  x in [-8, -5], y in [5, 8], z in [-4 ,-1]
-static TopLeft_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static TopLeftTriangleBoundaryCoords : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: -4,
     x_max: -1,
@@ -253,8 +229,7 @@ BoardRegionBoundaryHexCoords {
     z_max: -1,
 };
 
-// green triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
-static TopRight_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static TopRightTriangleBoundaryCoords : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: 5,
     x_max: 8,
@@ -264,8 +239,7 @@ BoardRegionBoundaryHexCoords {
     z_max: -1,
 };
 
-    // //white triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
-static Top_TRIANGLE_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+static TopTriangleBoundaryCoords : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
     x_min: 1,
     x_max: 4,
@@ -275,10 +249,9 @@ BoardRegionBoundaryHexCoords {
     z_max: -5,
 };
 
-    // center squares
-static CENTER_REGION_BOUNDARY_COORDS : BoardRegionBoundaryHexCoords = 
+// Boundary of the central region
+static CenterRegionBoundaryCoords : BoardRegionBoundaryHexCoords = 
 BoardRegionBoundaryHexCoords {    
-    // // center squares
     x_min : -4,
     x_max : 4,
     y_min : -4,
@@ -550,6 +523,9 @@ struct AppState {
     board : im::Vector<Hextile>,
     pieces: im::Vector<Piece>,
     in_game : bool,
+    winner_list: im::Vector<usize>,
+    newly_won_player: Option<usize>,
+    display_victory_banner: bool,
     mouse_location_in_canvas : Point,
     player_piece_colors : im::Vector<PieceColor>, // player_piece_colors[i] = piece color of player i,
     whose_turn : Option<usize>,
@@ -564,13 +540,13 @@ struct AppState {
     mouse_click_screen_coordinates: Option<Point>,
     number_of_players_selected: usize,
     anti_spoiling_rule: AntiSpoilingRule,
-    ranked_winner: bool,
-    all_pass_equals_draw: bool,
-    three_identical_equals_draw: bool,
-    three_players_two_triangles: bool,
-    two_players_three_triangles: bool,
-    forced_move_if_available: bool,
-    only_enter_own_dest: bool,
+    advnset_ranked_winner: bool,
+    advnset_all_pass_equals_draw: bool,
+    advnset_three_identical_equals_draw: bool,
+    advnset_three_players_two_triangles: bool,
+    advnset_two_players_three_triangles: bool,
+    advnset_forced_move_if_available: bool,
+    advnset_only_enter_own_dest: bool,
 }
 
 struct MainWidget<T: Data> {
@@ -580,7 +556,8 @@ struct MainWidget<T: Data> {
 struct CanvasWidget {
     piece_is_being_dragged : bool,
     piece_being_dragged : Option<Piece>,
-    hextile_over_which_mouse_event_happened : Option<Hextile> // always set to the hextile of the latest mouse event, if it happened within a hextile
+    hextile_over_which_mouse_event_happened : Option<Hextile>, // always set to the hextile of the latest mouse event, if it happened within a hextile,
+    num_moves_made_so_far: usize
 }
 
 fn cartesian_x_to_canvas_x(x: f64) -> f64 {
@@ -605,6 +582,94 @@ impl CanvasWidget {
             }
         }
         return false;
+    }
+
+    // Checks if player 'player_idx' has won. Returns true if yes, false if no.
+    fn check_if_won_helper(&self, data: &AppState, player_idx: usize) -> bool {
+        let players_to_regions = data.regions_to_players.clone();
+        let victory_region = players_to_regions[player_idx].opposite();
+        let boundary_coords = boundary_coords_for_region(victory_region);
+
+        if data.anti_spoiling_rule == AntiSpoilingRule::Swapping {
+            // Check if all squares in the victory triangle are filled by the pieces of 'player_idx'
+            for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
+                for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
+                    for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
+                        if x_hex + y_hex + z_hex == 0 {
+                            let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()];
+                            if tile.piece_idx.is_none() {
+                                return false;
+                            } 
+                            if data.pieces[tile.piece_idx.unwrap()].player_num != player_idx {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            return self.num_moves_made_so_far > data.num_players.unwrap();
+
+        } else if data.anti_spoiling_rule == AntiSpoilingRule::FilledDestStrong {
+            // Check if all squares in the victory triangle are filled
+            for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
+                for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
+                    for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
+                        if x_hex + y_hex + z_hex == 0 {
+                            println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
+                            let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()];
+                            if tile.piece_idx.is_none() {
+                                return false;
+                            } else {
+                                println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return self.num_moves_made_so_far > data.num_players.unwrap();
+
+        } else if data.anti_spoiling_rule == AntiSpoilingRule::FilledDestWeak {
+            // Check if all squares in the victory triangle are filled and the victory triangle contains at least one of your pieces
+            let mut contains_pieces_of_given_player : bool = false;
+            for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
+                for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
+                    for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
+                        if x_hex + y_hex + z_hex == 0 {
+                            let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()];
+                            if tile.piece_idx.is_none() {
+                                return false;
+                            }
+                            if data.pieces[tile.piece_idx.unwrap()].player_num == player_idx {
+                                contains_pieces_of_given_player = true;
+                            } 
+                        }
+                    }
+                }
+            }
+
+            return contains_pieces_of_given_player && (self.num_moves_made_so_far > data.num_players.unwrap());
+
+        } else {
+            panic!("INTERNAL ERROR: Error in check_if_won, unrecognized anti-spoiling rule, exiting....")
+        }
+            
+        return false;
+    }
+
+    // Check if some player has won. If so, returns Some(player_idx). Otherwise returns None.
+    fn check_if_won(&self, data: &mut AppState) -> Option<usize> {
+        let players_to_regions = data.regions_to_players.clone();
+        let player_count = data.num_players.unwrap();
+        for i in 0..player_count {
+            let player_idx = i;
+            let has_won = self.check_if_won_helper(data, player_idx);
+            if has_won && !data.winner_list.contains(&player_idx) {
+                data.winner_list.push_back(player_idx);
+                return Some(player_idx);
+            }
+        }
+        return None
     }
 }
  
@@ -728,11 +793,14 @@ impl Widget<AppState> for CanvasWidget {
                     starting_square = data.board[self.piece_being_dragged.unwrap().hextile_idx]; 
                     target_square = self.hextile_over_which_mouse_event_happened.unwrap();
 
+                    // Move the piece
                     if target_square.piece_idx.is_some() {
 
                         println!("Error: Square already occupied: please move to an occupied square instead");
 
                     } else if check_step(starting_square, target_square, data) && data.last_hopper.is_none() {
+
+                        let player_to_move = data.whose_turn.unwrap();
 
                         let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
                         let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
@@ -740,22 +808,84 @@ impl Widget<AppState> for CanvasWidget {
 
                         let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
 
-                        data.board[starting_square_idx].piece_idx = None;
-                        data.board[target_square_idx].piece_idx = Some(piece_idx);
+                        let mut starting_square : Hextile;
+                        let mut target_square : Hextile;
+                        let mut piece : Piece = data.pieces.remove(piece_idx);
 
-                        data.pieces[piece_idx].x_hex = target_square.x_hex;
-                        data.pieces[piece_idx].y_hex = target_square.y_hex;
-                        data.pieces[piece_idx].z_hex = target_square.z_hex;
+                        // Temporarily remove the Hextiles from the board vector
+                        if starting_square_idx < target_square_idx {
+                            target_square = data.board.remove(target_square_idx);
+                            starting_square = data.board.remove(starting_square_idx);
+                        } else { // target_square_idx < starting_square_idx
+                            starting_square = data.board.remove(starting_square_idx);
+                            target_square = data.board.remove(target_square_idx);
+                        }
 
-                        data.pieces[piece_idx].hextile_idx = dest_square_idx;
+                        starting_square.piece_idx = None;
+                        target_square.piece_idx = Some(piece_idx);
 
-                        data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                        piece.x_hex = target_square.x_hex;
+                        piece.y_hex = target_square.y_hex;
+                        piece.z_hex = target_square.z_hex;
+
+                        println!("Starting square coordinates: x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = starting_square.x_hex, y_hex = starting_square.y_hex, z_hex = starting_square.z_hex);
+                        
+                        piece.hextile_idx = target_square_idx;
+    
+                        // Add the Hextiles back into the board vector
+                        if starting_square_idx < target_square_idx {
+                            data.board.insert(starting_square_idx, starting_square);
+                            data.board.insert(target_square_idx, target_square);
+                        } else { // target_square_idx < starting_square_idx
+                            data.board.insert(target_square_idx, target_square);
+                            data.board.insert(starting_square_idx, starting_square);
+                        }
+
+                        // Add the piece back into the Pieces vector
+                        data.pieces.insert(piece_idx, piece);
 
                         data.last_hopper = None;
+
+                        let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
+        
+                        // START DEBUG CODE
+                        println!("Length of BoardVec = {bvl}, length of PiecesVec = {pvl}", bvl = data.board.len(), pvl = data.pieces.len());
+                        for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
+                            for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
+                                for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
+                                    if x_hex + y_hex + z_hex == 0 {
+                                        println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
+                                        let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()]; 
+                                        if tile.piece_idx.is_none() {
+                                            //
+                                        } else {
+                                            println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
+                                        }            
+                                    }
+                                }
+                            }
+                        }
+                        println!();
+                        // END DEBUG CODE
+
+                        self.num_moves_made_so_far += 1;
+
+                        let newly_won_player = self.check_if_won(data);
+
+                        if newly_won_player.is_some() {
+                            // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
+                            data.in_game = false;
+                            data.newly_won_player = newly_won_player;
+                            data.display_victory_banner = true;
+                        } else {
+                            data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                        }
 
                     } else if check_hop(starting_square, target_square, data) {
                     
                         println!("making hop move...");
+
+                        let player_to_move = data.whose_turn.unwrap();
 
                         let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
                         let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
@@ -777,6 +907,16 @@ impl Widget<AppState> for CanvasWidget {
                             data.pieces[piece_idx].hextile_idx = dest_square_idx;
         
                             data.last_hopper = Some(data.pieces[piece_idx]);    
+
+                            self.num_moves_made_so_far += 1;
+
+                            let newly_won_player = self.check_if_won(data);
+
+                            if newly_won_player.is_some() {
+                                data.in_game = false;
+                                data.newly_won_player = newly_won_player;
+                                data.display_victory_banner = true;
+                            }
                         }
                     }
                 
@@ -1129,7 +1269,6 @@ impl MainWidget<AppState> {
                                 let player_count = data.number_of_players_selected;
                                 data.num_players = Some(player_count);
                                 println!("Attempting to start a new game with {} players...", player_count);
-                                
                                                         
                                 data.board.clear();
                                 data.pieces.clear();
@@ -1219,22 +1358,22 @@ impl MainWidget<AppState> {
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::two_players_three_triangles)
+                                Checkbox::new(TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_two_players_three_triangles)
                             )
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::three_players_two_triangles)
+                                Checkbox::new(THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_three_players_two_triangles)
                             )
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT).lens(AppState::forced_move_if_available)
+                                Checkbox::new(FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_forced_move_if_available)
                             )
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT).lens(AppState::only_enter_own_dest)
+                                Checkbox::new(ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_only_enter_own_dest)
                             )
                         )
                         .with_child(
@@ -1244,17 +1383,17 @@ impl MainWidget<AppState> {
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(RANKED_WINNER_CHECKBOX_LABEL_TEXT).lens(AppState::ranked_winner)
+                                Checkbox::new(RANKED_WINNER_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_ranked_winner)
                             )
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT).lens(AppState::three_identical_equals_draw)
+                                Checkbox::new(THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_three_identical_equals_draw)
                             )
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT).lens(AppState::all_pass_equals_draw)
+                                Checkbox::new(ALL_PASS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_all_pass_equals_draw)
                             )
                         )
                     )   
@@ -1517,7 +1656,11 @@ impl MainWidget<AppState> {
                     .with_child(Flex::row()
                         .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
                                 if data.whose_turn.is_none() { return format!(""); }
-                                return format!("Player {} to move", data.whose_turn.unwrap() + 1);
+                                else if data.display_victory_banner {
+                                    return format!("Player {} has won the game!", data.newly_won_player.unwrap() + 1);
+                                } else {
+                                    return format!("Player {} to move", data.whose_turn.unwrap() + 1);
+                                }
                             }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
                         )
                     )
@@ -1528,7 +1671,7 @@ impl MainWidget<AppState> {
                             })
                         )
                     )
-                    .with_child(SizedBox::new(CanvasWidget {piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None}))
+                    .with_child(SizedBox::new(CanvasWidget {num_moves_made_so_far: 0, piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None}))
                 );
             },
             AppPage::RemoteGame => {
@@ -1684,38 +1827,36 @@ impl MainWidget<AppState> {
 
 }
 
-fn get_boundary_coords_struct_for_region(region: StartingRegion) -> BoardRegionBoundaryHexCoords {
+fn boundary_coords_for_region(region: StartingRegion) -> BoardRegionBoundaryHexCoords {
     match region {
         StartingRegion::Top => {
-            return Top_TRIANGLE_BOUNDARY_COORDS;
+            return TopTriangleBoundaryCoords;
         }, 
         StartingRegion::TopRight => {
-            return TopRight_TRIANGLE_BOUNDARY_COORDS;
+            return TopRightTriangleBoundaryCoords;
         }, 
         StartingRegion::BottomRight => {
-            return BottomRight_TRIANGLE_BOUNDARY_COORDS;
+            return BottomRightTriangleBoundaryCoords;
         }, 
         StartingRegion::Bottom => {
-            return Bottom_TRIANGLE_BOUNDARY_COORDS;
+            return BottomTriangleBoundaryCoords;
         },
         StartingRegion::BottomLeft => {
-            return BottomLeft_TRIANGLE_BOUNDARY_COORDS;
+            return BottomLeftTriangleBoundaryCoords;
         },
         StartingRegion::TopLeft => {
-            return TopLeft_TRIANGLE_BOUNDARY_COORDS;
+            return TopLeftTriangleBoundaryCoords;
         },
         _ => {
-            panic!("Internal Error: get_boundary_coords_struct_for_region(): unrecognized StartingRegion value, exiting immediately....");
+            panic!("Internal Error: boundary_coords_for_region(): unrecognized StartingRegion value, exiting immediately....");
         }
     }
 }
 
-// returns the index in the board vector of the hextile with coordinates x_hex, y_hex, z_hex, or none if no such hextile with those coordinates exists on the board
+// Returns the index into the board Vector of the Hextile with hex coordinates (x_hex, y_hex, z_hex), or None if no hextile with those coordinates is present
 fn hextile_idx_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board: &im::Vector<Hextile>) -> Option<usize> {
-    let mut hextile : &Hextile;
-
     for i in 0..board.len() {
-        hextile = &board[i];
+        let mut hextile : &Hextile = &board[i];
         if hextile.x_hex == x_hex && hextile.y_hex == y_hex && hextile.z_hex == z_hex {
             return Some(i);
         }
@@ -1737,15 +1878,14 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
     for i in 0..num_players {
         let player_num = i;
         let starting_region : StartingRegion = players_to_regions[i];
-        let boundary_coords = get_boundary_coords_struct_for_region(starting_region);
+        let boundary_coords = boundary_coords_for_region(starting_region);
         let player_color : PieceColor = players_to_colors[i];
         
         for x in boundary_coords.x_min..boundary_coords.x_max+1 {
             for y in boundary_coords.y_min..boundary_coords.y_max+1 {
                 for z in boundary_coords.z_min..boundary_coords.z_max+1 {
                     if x + y + z == 0 {
-
-                        let hextile_idx_wrapper : Option<usize> = hextile_idx_at_coordinates(x,y,z,board);
+                        let hextile_idx_wrapper : Option<usize> = hextile_idx_at_coordinates(x, y, z,board);
 
                         if hextile_idx_wrapper.is_none() {
                             println!("from inside initialize_pieces_for_board(), prior to panicking: x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
@@ -1821,141 +1961,15 @@ fn build_root_widget() -> impl Widget<AppState> {
     MainWidget::<AppState>::new()
 }
 
-fn create_board() -> im::Vector<Hextile> {
-    let mut board: im::Vector<Hextile> = im::Vector::new();
+// Add all Hextiles in the given region to the board
+fn add_appropriate_hextiles_to_board(board: &mut im::Vector<Hextile>, region: BoardRegionBoundaryHexCoords) {
+    let x_min: i32 = region.x_min;
+    let x_max: i32 = region.x_max;
+    let y_min: i32 = region.y_min;
+    let y_max: i32 = region.y_max;
+    let z_min: i32 = region.z_min;
+    let z_max: i32 = region.z_max;
 
-    // Top triangle: x in [-4, -1], y in [-4, -1], z in [5, 8]
-    let x_min: i32 = -4;
-    let x_max: i32 = -1;
-    let y_min: i32 = -4;
-    let y_max: i32 = -1;
-    let z_min: i32 = 5;
-    let z_max: i32 = 8;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
-
-    // Top right triangle: x in [-8, -5], y in [1, 4], z in [1, 4]
-    let x_min: i32 = -8;
-    let x_max: i32 = -5;
-    let y_min: i32 = 1;
-    let y_max: i32 = 4;
-    let z_min: i32 = 1;
-    let z_max: i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
-
-    // Top left triangle: x in [1, 4], y in [-5, -8], z in [1, 4]
-    let x_min: i32 = 1;
-    let x_max: i32 = 4;
-    let y_min: i32 = -8;
-    let y_max: i32 = -5;
-    let z_min: i32 = 1;
-    let z_max: i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
-
-    // Bottom left triangle:  x in [-4, -1], y in [5, 8], z in [-4 ,-1]
-    let x_min: i32 = -4;
-    let x_max: i32 = -1;
-    let y_min: i32 = 5;
-    let y_max: i32 = 8;
-    let z_min: i32 = -4;
-    let z_max: i32 = -1;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
-
-    // Bottom right triangle: x in [5, 8], y in [-4, -1], z in [-4, -1]
-    let x_min: i32 = 5;
-    let x_max: i32 = 8;
-    let y_min: i32 = -4;
-    let y_max: i32 = -1;
-    let z_min: i32 = -4;
-    let z_max: i32 = -1;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
-
-    // Bottom triangle: x in [1, 4], y in [1, 4], z in [-5, -8]
-    let x_min: i32 = 1;
-    let x_max: i32 = 4;
-    let y_min: i32 = 1;
-    let y_max: i32 = 4;
-    let z_min: i32 = -8;
-    let z_max: i32 = -5;
-    add_appropriate_hextiles_to_board(
-        &mut board,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
-        z_min,
-        z_max,
-    );
-
-    // Center squares
-    let x_min : i32 = -4;
-    let x_max : i32 = 4;
-    let y_min : i32 = -4;
-    let y_max : i32 = 4;
-    let z_min : i32 = -4;
-    let z_max : i32 = 4;
-    add_appropriate_hextiles_to_board(
-        &mut board, 
-        x_min, 
-        x_max, 
-        y_min, 
-        y_max, 
-        z_min, 
-        z_max,
-    );
-
-    return board; 
-}
-
-// add the valid tiles in the given range to the board
-fn add_appropriate_hextiles_to_board(
-    board: &mut im::Vector<Hextile>,
-    x_min: i32,
-    x_max: i32,
-    y_min: i32,
-    y_max: i32,
-    z_min: i32,
-    z_max: i32,
-) {
     for x in x_min..(x_max + 1) {
         for y in y_min..(y_max + 1) {
             for z in z_min..(z_max + 1) {
@@ -1971,6 +1985,20 @@ fn add_appropriate_hextiles_to_board(
             }
         }
     }
+}
+
+fn create_board() -> im::Vector<Hextile> {
+    let mut board: im::Vector<Hextile> = im::Vector::new();
+
+    add_appropriate_hextiles_to_board(&mut board, TopLeftTriangleBoundaryCoords);
+    add_appropriate_hextiles_to_board(&mut board, TopTriangleBoundaryCoords);
+    add_appropriate_hextiles_to_board(&mut board, TopRightTriangleBoundaryCoords);
+    add_appropriate_hextiles_to_board(&mut board, BottomLeftTriangleBoundaryCoords);
+    add_appropriate_hextiles_to_board(&mut board, BottomTriangleBoundaryCoords);
+    add_appropriate_hextiles_to_board(&mut board, BottomRightTriangleBoundaryCoords);
+    add_appropriate_hextiles_to_board(&mut board, CenterRegionBoundaryCoords);
+
+    return board; 
 }
 
 // RoomID: str(private_key_of_creator_encrypt(public_ip_address_of_creator)) + str(public_key_of_creator)
@@ -1996,9 +2024,11 @@ fn main() {
                     .title("Chinese Checkers");
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
-        in_game: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
+        in_game: false, display_victory_banner: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
-        create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]),
+        create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]), 
+        winner_list: im::Vector::<usize>::new(),
+        newly_won_player: None,
         room_id: Some(String::from("1515")),
         join_remote_game_entered_room_id: String::from("jHfjHsdkmcjFhdkSjfjf"),
         join_remote_game_ticket: None,
@@ -2006,13 +2036,13 @@ fn main() {
         mouse_click_screen_coordinates: None,
         number_of_players_selected: 2,
         anti_spoiling_rule: AntiSpoilingRule::FilledDestStrong,
-        ranked_winner: false,
-        all_pass_equals_draw: false,
-        three_identical_equals_draw: false,
-        three_players_two_triangles: false,
-        two_players_three_triangles: false,
-        forced_move_if_available: false,
-        only_enter_own_dest: false    
+        advnset_ranked_winner: false,
+        advnset_all_pass_equals_draw: false,
+        advnset_three_identical_equals_draw: false,
+        advnset_three_players_two_triangles: false,
+        advnset_two_players_three_triangles: false,
+        advnset_forced_move_if_available: false,
+        advnset_only_enter_own_dest: false    
     };
 
     AppLauncher::with_window(main_window)
