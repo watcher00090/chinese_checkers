@@ -1193,7 +1193,7 @@ impl MainWidget<AppState> {
                     Padding::new(INNER_MENU_CONTAINER_PADDING, Flex::column()
                         .with_child(
                             Padding::new(padding_dp,
-                                Label::new("New Local Game").with_font(font)
+                                Label::new("New Game").with_font(font)
                             )
                         )
                         .with_child(Flex::row()
@@ -1274,7 +1274,7 @@ impl MainWidget<AppState> {
                         .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, 
                             Button::new("Back")
                             .on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                                data.window_type = AppPage::NewGame;
+                                data.window_type = AppPage::Start;
                             })))
                         .with_flex_spacer(1.0)
                         .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Help")))
@@ -1733,22 +1733,22 @@ impl MainWidget<AppState> {
                             WidgetExt::fix_width(
                                 Button::new("New Game")
                                 .on_click(|_ctx, data : &mut AppState, _env| {
-                                    data.window_type = AppPage::NewGame;
+                                    data.window_type = AppPage::CreateLocalGame;
                                 })
                             , 300.0)
                         )
                     )
-                    .with_child(
-                        Padding::new(padding_dp, 
-                            WidgetExt::fix_width(
-                                Button::new("Join Game")
-                                .on_click(|_ctx, data : &mut AppState, _env| {
-                                    data.window_type = AppPage::JoinRemoteGame;
-                                    println!("Join game button pressed....");
-                                })
-                            , 300.0)
-                        )
-                    )
+                    // .with_child(
+                    //     Padding::new(padding_dp, 
+                    //         WidgetExt::fix_width(
+                    //             Button::new("Join Game")
+                    //             .on_click(|_ctx, data : &mut AppState, _env| {
+                    //                 data.window_type = AppPage::JoinRemoteGame;
+                    //                 println!("Join game button pressed....");
+                    //             })
+                    //         , 300.0)
+                    //     )
+                    // )
                     .with_child(
                         Padding::new(padding_dp, 
                             WidgetExt::fix_width(
