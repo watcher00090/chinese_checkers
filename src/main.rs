@@ -1595,30 +1595,66 @@ impl MainWidget<AppState> {
                             Padding::new(20.0, 
                                 Container::new(
                                     Align::centered(
-                                        Button::new("End Game").on_click(|ctx, data: &mut AppState, _env| {
-                                            data.in_game = false;
+                                        Button::new("Quit").on_click(|ctx, data: &mut AppState, _env| {
+
+                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
+                                                let main = Flex::column()
+                                                .with_child(
+                                                    Label::new("A game is in progress. Would you like to end the current game and return to the start page?")
+                                                )
+                                                .with_child(Flex::row()
+                                                    .with_child(
+                                                        Button::new("Yes").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                                            println!("Yes button pressed...");
+                                                            data.window_type = AppPage::Start;
+                                                            data.board.clear();
+                                                            data.pieces.clear();
+                                                            data.player_piece_colors.clear();
+                                                            data.in_game = false;
+                                                            data.whose_turn = None;
+                                                            data.last_hopper = None;
+                                                            data.num_players = None;
+                                                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto)); // Command = CLOSE_WINDOW, target = None
+                                                        })
+                                                    )
+                                                    .with_child(
+                                                        Button::new("No").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                                            println!("No button pressed...");
+                                                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
+                                                        })
+                                                    )
+                                                );
+                                                return main;
+                                            }()).resizable(false)
+                                            .title("Quit the current game?")
+                                            .window_size(Size::new(400f64, 200f64));
+
+                                            ctx.new_window(window_desc);
                                         })
                                     )
-                                )    
+                                )
                             )
                         , 1.0)
                         .with_flex_child(
                             Padding::new(20.0, 
                                 Container::new(
                                     Align::centered(
-                                        Button::new("Quit").on_click(|_ctx, data: &mut AppState, _env| {
-                                            data.window_type = AppPage::Start;
-                                            data.board.clear();
-                                            data.pieces.clear();
-                                            data.player_piece_colors.clear();
-                                            data.in_game = false;
-                                            data.whose_turn = None;
-                                            data.last_hopper = None;
-                                            data.num_players = None;
-                                            println!("Quit button pressed in single-player mode....");                                    
+                                        Button::new("Help").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env| {
+                                            println!("Opening the help dialog...");
+                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
+                                                let main = Flex::column()
+                                                .with_child(
+                                                    Label::new("Help")
+                                                );
+                                                return main;
+                                            }()).resizable(false)
+                                            .title("Help")
+                                            .window_size(Size::new(400f64, 200f64));
+
+                                            ctx.new_window(window_desc);
                                         })
                                     )
-                                )
+                                )    
                             )
                         , 1.0)
                     )
