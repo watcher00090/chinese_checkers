@@ -1087,12 +1087,12 @@ impl MainWidget<AppState> {
         } else if player_count == 3 {
 
             players_to_regions.push(StartingRegion::Top);
-            players_to_regions.push(StartingRegion::BottomLeft);
             players_to_regions.push(StartingRegion::BottomRight);
+            players_to_regions.push(StartingRegion::BottomLeft);
 
             players_to_colors.push(PieceColor::White);
-            players_to_colors.push(PieceColor::Red);
             players_to_colors.push(PieceColor::Blue);
+            players_to_colors.push(PieceColor::Red);
 
         } else if player_count == 4 {
 
