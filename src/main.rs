@@ -21,6 +21,10 @@ use std::convert::TryInto;
 
 use druid_widget_nursery::DropdownSelect;
 
+use druid::widget::LineBreaking;
+
+use druid::Screen;
+
 // extern crate pem;
 use openssl::rsa::{Rsa, RsaPrivateKeyBuilder};
 use openssl::pkey::PKey;
@@ -148,6 +152,9 @@ static PLAYER_FOUR_NUMBER: usize = 3;
 static PLAYER_FIVE_NUMBER : usize = 4;
 static PLAYER_SIX_NUMBER : usize = 5;
 static NO_PLAYER : usize = usize::MAX;
+
+static CLOSE_DIALOG_WIDTH : f64 = 400f64;
+static CLOSE_DIALOG_HEIGHT: f64 = 200f64;
 
 // Furthest points of the board
 // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
@@ -1597,10 +1604,15 @@ impl MainWidget<AppState> {
                                     Align::centered(
                                         Button::new("Quit").on_click(|ctx, data: &mut AppState, _env| {
 
+                                            let window_pos : Point = ctx.window().get_position();
+                                            let window_size : Size =  ctx.window().get_size();
+                                            let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
+
                                             let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
                                                 let main = Flex::column()
                                                 .with_child(
                                                     Label::new("A game is in progress. Would you like to end the current game and return to the start page?")
+                                                    .with_line_break_mode(LineBreaking::WordWrap)
                                                 )
                                                 .with_child(Flex::row()
                                                     .with_child(
@@ -1625,9 +1637,11 @@ impl MainWidget<AppState> {
                                                     )
                                                 );
                                                 return main;
-                                            }()).resizable(false)
-                                            .title("Quit the current game?")
-                                            .window_size(Size::new(400f64, 200f64));
+                                            }())
+                                            .resizable(false)
+                                            .title("End Current Game?")
+                                            .set_position(dialog_popup_position)
+                                            .window_size(Size::new(CLOSE_DIALOG_WIDTH, CLOSE_DIALOG_HEIGHT));
 
                                             ctx.new_window(window_desc);
                                         })
@@ -1919,6 +1933,73 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
     }
 
 }   
+
+struct CloseDialogWidget<AppState> {
+    inner: druid::widget::Flex<AppState>
+}
+
+impl CloseDialogWidget<AppState> {
+    fn make() -> Self {
+        let inner =  Flex::column()
+        .with_child(
+            Label::new("A game is in progress. Would you like to end the current game and return to the start page?")
+            .with_line_break_mode(LineBreaking::WordWrap)
+        )
+        .with_child(Flex::row()
+            .with_child(
+                Button::new("Yes").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                    println!("Yes button pressed...");
+                    data.window_type = AppPage::Start;
+                    data.board.clear();
+                    data.pieces.clear();
+                    data.player_piece_colors.clear();
+                    data.in_game = false;
+                    data.whose_turn = None;
+                    data.last_hopper = None;
+                    data.num_players = None;
+                    ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
+                })
+            )
+            .with_child(
+                Button::new("No").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                    println!("No button pressed...");
+                    ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
+                })
+            )
+        );
+        return CloseDialogWidget {inner: inner};
+    } 
+}
+
+impl Widget<AppState> for CloseDialogWidget<AppState> {
+    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
+        match event {
+            Event::WindowConnected => {
+                ctx.window().bring_to_front_and_focus();
+            },
+            _ => {}
+        }
+
+        self.inner.event(ctx, event, data, _env);
+    }
+
+    fn layout(&mut self,  layout_ctx: &mut LayoutCtx, bc: &BoxConstraints, window_type: &AppState, env: &Env) -> Size {
+        self.inner.layout(layout_ctx, bc, window_type, env)
+    }
+
+    fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, window_type: &AppState, env: &Env) {
+        self.inner.lifecycle(ctx, event, window_type, env)
+    }
+
+    fn paint(&mut self, ctx: &mut PaintCtx<'_, '_, '_>, data: &AppState, env: &Env) {
+        self.inner.paint(ctx,data,env)
+    }
+
+    fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
+        self.inner.update(ctx, old_data, data, env);
+    }
+}
+
 
 impl Widget<AppState> for MainWidget<AppState> {
 
