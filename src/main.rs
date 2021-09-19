@@ -1958,11 +1958,17 @@ impl CloseDialogWidget<AppState> {
 
 impl Widget<AppState> for CloseDialogWidget<AppState> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
+        println!("HERE!!!");
         match event {
             Event::WindowConnected => {
-                ctx.window().bring_to_front_and_focus();
+                //ctx.window().bring_to_front_and_focus();
             },
-            _ => {}
+            Event::KeyDown(key) => {
+                print!("key = {:?}", key)
+            },
+            _ => {
+                print!("event = {:?}", event)
+            }
         }
 
         self.inner.event(ctx, event, data, _env);
