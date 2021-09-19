@@ -1608,36 +1608,7 @@ impl MainWidget<AppState> {
                                             let window_size : Size =  ctx.window().get_size();
                                             let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
 
-                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
-                                                let main = Flex::column()
-                                                .with_child(
-                                                    Label::new("A game is in progress. Would you like to end the current game and return to the start page?")
-                                                    .with_line_break_mode(LineBreaking::WordWrap)
-                                                )
-                                                .with_child(Flex::row()
-                                                    .with_child(
-                                                        Button::new("Yes").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                                                            println!("Yes button pressed...");
-                                                            data.window_type = AppPage::Start;
-                                                            data.board.clear();
-                                                            data.pieces.clear();
-                                                            data.player_piece_colors.clear();
-                                                            data.in_game = false;
-                                                            data.whose_turn = None;
-                                                            data.last_hopper = None;
-                                                            data.num_players = None;
-                                                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto)); // Command = CLOSE_WINDOW, target = None
-                                                        })
-                                                    )
-                                                    .with_child(
-                                                        Button::new("No").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                                                            println!("No button pressed...");
-                                                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
-                                                        })
-                                                    )
-                                                );
-                                                return main;
-                                            }())
+                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(CloseDialogWidget::<AppState>::make())
                                             .resizable(false)
                                             .title("End Current Game?")
                                             .set_position(dialog_popup_position)
