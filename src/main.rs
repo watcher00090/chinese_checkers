@@ -84,6 +84,8 @@ lazy_static! {
     static ref ADVANCED_SETTINGS_MENU_ITEMS_PADDING : (f64, f64, f64, f64) = (0.0, 5.0, 0.0, 5.0);
     static ref ADVANCED_SETTINGS_MENU_HEADER_PADDING : (f64, f64, f64, f64) = (0.0, 10.0, 0.0, 5.0);
     static ref ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING : (f64, f64, f64, f64) = (0.0, 10.0, 0.0, 5.0);
+    static ref CLOSE_DIALOG_POPUP_OUTER_PADDING : (f64, f64) = (10.0, 2.5);
+    static ref DIALOG_POPUP_BUTTONS_CONTAINER_PADDING : (f64, f64) = (5.0, 10.0);
     static ref PUBLIC_KEY  : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
     static ref PRIVATE_KEY : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
 
@@ -153,8 +155,8 @@ static PLAYER_FIVE_NUMBER : usize = 4;
 static PLAYER_SIX_NUMBER : usize = 5;
 static NO_PLAYER : usize = usize::MAX;
 
-static CLOSE_DIALOG_WIDTH : f64 = 400f64;
-static CLOSE_DIALOG_HEIGHT: f64 = 200f64;
+static CLOSE_DIALOG_WIDTH : f64 = 300f64;
+static CLOSE_DIALOG_HEIGHT: f64 = 150f64;
 
 // Furthest points of the board
 // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
@@ -1608,7 +1610,7 @@ impl MainWidget<AppState> {
                                             let window_size : Size =  ctx.window().get_size();
                                             let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
 
-                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(CloseDialogWidget::<AppState>::make())
+                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, CloseDialogWidget::<AppState>::make()))
                                             .resizable(false)
                                             .title("End Current Game?")
                                             .set_position(dialog_popup_position)
@@ -1915,29 +1917,41 @@ impl CloseDialogWidget<AppState> {
         .with_child(
             Label::new("A game is in progress. Would you like to end the current game and return to the start page?")
             .with_line_break_mode(LineBreaking::WordWrap)
+            .expand_width()
         )
-        .with_child(Flex::row()
-            .with_child(
-                Button::new("Yes").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                    println!("Yes button pressed...");
-                    data.window_type = AppPage::Start;
-                    data.board.clear();
-                    data.pieces.clear();
-                    data.player_piece_colors.clear();
-                    data.in_game = false;
-                    data.whose_turn = None;
-                    data.last_hopper = None;
-                    data.num_players = None;
-                    ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
-                })
-            )
-            .with_child(
-                Button::new("No").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                    println!("No button pressed...");
-                    ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
-                })
-            )
-        );
+        .with_child(Padding::new(*DIALOG_POPUP_BUTTONS_CONTAINER_PADDING,
+            Flex::row()
+            .with_flex_child(
+                Flex::row()
+                .with_child(
+                    Button::new("Yes").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                        println!("Yes button pressed...");
+                        data.window_type = AppPage::Start;
+                        data.board.clear();
+                        data.pieces.clear();
+                        data.player_piece_colors.clear();
+                        data.in_game = false;
+                        data.whose_turn = None;
+                        data.last_hopper = None;
+                        data.num_players = None;
+                        ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
+                    })
+                )
+                .main_axis_alignment(MainAxisAlignment::Center)
+                .expand_width()
+            , 1.0)
+            .with_flex_child(
+                Flex::row()
+                .with_child(
+                    Button::new("No").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                        println!("No button pressed...");
+                        ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
+                    })
+                )
+                .main_axis_alignment(MainAxisAlignment::Center)
+                .expand_width()
+            , 1.0)
+        ));
         return CloseDialogWidget {inner: inner};
     } 
 }
