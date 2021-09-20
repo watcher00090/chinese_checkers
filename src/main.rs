@@ -7,10 +7,15 @@ use druid::menu::MenuEventCtx;
 use druid::menu::MenuItem;
 use druid::menu::Menu;
 
+use druid::Handled;
+
+use druid::WindowId;
+
 use druid::Command;
 use druid::Target;
+use druid::Code;
 
-use druid::{Point, Rect, FontDescriptor, Color, Selector, Widget, Data, Lens, WindowDesc, EventCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt};
+use druid::{Point, Rect, FontDescriptor, Color, Selector, Widget, Data, Lens, WindowDesc, EventCtx, DelegateCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt};
 use druid::widget::prelude::*;
 use std::sync::{Arc, Mutex, MutexGuard};
 use druid::kurbo::{Circle};
@@ -88,6 +93,8 @@ lazy_static! {
     static ref DIALOG_POPUP_BUTTONS_CONTAINER_PADDING : (f64, f64) = (5.0, 10.0);
     static ref PUBLIC_KEY  : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
     static ref PRIVATE_KEY : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
+
+    static ref popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
 
     static ref DATA_BUF : Arc::<std::vec::Vec<u8>> = Arc::new(vec![0u8; DATA_BUF_LEN]);
     static ref ROOM_ID : OnceCell<String> = OnceCell::<String>::new();
@@ -758,6 +765,67 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
         }
     }
     return false;
+}
+
+struct GlobalDelegate {}
+
+impl GlobalDelegate {
+    fn make() -> Self {
+        return GlobalDelegate {};
+    }
+}
+
+impl druid::AppDelegate<AppState> for GlobalDelegate {
+    fn event(
+        &mut self,
+        ctx: &mut DelegateCtx<'_>,
+        window_id: WindowId,
+        event: Event,
+        data: &mut AppState,
+        env: &Env
+    ) -> Option<Event> {
+        let event_copy = event.clone();
+        match event {
+            Event::KeyDown(key_event) => {
+                if key_event.code == druid::Code::Escape {
+                    let popup_window_id_mutex = (*popup_window_id).lock().unwrap();
+                    let popup_window_id_option = (*popup_window_id_mutex).clone();
+    
+                    ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
+                }
+            },
+            _ => {}
+        }
+        return Some(event_copy);
+    }
+        
+    fn command(
+        &mut self,
+        ctx: &mut DelegateCtx<'_>,
+        target: Target,
+        cmd: &Command,
+        data: &mut AppState,
+        env: &Env
+    ) -> Handled {
+        return Handled::No;
+    }       
+    
+        
+    fn window_added(
+        &mut self,
+        id: WindowId,
+        data: &mut AppState,
+        env: &Env,
+        ctx: &mut DelegateCtx<'_>
+    ) {}
+    
+    fn window_removed(
+        &mut self,
+        id: WindowId,
+        data: &mut AppState,
+        env: &Env,
+        ctx: &mut DelegateCtx<'_>
+    ) {}
 }
 
 impl Widget<AppState> for CanvasWidget {
@@ -1610,12 +1678,17 @@ impl MainWidget<AppState> {
                                             let window_size : Size =  ctx.window().get_size();
                                             let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
 
-                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, CloseDialogWidget::<AppState>::make()))
+                                            let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, CloseDialogWidget::<AppState>::make()))
                                             .resizable(false)
                                             .title("End Current Game?")
                                             .set_position(dialog_popup_position)
                                             .window_size(Size::new(CLOSE_DIALOG_WIDTH, CLOSE_DIALOG_HEIGHT));
 
+                                            window_desc.id = WindowId::next();
+
+                                            let mut popup_window_id_mutex = (*popup_window_id).lock().unwrap();
+                                            (*popup_window_id_mutex) = Some(window_desc.id);
+                                            
                                             ctx.new_window(window_desc);
                                         })
                                     )
@@ -1958,10 +2031,14 @@ impl CloseDialogWidget<AppState> {
 
 impl Widget<AppState> for CloseDialogWidget<AppState> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
+        println!("HERE!!!");
         match event {
             Event::WindowConnected => {
                 ctx.window().bring_to_front_and_focus();
             },
+            // Event::KeyDown(key) => {
+            //     print!("key = {:?}", key)
+            // },
             _ => {}
         }
 
@@ -1997,6 +2074,7 @@ impl Widget<AppState> for MainWidget<AppState> {
             },
             _ => {} // handle the event as normal
         }
+        // print!("event = {:?}", event)
     }
 
     fn layout(&mut self,  layout_ctx: &mut LayoutCtx, bc: &BoxConstraints, window_type: &AppState, env: &Env) -> Size {
@@ -2161,6 +2239,7 @@ fn main() {
                 println!("ERROR: attempting to set the ROOM_ID OnceCell in configure_env produced an error...");
             }
         })
+        .delegate(GlobalDelegate::make())
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
 }
