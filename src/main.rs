@@ -129,7 +129,7 @@ static BOARD_CIRCLE_COLOR_r : u8 = 238;
 static BOARD_CIRCLE_COLOR_g : u8 = 206;
 static BOARD_CIRCLE_COLOR_b : u8 = 166;
 
-static SWAPPING_ANTI_SPOILING_RULE_TEXT           : &str = "Allow swapping your peg with any opponents peg in the destination's triangle";
+static SWAPPING_ANTI_SPOILING_RULE_TEXT           : &str = "If you are prevented from moving a peg into the destination triangle because some other player's peg is already there, you can swap your peg with that peg. This applies for both a single step move as well as any part of a hop move";
 static FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT : &str = "As long as all available squares in the destination triangle are occuiped after the first move, you win";
 static FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT   : &str = "As long as all available squares in the destination triangle are occuiped and you have at least one of your pieces in the triangle, you win";
 
@@ -305,6 +305,13 @@ enum AntiSpoilingRule {
     Swapping,
     FilledDestWeak,
     FilledDestStrong,
+}
+
+impl BoardRegionBoundaryHexCoords {
+    // Returns true iff: the given integers form a hex coord, and the given region contains that coordinate 
+    fn contains(&self, x_hex: i32, y_hex: i32, z_hex: i32) -> bool {
+        return (x_hex + y_hex + z_hex == 0) && self.x_min <= x_hex && x_hex <= self.x_max && self.y_min <= y_hex && y_hex <= self.y_max && self.z_min <= z_hex && z_hex <= self.z_max; 
+    }
 }
 
 impl StartingRegion {
@@ -860,110 +867,213 @@ impl Widget<AppState> for CanvasWidget {
                     
                     starting_square = data.board[self.piece_being_dragged.unwrap().hextile_idx]; 
                     target_square = self.hextile_over_which_mouse_event_happened.unwrap();
+                    let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
+                    let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
+                    let player_to_move = data.whose_turn.unwrap();
 
-                    // Move the piece
+                    // Move the piece. make_move
                     if target_square.piece_idx.is_some() && data.anti_spoiling_rule != AntiSpoilingRule::Swapping {
 
                         println!("Error: Square already occupied: please move to an occupied square instead");
 
-                    } else if data.anti_spoiling_rule == AntiSpoilingRule::Swapping && check_swap(starting_square, target_square, data) && data.last_hopper.is_none() {
-                        
-                        
                     } else if check_step(starting_square, target_square, data) && data.last_hopper.is_none() {
 
-                        let player_to_move = data.whose_turn.unwrap();
-
-                        let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
                         let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
                         let piece_idx : usize = data.pieces.iter().position(|&piece| piece.same_hex_coords(starting_square)).unwrap();
 
                         let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
 
-                        data.board[starting_square_idx].piece_idx = None;
-                        data.board[target_square_idx].piece_idx = Some(piece_idx);
-
-                        data.pieces[piece_idx].x_hex = target_square.x_hex;
-                        data.pieces[piece_idx].y_hex = target_square.y_hex;
-                        data.pieces[piece_idx].z_hex = target_square.z_hex;
-
-                        println!("Starting square coordinates: x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = starting_square.x_hex, y_hex = starting_square.y_hex, z_hex = starting_square.z_hex);
-                        
-                        data.pieces[piece_idx].hextile_idx = target_square_idx;
-    
-                        data.last_hopper = None;
-
-                        let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
-        
-                        // START DEBUG CODE
-                        println!("Length of BoardVec = {bvl}, length of PiecesVec = {pvl}", bvl = data.board.len(), pvl = data.pieces.len());
-                        for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
-                            for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
-                                for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
-                                    if x_hex + y_hex + z_hex == 0 {
-                                        println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
-                                        let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()]; 
-                                        if tile.piece_idx.is_none() {
-                                            //
-                                        } else {
-                                            println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
-                                        }            
-                                    }
-                                }
-                            }
-                        }
-                        println!();
-                        // END DEBUG CODE
-
-                        self.num_moves_made_so_far += 1;
-
-                        let newly_won_player = self.check_if_won(data);
-
-                        if newly_won_player.is_some() {
-                            // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
-                            data.in_game = false;
-                            data.newly_won_player = newly_won_player;
-                            data.display_victory_banner = true;
-                        } else {
-                            data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
-                        }
-
-                    } else if check_hop(starting_square, target_square, data) {
-                    
-                        println!("making hop move...");
-
-                        let player_to_move = data.whose_turn.unwrap();
-
-                        let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
-                        let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
-                        let piece_idx : usize = data.pieces.iter().position(|&piece| piece.same_hex_coords(starting_square)).unwrap();
-
-                        let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
-
-                        if data.last_hopper.is_none() || (data.last_hopper.is_some() && data.last_hopper.unwrap().same_hex_coords(starting_square)) {
-
-                            println!("data.last_hopper is none? {is_none}", is_none = data.last_hopper.is_none());
+                        // Moving to an empty square
+                        if ! target_square.piece_idx.is_some() {
 
                             data.board[starting_square_idx].piece_idx = None;
                             data.board[target_square_idx].piece_idx = Some(piece_idx);
-    
+
                             data.pieces[piece_idx].x_hex = target_square.x_hex;
                             data.pieces[piece_idx].y_hex = target_square.y_hex;
                             data.pieces[piece_idx].z_hex = target_square.z_hex;
-    
-                            data.pieces[piece_idx].hextile_idx = dest_square_idx;
-        
-                            data.last_hopper = Some(data.pieces[piece_idx]);    
+
+                            println!("Starting square coordinates: x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = starting_square.x_hex, y_hex = starting_square.y_hex, z_hex = starting_square.z_hex);
+                            
+                            data.pieces[piece_idx].hextile_idx = target_square_idx;
+
+                            data.last_hopper = None;
+
+                            let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
+            
+                            // START DEBUG CODE
+                            println!("Length of BoardVec = {bvl}, length of PiecesVec = {pvl}", bvl = data.board.len(), pvl = data.pieces.len());
+                            for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
+                                for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
+                                    for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
+                                        if x_hex + y_hex + z_hex == 0 {
+                                            println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
+                                            let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()]; 
+                                            if tile.piece_idx.is_none() {
+                                                //
+                                            } else {
+                                                println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
+                                            }            
+                                        }
+                                    }
+                                }
+                            }
+                            println!();
+                            // END DEBUG CODE
 
                             self.num_moves_made_so_far += 1;
 
                             let newly_won_player = self.check_if_won(data);
 
                             if newly_won_player.is_some() {
+                                // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
                                 data.in_game = false;
                                 data.newly_won_player = newly_won_player;
                                 data.display_victory_banner = true;
+                            } else {
+                                data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                            }
+
+                        // Swapping with an opponent's piece in the destination triangle
+                        } else if target_square.piece_idx.is_some() && data.anti_spoiling_rule == AntiSpoilingRule::Swapping {
+                            let target_player_num : usize = data.pieces[target_square.piece_idx.unwrap()].player_num;
+                            let starting_player_num : usize = data.pieces[starting_square.piece_idx.unwrap()].player_num;
+
+                            if target_player_num != starting_player_num && data.regions_to_players[starting_player_num].opposite() == data.regions_to_players[target_player_num] && boundary_coords_for_region(data.regions_to_players[target_player_num]).contains(target_square.x_hex, target_square.y_hex, target_square.z_hex) {
+                                // Swap the pieces in the starting square and the target square
+    
+                                // Update the position of the pieces
+                                let x_hex_tmp = data.pieces[starting_square.piece_idx.unwrap()].x_hex;
+                                let y_hex_tmp = data.pieces[starting_square.piece_idx.unwrap()].y_hex;
+                                let z_hex_tmp = data.pieces[starting_square.piece_idx.unwrap()].z_hex;
+
+                                data.pieces[starting_square.piece_idx.unwrap()].x_hex = data.pieces[target_square.piece_idx.unwrap()].x_hex;
+                                data.pieces[starting_square.piece_idx.unwrap()].y_hex = data.pieces[target_square.piece_idx.unwrap()].y_hex;
+                                data.pieces[starting_square.piece_idx.unwrap()].z_hex = data.pieces[target_square.piece_idx.unwrap()].z_hex;
+
+                                data.pieces[target_square.piece_idx.unwrap()].x_hex = x_hex_tmp;
+                                data.pieces[target_square.piece_idx.unwrap()].y_hex = y_hex_tmp;
+                                data.pieces[target_square.piece_idx.unwrap()].z_hex = z_hex_tmp;
+
+                                // Make sure the pieces have pointers to the correect hextiles
+                                data.pieces[starting_square.piece_idx.unwrap()].hextile_idx = target_square_idx;
+                                data.pieces[target_square.piece_idx.unwrap()].hextile_idx = starting_square_idx;
+
+                                // Make sure the hextiles have pointers to the correct pieces
+                                let tmp_piece_idx = data.board[starting_square_idx].piece_idx;
+                                data.board[starting_square_idx].piece_idx = data.board[target_square_idx].piece_idx;
+                                data.board[target_square_idx].piece_idx = tmp_piece_idx;
+
+                                data.last_hopper = None;
+
+                                let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
+                    
+                                self.num_moves_made_so_far += 1;
+    
+                                let newly_won_player = self.check_if_won(data);
+    
+                                if newly_won_player.is_some() {
+                                    // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
+                                    data.in_game = false;
+                                    data.newly_won_player = newly_won_player;
+                                    data.display_victory_banner = true;
+                                } else {
+                                    data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                                }
+    
                             }
                         }
+
+                    } else if check_hop(starting_square, target_square, data) {
+                    
+                        println!("making hop move...");
+
+                        // Nothing in the target square
+                        if ! target_square.piece_idx.is_some() {
+
+                            let starting_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(starting_square)).unwrap();
+                            let target_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
+                            let piece_idx : usize = data.pieces.iter().position(|&piece| piece.same_hex_coords(starting_square)).unwrap();
+
+                            let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
+
+                            if data.last_hopper.is_none() || (data.last_hopper.is_some() && data.last_hopper.unwrap().same_hex_coords(starting_square)) {
+
+                                println!("data.last_hopper is none? {is_none}", is_none = data.last_hopper.is_none());
+
+                                data.board[starting_square_idx].piece_idx = None;
+                                data.board[target_square_idx].piece_idx = Some(piece_idx);
+        
+                                data.pieces[piece_idx].x_hex = target_square.x_hex;
+                                data.pieces[piece_idx].y_hex = target_square.y_hex;
+                                data.pieces[piece_idx].z_hex = target_square.z_hex;
+        
+                                data.pieces[piece_idx].hextile_idx = dest_square_idx;
+            
+                                data.last_hopper = Some(data.pieces[piece_idx]);    
+
+                                self.num_moves_made_so_far += 1;
+
+                                let newly_won_player = self.check_if_won(data);
+
+                                if newly_won_player.is_some() {
+                                    data.in_game = false;
+                                    data.newly_won_player = newly_won_player;
+                                    data.display_victory_banner = true;
+                                } else {
+                                    // do nothing
+                                }
+                            }
+
+                        // Swapping with an opponent's piece in the destination triangle
+                        } else if target_square.piece_idx.is_some() && data.anti_spoiling_rule == AntiSpoilingRule::Swapping {
+                            let target_player_num : usize = data.pieces[target_square.piece_idx.unwrap()].player_num;
+                            let starting_player_num : usize = data.pieces[starting_square.piece_idx.unwrap()].player_num;
+
+                            if target_player_num != starting_player_num && data.regions_to_players[starting_player_num].opposite() == data.regions_to_players[target_player_num] && boundary_coords_for_region(data.regions_to_players[target_player_num]).contains(target_square.x_hex, target_square.y_hex, target_square.z_hex) {
+                                // Swap the pieces in the starting square and the target square
+    
+                                // Update the position of the pieces
+                                let x_hex_tmp = data.pieces[starting_square.piece_idx.unwrap()].x_hex;
+                                let y_hex_tmp = data.pieces[starting_square.piece_idx.unwrap()].y_hex;
+                                let z_hex_tmp = data.pieces[starting_square.piece_idx.unwrap()].z_hex;
+
+                                data.pieces[starting_square.piece_idx.unwrap()].x_hex = data.pieces[target_square.piece_idx.unwrap()].x_hex;
+                                data.pieces[starting_square.piece_idx.unwrap()].y_hex = data.pieces[target_square.piece_idx.unwrap()].y_hex;
+                                data.pieces[starting_square.piece_idx.unwrap()].z_hex = data.pieces[target_square.piece_idx.unwrap()].z_hex;
+
+                                data.pieces[target_square.piece_idx.unwrap()].x_hex = x_hex_tmp;
+                                data.pieces[target_square.piece_idx.unwrap()].y_hex = y_hex_tmp;
+                                data.pieces[target_square.piece_idx.unwrap()].z_hex = z_hex_tmp;
+
+                                // Make sure the pieces have pointers to the correect hextiles
+                                data.pieces[starting_square.piece_idx.unwrap()].hextile_idx = target_square_idx;
+                                data.pieces[target_square.piece_idx.unwrap()].hextile_idx = starting_square_idx;
+
+                                // Make sure the hextiles have pointers to the correct pieces
+                                let tmp_piece_idx = data.board[starting_square_idx].piece_idx;
+                                data.board[starting_square_idx].piece_idx = data.board[target_square_idx].piece_idx;
+                                data.board[target_square_idx].piece_idx = tmp_piece_idx;
+
+                                data.last_hopper = None;
+
+                                let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
+                    
+                                self.num_moves_made_so_far += 1;
+    
+                                let newly_won_player = self.check_if_won(data);
+    
+                                if newly_won_player.is_some() {
+                                    // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
+                                    data.in_game = false;
+                                    data.newly_won_player = newly_won_player;
+                                    data.display_victory_banner = true;
+                                } else { // Pass the turn to the next player because we can't make multiple swaps in the destination triangle in a single turn
+                                    data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                                }
+                            }
+                        }
+
                     }
                 
                 } 
