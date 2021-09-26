@@ -542,6 +542,7 @@ struct AppState {
     num_players : Option<usize>,
     regions_to_players : im::Vector<StartingRegion>, // regions_to_players[i] = the starting region of player i
     create_remote_game_players_added : Option<Vector<&'static str>>,
+    players_that_have_won: im::Vector<usize>,
     room_id: Option<String>,
     join_remote_game_entered_room_id: String,
     join_remote_game_ticket: Option<String>,
@@ -1835,6 +1836,14 @@ impl MainWidget<AppState> {
                         )
                     )
                     .with_child(SizedBox::new(CanvasWidget {num_moves_made_so_far: 0, piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None}))
+                    .with_child(
+                        List::new(|| {
+                            Label::new(|player: &usize, _env: &_| {
+                                return format!("Player {}", player + 1);
+                            })
+                        })
+                        .lens(AppState::players_that_have_won)
+                    )
                 );
             },
             AppPage::RemoteGame => {
@@ -2276,6 +2285,7 @@ fn main() {
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]), 
         winner_list: im::Vector::<usize>::new(),
         newly_won_player: None,
+        players_that_have_won: im::Vector::new(),
         room_id: Some(String::from("1515")),
         join_remote_game_entered_room_id: String::from("jHfjHsdkmcjFhdkSjfjf"),
         join_remote_game_ticket: None,
@@ -2293,50 +2303,50 @@ fn main() {
     };
 
     AppLauncher::with_window(main_window)
-        .configure_env(|_env, _data| { // OnceCell
+        // .configure_env(|_env, _data| { // OnceCell
 
-            // Create the user's public/private key pair
-            // let mut rng = rand::thread_rng();
-            // let mut builder = RsaPrivateKeyBuilder::new(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
-            // builder = builder.set_factors(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
-            let result = Rsa::generate(2048).unwrap();
-            let public_key_bytes = result.public_key_to_pem().unwrap();
+        //     // Create the user's public/private key pair
+        //     // let mut rng = rand::thread_rng();
+        //     // let mut builder = RsaPrivateKeyBuilder::new(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
+        //     // builder = builder.set_factors(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
+        //     let result = Rsa::generate(2048).unwrap();
+        //     let public_key_bytes = result.public_key_to_pem().unwrap();
 
-            let ip_addr : String = local_ip().unwrap().to_string();
+        //     let ip_addr : String = local_ip().unwrap().to_string();
            
-            let keypair : PKey<Private>= openssl::pkey::PKey::try_from(result).unwrap();
+        //     let keypair : PKey<Private>= openssl::pkey::PKey::try_from(result).unwrap();
 
-            let encrypter = Encrypter::new(&keypair).unwrap();
+        //     let encrypter = Encrypter::new(&keypair).unwrap();
 
-            let s = ip_addr.to_owned();
-            let input = &s[..];
+        //     let s = ip_addr.to_owned();
+        //     let input = &s[..];
 
-            let buffer_len = encrypter.encrypt_len(&input.as_bytes()).unwrap();
-            let mut encrypted = std::vec::Vec::<u8>::new();
-            encrypted.extend(iter::repeat(0).take(buffer_len));
+        //     let buffer_len = encrypter.encrypt_len(&input.as_bytes()).unwrap();
+        //     let mut encrypted = std::vec::Vec::<u8>::new();
+        //     encrypted.extend(iter::repeat(0).take(buffer_len));
 
-            let encrypted_len = encrypter.encrypt(input.as_bytes(), &mut encrypted).unwrap();
+        //     let encrypted_len = encrypter.encrypt(input.as_bytes(), &mut encrypted).unwrap();
 
-            println!("encyrpted_len = {}", encrypted_len);
+        //     println!("encyrpted_len = {}", encrypted_len);
 
-            encrypted.truncate(encrypted_len);
+        //     encrypted.truncate(encrypted_len);
 
-            let string_list : std::vec::Vec<String> = encrypted.iter().map(|val| val.to_string()).collect();
-            let room_id_str = string_list.join("-");
+        //     let string_list : std::vec::Vec<String> = encrypted.iter().map(|val| val.to_string()).collect();
+        //     let room_id_str = string_list.join("-");
 
-            let pubkey_bytes : std::vec::Vec<String> = public_key_bytes.iter().map(|val| val.to_string()).collect();
-            let pubkey_str = pubkey_bytes.join("-");
+        //     let pubkey_bytes : std::vec::Vec<String> = public_key_bytes.iter().map(|val| val.to_string()).collect();
+        //     let pubkey_str = pubkey_bytes.join("-");
 
-            // let public_key_bytes = &public_key_bytes_tmp[..];
+        //     // let public_key_bytes = &public_key_bytes_tmp[..];
 
-            let res = ROOM_ID.set(
-                room_id_str + "@" + &pubkey_str
-            );
+        //     let res = ROOM_ID.set(
+        //         room_id_str + "@" + &pubkey_str
+        //     );
 
-            if res.is_err() {
-                println!("ERROR: attempting to set the ROOM_ID OnceCell in configure_env produced an error...");
-            }
-        })
+        //     if res.is_err() {
+        //         println!("ERROR: attempting to set the ROOM_ID OnceCell in configure_env produced an error...");
+        //     }
+        //})
         .delegate(GlobalDelegate::make())
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
