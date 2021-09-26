@@ -303,8 +303,7 @@ enum PlayerCount {
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Data)]
 enum AntiSpoilingRule {
     Swapping,
-    FilledDestWeak,
-    FilledDestStrong,
+    FilledDest,
 }
 
 impl BoardRegionBoundaryHexCoords {
@@ -619,27 +618,7 @@ impl CanvasWidget {
             }
             return self.num_moves_made_so_far > data.num_players.unwrap();
 
-        } else if data.anti_spoiling_rule == AntiSpoilingRule::FilledDestStrong {
-            // Check if all squares in the victory triangle are filled
-            for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
-                for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
-                    for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
-                        if x_hex + y_hex + z_hex == 0 {
-                            println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
-                            let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()];
-                            if tile.piece_idx.is_none() {
-                                return false;
-                            } else {
-                                println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return self.num_moves_made_so_far > data.num_players.unwrap();
-
-        } else if data.anti_spoiling_rule == AntiSpoilingRule::FilledDestWeak {
+        } else if data.anti_spoiling_rule == AntiSpoilingRule::FilledDest {
             // Check if all squares in the victory triangle are filled and the victory triangle contains at least one of your pieces
             let mut contains_pieces_of_given_player : bool = false;
             for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
@@ -835,6 +814,11 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
     ) {}
 }
 
+fn pass_turn(data: &mut AppState) {
+    data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
+    data.last_hopper = None;
+}
+
 impl Widget<AppState> for CanvasWidget {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
@@ -931,7 +915,7 @@ impl Widget<AppState> for CanvasWidget {
                                 data.newly_won_player = newly_won_player;
                                 data.display_victory_banner = true;
                             } else {
-                                data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                                pass_turn(data)
                             }
 
                         // Swapping with an opponent's piece in the destination triangle
@@ -978,7 +962,7 @@ impl Widget<AppState> for CanvasWidget {
                                     data.newly_won_player = newly_won_player;
                                     data.display_victory_banner = true;
                                 } else {
-                                    data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                                    pass_turn(data);
                                 }
     
                             }
@@ -1014,7 +998,11 @@ impl Widget<AppState> for CanvasWidget {
 
                                 self.num_moves_made_so_far += 1;
 
+                                println!("Got here");
+
                                 let newly_won_player = self.check_if_won(data);
+
+                                println!("newly won player = {:?}", newly_won_player);
 
                                 if newly_won_player.is_some() {
                                     data.in_game = false;
@@ -1069,7 +1057,7 @@ impl Widget<AppState> for CanvasWidget {
                                     data.newly_won_player = newly_won_player;
                                     data.display_victory_banner = true;
                                 } else { // Pass the turn to the next player because we can't make multiple swaps in the destination triangle in a single turn
-                                    data.whose_turn = Some((data.whose_turn.unwrap() + 1usize) % data.player_piece_colors.len());
+                                    pass_turn(data);
                                 }
                             }
                         }
@@ -1426,6 +1414,7 @@ impl MainWidget<AppState> {
                                 data.num_players = Some(player_count);
                                 println!("Attempting to start a new game with {} players...", player_count);
                                                         
+                                data.display_victory_banner = false;
                                 data.board.clear();
                                 data.pieces.clear();
         
@@ -1505,7 +1494,7 @@ impl MainWidget<AppState> {
                             )
                         )
                         .with_child(
-                            RadioGroup::new(vector![(SWAPPING_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::Swapping), (FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::FilledDestWeak), (FILLED_DEST_STRONG_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::FilledDestStrong)]).lens(AppState::anti_spoiling_rule)
+                            RadioGroup::new(vector![(SWAPPING_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::Swapping), (FILLED_DEST_WEAK_ANTI_SPOILING_RULE_TEXT, AntiSpoilingRule::FilledDest)]).lens(AppState::anti_spoiling_rule)
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING,
@@ -1565,7 +1554,7 @@ impl MainWidget<AppState> {
                         .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, 
                             Button::new("Back")
                             .on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                                data.window_type = AppPage::NewGame;
+                                data.window_type = AppPage::CreateLocalGame;
                             })))
                         .with_flex_spacer(1.0)
                         .with_child(Padding::new(*TOP_BAR_BUTTON_PADDING, Button::new("Help")))
@@ -1841,8 +1830,7 @@ impl MainWidget<AppState> {
                     )
                     .with_child(Flex::row()
                         .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
-                                data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
-                                data.last_hopper = None;                                
+                                pass_turn(data);                                
                             })
                         )
                     )
@@ -2294,7 +2282,7 @@ fn main() {
         registration_ticket: String::from("registration ticket"),
         mouse_click_screen_coordinates: None,
         number_of_players_selected: 2,
-        anti_spoiling_rule: AntiSpoilingRule::FilledDestStrong,
+        anti_spoiling_rule: AntiSpoilingRule::FilledDest,
         advnset_ranked_winner: false,
         advnset_all_pass_equals_draw: false,
         advnset_three_identical_equals_draw: false,
