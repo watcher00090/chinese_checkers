@@ -31,18 +31,18 @@ use druid::widget::LineBreaking;
 use druid::Screen;
 
 // extern crate pem;
-use openssl::rsa::{Rsa, RsaPrivateKeyBuilder};
-use openssl::pkey::PKey;
+//use openssl::rsa::{Rsa, RsaPrivateKeyBuilder};
+//use openssl::pkey::PKey;
 
 use core::convert::TryFrom;
 
-use openssl::pkey::{Private};
-use openssl::bn::BigNum;
+//use openssl::pkey::{Private};
+//use openssl::bn::BigNum;
 use rand::Rng;
 
 use std::iter;
 
-use openssl::encrypt::{Encrypter, Decrypter};
+//use openssl::encrypt::{Encrypter, Decrypter};
 
 use tracing::error;
 
@@ -857,6 +857,11 @@ impl Widget<AppState> for CanvasWidget {
                     let player_to_move = data.whose_turn.unwrap();
 
                     // Move the piece. make_move
+                    let starting_region = boundary_coords_for_region(data.regions_to_players[player_to_move]);
+                    let destination_region = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
+                    if data.advnset_only_enter_own_dest && !starting_region.contains(target_square.x_hex, target_square.y_hex, target_square.z_hex) && !CenterRegionBoundaryCoords.contains(target_square.x_hex, target_square.y_hex, target_square.z_hex) && !destination_region.contains(target_square.x_hex, target_square.y_hex, target_square.z_hex) {
+                        return
+                    }
                     if target_square.piece_idx.is_some() && data.anti_spoiling_rule != AntiSpoilingRule::Swapping {
 
                         println!("Error: Square already occupied: please move to an occupied square instead");
@@ -1504,37 +1509,12 @@ impl MainWidget<AppState> {
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(TWO_PLAYERS_THREE_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_two_players_three_triangles)
-                            )
-                        )
-                        .with_child(
-                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(THREE_PLAYERS_TWO_TRIANGLES_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_three_players_two_triangles)
-                            )
-                        )
-                        .with_child(
-                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(FORCED_MOVE_IF_AVAILABLE_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_forced_move_if_available)
-                            )
-                        )
-                        .with_child(
-                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
                                 Checkbox::new(ONLY_ENTER_OWN_DEST_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_only_enter_own_dest)
-                            )
-                        )
-                        .with_child(
-                            Padding::new(*ADVANCED_SETTINGS_MENU_SUBHEADER_PADDING,
-                                WidgetExt::expand_width(Label::new("End of Game").with_font(little_font.clone()))
                             )
                         )
                         .with_child(
                             Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
                                 Checkbox::new(RANKED_WINNER_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_ranked_winner)
-                            )
-                        )
-                        .with_child(
-                            Padding::new(*ADVANCED_SETTINGS_MENU_ITEMS_PADDING,
-                                Checkbox::new(THREE_IDENTICAL_CONFIGURATIONS_EQUALS_DRAW_CHECKBOX_LABEL_TEXT).lens(AppState::advnset_three_identical_equals_draw)
                             )
                         )
                         .with_child(
