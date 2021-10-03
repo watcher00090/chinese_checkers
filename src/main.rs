@@ -1,4 +1,4 @@
-use druid::widget::{MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, RawLabel, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
 use druid::LocalizedString;
@@ -7,6 +7,8 @@ use druid::menu::MenuEventCtx;
 use druid::menu::MenuItem;
 use druid::menu::Menu;
 
+use std::any::Any;
+
 use druid::Handled;
 
 use druid::WindowId;
@@ -14,6 +16,10 @@ use druid::WindowId;
 use druid::Command;
 use druid::Target;
 use druid::Code;
+
+use druid::ArcStr;
+
+use crate::lazy_static::__Deref;
 
 use druid::{Point, Rect, FontDescriptor, Color, Selector, Widget, Data, Lens, WindowDesc, EventCtx, DelegateCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt};
 use druid::widget::prelude::*;
@@ -50,8 +56,6 @@ use once_cell::sync::OnceCell;
 
 use druid::text::{Selection, Validation, ValidationError, Formatter};
 
-use local_ip_address::local_ip;
-
 // Use our modified version of the Checkbox
 mod checkbox;
 use checkbox::Checkbox;
@@ -59,6 +63,8 @@ use checkbox::Checkbox;
 // Use our modified version of the RadioGroup
 mod radio;
 use radio::RadioGroup;
+
+mod ColorChangeableLabel;
 
 #[macro_use]
 extern crate lazy_static;
@@ -94,11 +100,48 @@ lazy_static! {
     static ref PUBLIC_KEY  : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
     static ref PRIVATE_KEY : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
 
+    static ref colored_circle_label_widget_id : Arc::<Mutex::<Option<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
+
     static ref popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
 
     static ref DATA_BUF : Arc::<std::vec::Vec<u8>> = Arc::new(vec![0u8; DATA_BUF_LEN]);
     static ref ROOM_ID : OnceCell<String> = OnceCell::<String>::new();
+
+    static ref NULL_DATA : AppState = AppState{
+        whose_turn : None,
+        window_type : AppPage::Start,
+        board: im::Vector::new(), 
+        in_game: false,
+        display_victory_banner: false, 
+        mouse_location_in_canvas : Point::new(0.0, 0.0), 
+        pieces : vector![], 
+        player_piece_colors: im::Vector::new(), 
+        last_hopper : None, 
+        num_players : None, 
+        regions_to_players: im::Vector::new(),
+        create_remote_game_players_added: None, 
+        winner_list: im::Vector::<usize>::new(),
+        newly_won_player: None,
+        players_that_have_won: im::Vector::new(),
+        room_id: None,
+        join_remote_game_entered_room_id: String::from(""),
+        join_remote_game_ticket: None,
+        registration_ticket: String::from(" ticket"),
+        mouse_click_screen_coordinates: None,
+        number_of_players_selected: 0,
+        anti_spoiling_rule: AntiSpoilingRule::FilledDest,
+        advnset_ranked_winner: false,
+        advnset_all_pass_equals_draw: false,
+        advnset_three_identical_equals_draw: false,
+        advnset_three_players_two_triangles: false,
+        advnset_two_players_three_triangles: false,
+        advnset_forced_move_if_available: false,
+        advnset_only_enter_own_dest: false,
+        colored_circle_text: Arc::from(CIRCLE_STR)    
+    };
 }
+
+static CIRCLE_STR : &str = "(\u{2B24})";
 
 static INNER_MENU_CONTAINER_PADDING : (f64, f64) = (10.0, 0.0);
 // static INNER_MENU_CONTAINER_PADDING_ADVANCED_SETTINGS_PAGE : (f64, f64) = (25.0, 10.0);
@@ -557,6 +600,7 @@ struct AppState {
     advnset_two_players_three_triangles: bool,
     advnset_forced_move_if_available: bool,
     advnset_only_enter_own_dest: bool,
+    colored_circle_text: ArcStr
 }
 
 struct MainWidget<T: Data> {
@@ -815,9 +859,19 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
     ) {}
 }
 
-fn pass_turn(data: &mut AppState) {
+fn pass_turn(ctx: &mut EventCtx, data: &mut AppState) {
     data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
     data.last_hopper = None;
+
+    //Update the color of the circle that indicates whose turn it is
+    let local_colored_circle_label_widget_id_mutex = (*colored_circle_label_widget_id).lock().unwrap();
+    let local_colored_circle_label_widget_id_option = (*local_colored_circle_label_widget_id_mutex).clone();
+    let local_colored_circle_label_widget_id = local_colored_circle_label_widget_id_option.unwrap();
+
+    let mut cmd = Selector::new("UPDATE_COLORED_CIRCLE_COLOR").with((data.player_piece_colors[data.whose_turn.unwrap()]).clone()).to(druid::Target::Widget(local_colored_circle_label_widget_id));
+    ctx.submit_command(cmd);
+
+    ctx.request_layout();
 }
 
 impl Widget<AppState> for CanvasWidget {
@@ -921,7 +975,7 @@ impl Widget<AppState> for CanvasWidget {
                                 data.newly_won_player = newly_won_player;
                                 data.display_victory_banner = true;
                             } else {
-                                pass_turn(data)
+                                pass_turn(ctx, data)
                             }
 
                         // Swapping with an opponent's piece in the destination triangle
@@ -968,7 +1022,7 @@ impl Widget<AppState> for CanvasWidget {
                                     data.newly_won_player = newly_won_player;
                                     data.display_victory_banner = true;
                                 } else {
-                                    pass_turn(data);
+                                    pass_turn(ctx, data);
                                 }
     
                             }
@@ -1063,7 +1117,7 @@ impl Widget<AppState> for CanvasWidget {
                                     data.newly_won_player = newly_won_player;
                                     data.display_victory_banner = true;
                                 } else { // Pass the turn to the next player because we can't make multiple swaps in the destination triangle in a single turn
-                                    pass_turn(data);
+                                    pass_turn(ctx, data);
                                 }
                             }
                         }
@@ -1211,6 +1265,29 @@ impl Formatter<String> for RoomIDFormatter<String> {
 
 }
 
+struct ChangeLabelColorController {}
+
+impl<AppState, W: Widget<AppState>> Controller<AppState, W> for ChangeLabelColorController where W: ColorChangeableLabel::CanChangeColor {
+    fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
+        match event {
+            Event::Command(command) => {
+                let update_colored_circle_cmd = Selector::new("UPDATE_COLORED_CIRCLE_COLOR");
+                if command.is(update_colored_circle_cmd) {
+                    let new_circle_color_option : Option<&PieceColor> = command.get(update_colored_circle_cmd);
+                    let new_circle_color : PieceColor = *(new_circle_color_option.unwrap());
+                    let new_circle_druid_color : Color = new_circle_color.to_druid_color().clone();
+                    println!("Updating the circle's color...");
+
+                    child.set_text_color(new_circle_druid_color.clone());
+                }
+            },
+            _ => {}
+        }
+        child.event(ctx, event, data, env)
+    }
+}
+
+
 #[derive(Debug, Default)]
 pub struct TextCopyController {}
 
@@ -1230,7 +1307,7 @@ impl MainWidget<AppState> {
 
     fn new() -> IdentityWrapper<Self> {                    
         let main_widget = MainWidget::<AppState> {
-            main_container: MainWidget::build_page_ui(AppPage::Start),
+            main_container: MainWidget::build_page_ui(AppPage::Start, &*NULL_DATA),
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();      
@@ -1292,7 +1369,7 @@ impl MainWidget<AppState> {
         }
     }
 
-    fn build_page_ui(page: AppPage) -> Container<AppState> {
+    fn build_page_ui(page: AppPage, data: &AppState) -> Container<AppState> {
         match page {
             AppPage::JoinRemoteGame => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
@@ -1744,6 +1821,11 @@ impl MainWidget<AppState> {
 
             },
             AppPage::LocalGame => {
+                // Store the widget ID in the mutex
+                let widget_id = Some(WidgetId::next());
+                let mut colored_circle_label_widget_id_mutex = (*colored_circle_label_widget_id).lock().unwrap();
+                (*colored_circle_label_widget_id_mutex) = widget_id;
+
                 return Container::new(
                     Flex::column()
                     .with_child(
@@ -1804,14 +1886,38 @@ impl MainWidget<AppState> {
                                 else if data.display_victory_banner {
                                     return format!("Player {} has won the game!", data.newly_won_player.unwrap() + 1);
                                 } else {
-                                    return format!("Player {} to move", data.whose_turn.unwrap() + 1);
+                                    return format!("Player {} ", data.whose_turn.unwrap() + 1);
                                 }
+                            }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
+                        )
+                        .with_child(
+                            WidgetExt::with_id(
+                                druid::widget::ControllerHost::new(
+                                    ColorChangeableLabel::ColorChangeableLabel::<AppState>::new(|data: &AppState, _: &Env| { 
+                                        if data.whose_turn.is_none() { return format!(""); }
+                                        else if data.display_victory_banner {
+                                            return format!("");
+                                        } else {
+                                            return format!("(\u{2B24})");
+                                        }
+                                    }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
+                                    .with_text_color(data.player_piece_colors[data.whose_turn.unwrap()].to_druid_color().clone())
+                                , ChangeLabelColorController{}), 
+                            widget_id.unwrap())
+                        )
+                        .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
+                            if data.whose_turn.is_none() { return format!(""); }
+                            else if data.display_victory_banner {
+                                return format!("");
+                            } else {
+                                return format!(" to move");
+                            }
                             }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
                         )
                     )
                     .with_child(Flex::row()
                         .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
-                                pass_turn(data);                                
+                                pass_turn(ctx, data);                                
                             })
                         )
                     )
@@ -2185,8 +2291,14 @@ impl Widget<AppState> for MainWidget<AppState> {
                 *last_room_id_mutex = data.room_id.clone().unwrap();
             }
 
-            self.main_container = MainWidget::build_page_ui(data.window_type);
+            self.main_container = MainWidget::build_page_ui(data.window_type, data);
             ctx.children_changed();
+        }
+
+        // If the turn changes, rebuild the page ui in order to display the colored circle for the current player
+        if data.whose_turn != None && old_data.whose_turn != None {
+            if data.whose_turn.unwrap() != old_data.whose_turn.unwrap() {
+            }
         }
     }
     
@@ -2279,7 +2391,8 @@ fn main() {
         advnset_three_players_two_triangles: false,
         advnset_two_players_three_triangles: false,
         advnset_forced_move_if_available: false,
-        advnset_only_enter_own_dest: false    
+        advnset_only_enter_own_dest: false,
+        colored_circle_text: Arc::from(CIRCLE_STR)   
     };
 
     AppLauncher::with_window(main_window)
@@ -2293,7 +2406,7 @@ fn main() {
         //     let public_key_bytes = result.public_key_to_pem().unwrap();
 
         //     let ip_addr : String = local_ip().unwrap().to_string();
-           
+        
         //     let keypair : PKey<Private>= openssl::pkey::PKey::try_from(result).unwrap();
 
         //     let encrypter = Encrypter::new(&keypair).unwrap();
