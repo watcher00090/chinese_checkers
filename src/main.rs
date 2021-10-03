@@ -1886,7 +1886,7 @@ impl MainWidget<AppState> {
                                 else if data.display_victory_banner {
                                     return format!("Player {} has won the game!", data.newly_won_player.unwrap() + 1);
                                 } else {
-                                    return format!("Player {} ", data.whose_turn.unwrap() + 1);
+                                    return format!("Player {} \u{fe59}", data.whose_turn.unwrap() + 1);
                                 }
                             }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
                         )
@@ -1898,7 +1898,7 @@ impl MainWidget<AppState> {
                                         else if data.display_victory_banner {
                                             return format!("");
                                         } else {
-                                            return format!("(\u{2B24})");
+                                            return format!("\u{2B24}");
                                         }
                                     }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
                                     .with_text_color(data.player_piece_colors[data.whose_turn.unwrap()].to_druid_color().clone())
@@ -1910,7 +1910,7 @@ impl MainWidget<AppState> {
                             else if data.display_victory_banner {
                                 return format!("");
                             } else {
-                                return format!(" to move");
+                                return format!("\u{fe5a} to move");
                             }
                             }).with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(48.0))
                         )
