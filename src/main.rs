@@ -1,4 +1,4 @@
-use druid::widget::{MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, RawLabel, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
+use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, RawLabel, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
 use druid::LocalizedString;
@@ -104,6 +104,22 @@ lazy_static! {
 
     static ref popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
 
+    static ref winners_labels_widget_ids : [Arc::<Mutex::<Option::<WidgetId>>>; 6] = [
+        Arc::new(Mutex::<Option<WidgetId>>::new(None)),
+        Arc::new(Mutex::<Option<WidgetId>>::new(None)),
+        Arc::new(Mutex::<Option<WidgetId>>::new(None)),
+        Arc::new(Mutex::<Option<WidgetId>>::new(None)),
+        Arc::new(Mutex::<Option<WidgetId>>::new(None)),
+        Arc::new(Mutex::<Option<WidgetId>>::new(None)),
+    ];
+
+    static ref winner_label_id_1st_place_player : Arc::<Mutex::<Option::<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
+    static ref winner_label_id_2nd_place_player : Arc::<Mutex::<Option::<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
+    static ref winner_label_id_3rd_place_player : Arc::<Mutex::<Option::<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
+    static ref winner_label_id_4th_place_player : Arc::<Mutex::<Option::<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
+    static ref winner_label_id_5th_place_player : Arc::<Mutex::<Option::<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
+    static ref winner_label_id_6th_place_player : Arc::<Mutex::<Option::<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
+
     static ref DATA_BUF : Arc::<std::vec::Vec<u8>> = Arc::new(vec![0u8; DATA_BUF_LEN]);
     static ref ROOM_ID : OnceCell<String> = OnceCell::<String>::new();
 
@@ -120,7 +136,6 @@ lazy_static! {
         num_players : None, 
         regions_to_players: im::Vector::new(),
         create_remote_game_players_added: None, 
-        winner_list: im::Vector::<usize>::new(),
         newly_won_player: None,
         players_that_have_won: im::Vector::new(),
         room_id: None,
@@ -400,6 +415,40 @@ enum PieceColor {
     Grey
 }
 
+impl std::fmt::Debug for PieceColor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        match self {
+            PieceColor::Black => {
+                f.write_str("PieceColor::Black")
+            },
+            PieceColor::Blue => {
+                f.write_str("PieceColor::Blue")
+            },
+            PieceColor::Green => {
+                f.write_str("PieceColor::Green")
+            },
+            PieceColor::Grey => {
+                f.write_str("PieceColor::Grey")
+            },
+            PieceColor::Orange => {
+                f.write_str("PieceColor::Orange")
+            },
+            PieceColor::Purple => {
+                f.write_str("PieceColor::Purple")
+            },
+            PieceColor::Red => {
+                f.write_str("PieceColor::Red")
+            },
+            PieceColor::White => {
+                f.write_str("PieceColor::White")
+            },
+            PieceColor::Yellow => {
+                f.write_str("PieceColor::Yellow")
+            }
+        }
+    }
+}
+
 impl PieceColor {
     fn to_druid_color(&self) -> &druid::Color {
         match self {
@@ -575,7 +624,6 @@ struct AppState {
     board : im::Vector<Hextile>,
     pieces: im::Vector<Piece>,
     in_game : bool,
-    winner_list: im::Vector<usize>,
     newly_won_player: Option<usize>,
     display_victory_banner: bool,
     mouse_location_in_canvas : Point,
@@ -692,14 +740,48 @@ impl CanvasWidget {
     }
 
     // Check if some player has won. If so, returns Some(player_idx). Otherwise returns None.
-    fn check_if_won(&self, data: &mut AppState) -> Option<usize> {
-        let players_to_regions = data.regions_to_players.clone();
+    fn check_if_won(&self, ctx: &mut EventCtx, data: &mut AppState) -> Option<usize> {
+        // let players_to_regions = data.regions_to_players.clone();
         let player_count = data.num_players.unwrap();
         for i in 0..player_count {
             let player_idx = i;
             let has_won = self.check_if_won_helper(data, player_idx);
-            if has_won && !data.winner_list.contains(&player_idx) {
-                data.winner_list.push_back(player_idx);
+            if has_won && !data.players_that_have_won.contains(&player_idx) {
+                data.players_that_have_won.push_back(player_idx);
+
+                if data.players_that_have_won.len() == 1 {
+                    let next_place_player_label_widget_id_mutex = (*winner_label_id_1st_place_player).lock().unwrap();
+                    let next_place_player_label_widget_id_option = (*next_place_player_label_widget_id_mutex).clone();
+                    let next_place_player_label_widget_id = next_place_player_label_widget_id_option.unwrap();
+                    ctx.submit_command(Selector::<PieceColor>::new("SET_COLOR_OF_NEXT_PLACE_PLAYER").with(data.player_piece_colors.get(player_idx).unwrap().clone()).to(druid::Target::Widget(next_place_player_label_widget_id)));
+                } else if data.players_that_have_won.len() == 2 {
+                    let next_place_player_label_widget_id_mutex = (*winner_label_id_2nd_place_player).lock().unwrap();
+                    let next_place_player_label_widget_id_option = (*next_place_player_label_widget_id_mutex).clone();
+                    let next_place_player_label_widget_id = next_place_player_label_widget_id_option.unwrap();
+                    ctx.submit_command(Selector::<PieceColor>::new("SET_COLOR_OF_NEXT_PLACE_PLAYER").with(data.player_piece_colors.get(player_idx).unwrap().clone()).to(druid::Target::Widget(next_place_player_label_widget_id)));
+                } else if data.players_that_have_won.len() == 3 {
+                    let next_place_player_label_widget_id_mutex = (*winner_label_id_3rd_place_player).lock().unwrap();
+                    let next_place_player_label_widget_id_option = (*next_place_player_label_widget_id_mutex).clone();
+                    let next_place_player_label_widget_id = next_place_player_label_widget_id_option.unwrap();
+                    ctx.submit_command(Selector::<PieceColor>::new("SET_COLOR_OF_NEXT_PLACE_PLAYER").with(data.player_piece_colors.get(player_idx).unwrap().clone()).to(druid::Target::Widget(next_place_player_label_widget_id)));
+                } else if data.players_that_have_won.len() == 4 {
+                    let next_place_player_label_widget_id_mutex = (*winner_label_id_4th_place_player).lock().unwrap();
+                    let next_place_player_label_widget_id_option = (*next_place_player_label_widget_id_mutex).clone();
+                    let next_place_player_label_widget_id = next_place_player_label_widget_id_option.unwrap();
+                    ctx.submit_command(Selector::<PieceColor>::new("SET_COLOR_OF_NEXT_PLACE_PLAYER").with(data.player_piece_colors.get(player_idx).unwrap().clone()).to(druid::Target::Widget(next_place_player_label_widget_id)));
+                } else if data.players_that_have_won.len() == 5 {
+                    let next_place_player_label_widget_id_mutex = (*winner_label_id_5th_place_player).lock().unwrap();
+                    let next_place_player_label_widget_id_option = (*next_place_player_label_widget_id_mutex).clone();
+                    let next_place_player_label_widget_id = next_place_player_label_widget_id_option.unwrap();
+                    ctx.submit_command(Selector::<PieceColor>::new("SET_COLOR_OF_NEXT_PLACE_PLAYER").with(data.player_piece_colors.get(player_idx).unwrap().clone()).to(druid::Target::Widget(next_place_player_label_widget_id)));
+                } else { // data.players_that_have_won.len() == 6
+                    let next_place_player_label_widget_id_mutex = (*winner_label_id_6th_place_player).lock().unwrap();
+                    let next_place_player_label_widget_id_option = (*next_place_player_label_widget_id_mutex).clone();
+                    let next_place_player_label_widget_id = next_place_player_label_widget_id_option.unwrap();
+                    ctx.submit_command(Selector::<PieceColor>::new("SET_COLOR_OF_NEXT_PLACE_PLAYER").with(data.player_piece_colors.get(player_idx).unwrap().clone()).to(druid::Target::Widget(next_place_player_label_widget_id)));
+                }
+                ctx.request_layout();
+
                 return Some(player_idx);
             }
         }
@@ -967,7 +1049,7 @@ impl Widget<AppState> for CanvasWidget {
 
                             self.num_moves_made_so_far += 1;
 
-                            let newly_won_player = self.check_if_won(data);
+                            let newly_won_player = self.check_if_won(ctx, data);
 
                             if newly_won_player.is_some() {
                                 // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
@@ -1014,7 +1096,7 @@ impl Widget<AppState> for CanvasWidget {
                     
                                 self.num_moves_made_so_far += 1;
     
-                                let newly_won_player = self.check_if_won(data);
+                                let newly_won_player = self.check_if_won(ctx, data);
     
                                 if newly_won_player.is_some() {
                                     // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
@@ -1060,7 +1142,7 @@ impl Widget<AppState> for CanvasWidget {
 
                                 println!("Got here");
 
-                                let newly_won_player = self.check_if_won(data);
+                                let newly_won_player = self.check_if_won(ctx, data);
 
                                 println!("newly won player = {:?}", newly_won_player);
 
@@ -1109,7 +1191,7 @@ impl Widget<AppState> for CanvasWidget {
                     
                                 self.num_moves_made_so_far += 1;
     
-                                let newly_won_player = self.check_if_won(data);
+                                let newly_won_player = self.check_if_won(ctx, data);
     
                                 if newly_won_player.is_some() {
                                     // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
@@ -1269,16 +1351,17 @@ struct ChangeLabelColorController {}
 
 impl<AppState, W: Widget<AppState>> Controller<AppState, W> for ChangeLabelColorController where W: ColorChangeableLabel::CanChangeColor {
     fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
+        println!("In the change color controller");
         match event {
             Event::Command(command) => {
-                let update_colored_circle_cmd = Selector::new("UPDATE_COLORED_CIRCLE_COLOR");
-                if command.is(update_colored_circle_cmd) {
-                    let new_circle_color_option : Option<&PieceColor> = command.get(update_colored_circle_cmd);
-                    let new_circle_color : PieceColor = *(new_circle_color_option.unwrap());
-                    let new_circle_druid_color : Color = new_circle_color.to_druid_color().clone();
-                    println!("Updating the circle's color...");
+                let update_color_cmd = Selector::new("UPDATE_COLORED_CIRCLE_COLOR");
+                if command.is(update_color_cmd) {
+                    let new_color_option : Option<&PieceColor> = command.get(update_color_cmd);
+                    let new_color : PieceColor = *(new_color_option.unwrap());
+                    let new_druid_color : Color = new_color.to_druid_color().clone();
+                    println!("Updating the Label's color...");
 
-                    child.set_text_color(new_circle_druid_color.clone());
+                    child.set_text_color(new_druid_color.clone());
                 }
             },
             _ => {}
@@ -1287,6 +1370,27 @@ impl<AppState, W: Widget<AppState>> Controller<AppState, W> for ChangeLabelColor
     }
 }
 
+struct ChangePlacesLabelColorController {}
+
+impl<AppState: Data, W: Widget<AppState>> Controller<AppState, W> for ChangePlacesLabelColorController where W: ColorChangeableLabel::CanChangeColor {
+    fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
+        match event {
+            Event::Command(command) => {
+                let cmd = Selector::new("SET_COLOR_OF_NEXT_PLACE_PLAYER");
+                if command.is(cmd) {
+                    let new_winner_color_option : Option<&PieceColor> = command.get(cmd);
+                    let new_winner_color : PieceColor = *(new_winner_color_option.unwrap());
+                    let new_winner_druid_color : Color = new_winner_color.to_druid_color().clone();
+                    println!("Updating the label's color to {:?}..", new_winner_color);
+
+                    child.set_text_color(new_winner_druid_color.clone());
+                }
+            },
+            _ => {}
+        }
+        child.event(ctx, event, data, env)
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct TextCopyController {}
@@ -1307,7 +1411,7 @@ impl MainWidget<AppState> {
 
     fn new() -> IdentityWrapper<Self> {                    
         let main_widget = MainWidget::<AppState> {
-            main_container: MainWidget::build_page_ui(AppPage::Start, &*NULL_DATA),
+            main_container: MainWidget::build_page_ui(AppPage::Start, &*NULL_DATA, &druid::Env::empty()),
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();      
@@ -1369,7 +1473,7 @@ impl MainWidget<AppState> {
         }
     }
 
-    fn build_page_ui(page: AppPage, data: &AppState) -> Container<AppState> {
+    fn build_page_ui(page: AppPage, data: &AppState, env: &Env) -> Container<AppState> {
         match page {
             AppPage::JoinRemoteGame => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
@@ -1826,6 +1930,30 @@ impl MainWidget<AppState> {
                 let mut colored_circle_label_widget_id_mutex = (*colored_circle_label_widget_id).lock().unwrap();
                 (*colored_circle_label_widget_id_mutex) = widget_id;
 
+                let local_first_place_player_label_widget_id = Some(WidgetId::next());
+                let mut first_place_player_label_widget_id_mutex = (*winner_label_id_1st_place_player).lock().unwrap();
+                (*first_place_player_label_widget_id_mutex) = local_first_place_player_label_widget_id;
+
+                let local_second_place_player_label_widget_id = Some(WidgetId::next());
+                let mut second_place_player_label_widget_id_mutex = (*winner_label_id_2nd_place_player).lock().unwrap();
+                (*second_place_player_label_widget_id_mutex) = local_second_place_player_label_widget_id;
+                
+                let local_third_place_player_label_widget_id = Some(WidgetId::next());
+                let mut third_place_player_label_widget_id_mutex = (*winner_label_id_3rd_place_player).lock().unwrap();
+                (*third_place_player_label_widget_id_mutex) = local_third_place_player_label_widget_id;
+
+                let local_fourth_place_player_label_widget_id = Some(WidgetId::next());
+                let mut fourth_place_player_label_widget_id_mutex = (*winner_label_id_4th_place_player).lock().unwrap();
+                (*fourth_place_player_label_widget_id_mutex) = local_fourth_place_player_label_widget_id;
+
+                let local_fifth_place_player_label_widget_id = Some(WidgetId::next());
+                let mut fifth_place_player_label_widget_id_mutex = (*winner_label_id_5th_place_player).lock().unwrap();
+                (*fifth_place_player_label_widget_id_mutex) = local_fifth_place_player_label_widget_id;
+
+                let local_sixth_place_player_label_widget_id = Some(WidgetId::next());
+                let mut sixth_place_player_label_widget_id_mutex = (*winner_label_id_6th_place_player).lock().unwrap();
+                (*sixth_place_player_label_widget_id_mutex) = local_sixth_place_player_label_widget_id;
+
                 return Container::new(
                     Flex::column()
                     .with_child(
@@ -1834,7 +1962,7 @@ impl MainWidget<AppState> {
                             Padding::new(20.0, 
                                 Container::new(
                                     Align::centered(
-                                        Button::new("Quit").on_click(|ctx, data: &mut AppState, _env| {
+                                        Button::new("Quit").on_click(|ctx, _data: &mut AppState, _env| {
 
                                             let window_pos : Point = ctx.window().get_position();
                                             let window_size : Size =  ctx.window().get_size();
@@ -1861,7 +1989,7 @@ impl MainWidget<AppState> {
                             Padding::new(20.0, 
                                 Container::new(
                                     Align::centered(
-                                        Button::new("Help").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env| {
+                                        Button::new("Help").on_click(|ctx: &mut EventCtx, _data: &mut AppState, _env| {
                                             println!("Opening the help dialog...");
                                             let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
                                                 let main = Flex::column()
@@ -1923,12 +2051,91 @@ impl MainWidget<AppState> {
                     )
                     .with_child(SizedBox::new(CanvasWidget {num_moves_made_so_far: 0, piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None}))
                     .with_child(
-                        List::new(|| {
-                            Label::new(|player: &usize, _env: &_| {
-                                return format!("Player {}", player + 1);
-                            })
-                        })
-                        .lens(AppState::players_that_have_won)
+                        Either::new(|data: &AppState, _env: &Env| {return data.players_that_have_won.len() > 0},
+                            Flex::column()
+                            .with_child(
+                                Label::new("Places:")
+                                .with_font(FontDescriptor::new(FontFamily::SYSTEM_UI).with_weight(FontWeight::BOLD).with_size(36.0))
+                            )
+                            .with_child(
+                                WidgetExt::with_id(    
+                                    druid::widget::ControllerHost::new(    
+                                        ColorChangeableLabel::ColorChangeableLabel::new(|data: &AppState, _env: &_| {
+                                            //if data.players_that_have_won.len() < 1 {
+                                            //    return format!("");
+                                            //}
+                                            //return format!("Player {}", data.players_that_have_won[0]);
+                                            return format!("Player 0");
+                                        }),
+                                        ChangePlacesLabelColorController{}
+                                    ),  local_first_place_player_label_widget_id.unwrap()
+                                )
+                            )
+                            .with_child(
+                                WidgetExt::with_id(
+                                    druid::widget::ControllerHost::new(
+                                        ColorChangeableLabel::ColorChangeableLabel::new(|data: &AppState, _env: &_| {
+                                            if data.players_that_have_won.len() < 2 {
+                                                return format!("");
+                                            }
+                                            return format!("Player {}", data.players_that_have_won[1]);
+                                        }),
+                                        ChangePlacesLabelColorController{}
+                                    ), local_second_place_player_label_widget_id.unwrap()
+                                )
+                            )
+                            .with_child(
+                                WidgetExt::with_id(
+                                    druid::widget::ControllerHost::new(
+                                        ColorChangeableLabel::ColorChangeableLabel::new(|data: &AppState, _env: &_| { 
+                                            if data.players_that_have_won.len() < 3 {
+                                                return format!("");
+                                            }
+                                            return format!("Player {}", data.players_that_have_won[2]);
+                                        }), 
+                                        ChangePlacesLabelColorController{}
+                                    ), local_third_place_player_label_widget_id.unwrap()
+                                )
+                            )
+                            .with_child(
+                                WidgetExt::with_id(
+                                    druid::widget::ControllerHost::new(
+                                        ColorChangeableLabel::ColorChangeableLabel::new(|data: &AppState, _env: &_| {
+                                            if data.players_that_have_won.len() < 4 {
+                                                return format!("");
+                                            }
+                                            format!("Player {}", data.players_that_have_won[3])
+                                        }), 
+                                        ChangePlacesLabelColorController{}      
+                                    ), local_fourth_place_player_label_widget_id.unwrap()
+                                )
+                            )
+                            .with_child(
+                                WidgetExt::with_id(
+                                    druid::widget::ControllerHost::new(
+                                        ColorChangeableLabel::ColorChangeableLabel::new(|data: &AppState, _env: &_| {
+                                            if data.players_that_have_won.len() < 5 {
+                                                return format!("");
+                                            }
+                                            format!("Player {}", data.players_that_have_won[4])
+                                        }), ChangePlacesLabelColorController{}
+                                    ), local_fifth_place_player_label_widget_id.unwrap()
+                                )
+                            )
+                            .with_child(
+                                WidgetExt::with_id(
+                                    druid::widget::ControllerHost::new(
+                                        ColorChangeableLabel::ColorChangeableLabel::new(|data: &AppState, _env: &_| {
+                                            if data.players_that_have_won.len() < 6 {
+                                                return format!("");
+                                            }
+                                            format!("Player {}", data.players_that_have_won[5])
+                                        }), ChangePlacesLabelColorController{}
+                                    ), local_sixth_place_player_label_widget_id.unwrap()
+                                )
+                            ),
+                            SizedBox::empty()
+                        )
                     )
                 );
             },
@@ -2285,20 +2492,8 @@ impl Widget<AppState> for MainWidget<AppState> {
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
         self.main_container.update(ctx, old_data, data, env);
         if data.window_type != old_data.window_type {
-
-            if data.window_type == AppPage::CreateRemoteGame {
-                let mut last_room_id_mutex = (*last_room_id).lock().unwrap();
-                *last_room_id_mutex = data.room_id.clone().unwrap();
-            }
-
-            self.main_container = MainWidget::build_page_ui(data.window_type, data);
+            self.main_container = MainWidget::build_page_ui(data.window_type, data, env);
             ctx.children_changed();
-        }
-
-        // If the turn changes, rebuild the page ui in order to display the colored circle for the current player
-        if data.whose_turn != None && old_data.whose_turn != None {
-            if data.whose_turn.unwrap() != old_data.whose_turn.unwrap() {
-            }
         }
     }
     
@@ -2375,9 +2570,8 @@ fn main() {
         in_game: false, display_victory_banner: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
         player_piece_colors: im::Vector::new(), last_hopper : None, num_players : None, regions_to_players: im::Vector::new(),
         create_remote_game_players_added: Some(vector!["Tommy", "Karina", "Joseph"]), 
-        winner_list: im::Vector::<usize>::new(),
         newly_won_player: None,
-        players_that_have_won: im::Vector::new(),
+        players_that_have_won: im::Vector::<usize>::new(),
         room_id: Some(String::from("1515")),
         join_remote_game_entered_room_id: String::from("jHfjHsdkmcjFhdkSjfjf"),
         join_remote_game_ticket: None,
