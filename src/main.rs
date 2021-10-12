@@ -153,7 +153,9 @@ lazy_static! {
         advnset_two_players_three_triangles: false,
         advnset_forced_move_if_available: false,
         advnset_only_enter_own_dest: false,
-        colored_circle_text: Arc::from(CIRCLE_STR)    
+        colored_circle_text: Arc::from(CIRCLE_STR),  
+        num_consecutive_passes: 0,
+        display_draw_banner: false,
     };
 }
 
@@ -649,7 +651,9 @@ struct AppState {
     advnset_two_players_three_triangles: bool,
     advnset_forced_move_if_available: bool,
     advnset_only_enter_own_dest: bool,
-    colored_circle_text: ArcStr
+    colored_circle_text: ArcStr,
+    num_consecutive_passes: usize,
+    display_draw_banner: bool,
 }
 
 struct MainWidget<T: Data> {
@@ -954,18 +958,26 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
 }
 
 fn pass_turn(ctx: &mut EventCtx, data: &mut AppState) {
-    data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
-    data.last_hopper = None;
-
-    //Update the color of the circle that indicates whose turn it is
-    let local_colored_circle_label_widget_id_mutex = (*colored_circle_label_widget_id).lock().unwrap();
-    let local_colored_circle_label_widget_id_option = (*local_colored_circle_label_widget_id_mutex).clone();
-    let local_colored_circle_label_widget_id = local_colored_circle_label_widget_id_option.unwrap();
-
-    let mut cmd = Selector::new("UPDATE_COLORED_CIRCLE_COLOR").with((data.player_piece_colors[data.whose_turn.unwrap()]).clone()).to(druid::Target::Widget(local_colored_circle_label_widget_id));
-    ctx.submit_command(cmd);
-
-    ctx.request_layout();
+    if data.players_that_have_won.len() <= data.num_players.unwrap() - 1 {
+        loop {
+            data.whose_turn = Some((data.whose_turn.unwrap() + 1) % data.num_players.unwrap());
+            if !data.players_that_have_won.contains(&data.whose_turn.unwrap()) {
+                break;
+            }
+        }
+        data.last_hopper = None;
+    
+        //Update the color of the circle that indicates whose turn it is
+        let local_colored_circle_label_widget_id_mutex = (*colored_circle_label_widget_id).lock().unwrap();
+        let local_colored_circle_label_widget_id_option = (*local_colored_circle_label_widget_id_mutex).clone();
+        let local_colored_circle_label_widget_id = local_colored_circle_label_widget_id_option.unwrap();
+    
+        let mut cmd = Selector::new("UPDATE_COLORED_CIRCLE_COLOR").with((data.player_piece_colors[data.whose_turn.unwrap()]).clone()).to(druid::Target::Widget(local_colored_circle_label_widget_id));
+        ctx.submit_command(cmd);
+    
+        ctx.request_layout();
+    }
+    
 }
 
 impl Widget<AppState> for CanvasWidget {
@@ -1040,23 +1052,23 @@ impl Widget<AppState> for CanvasWidget {
                             let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
             
                             // START DEBUG CODE
-                            println!("Length of BoardVec = {bvl}, length of PiecesVec = {pvl}", bvl = data.board.len(), pvl = data.pieces.len());
-                            for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
-                                for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
-                                    for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
-                                        if x_hex + y_hex + z_hex == 0 {
-                                            println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
-                                            let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()]; 
-                                            if tile.piece_idx.is_none() {
-                                                //
-                                            } else {
-                                                println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
-                                            }            
-                                        }
-                                    }
-                                }
-                            }
-                            println!();
+                            // println!("Length of BoardVec = {bvl}, length of PiecesVec = {pvl}", bvl = data.board.len(), pvl = data.pieces.len());
+                            // for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
+                            //     for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
+                            //         for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
+                            //             if x_hex + y_hex + z_hex == 0 {
+                            //                 println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
+                            //                 let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()]; 
+                            //                 if tile.piece_idx.is_none() {
+                            //                     //
+                            //                 } else {
+                            //                     println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
+                            //                 }            
+                            //             }
+                            //         }
+                            //     }
+                            // }
+                            // println!();
                             // END DEBUG CODE
 
                             self.num_moves_made_so_far += 1;
@@ -1142,7 +1154,10 @@ impl Widget<AppState> for CanvasWidget {
                                     
                                     ctx.new_window(window_desc);
 
-                                    pass_turn(ctx, data);
+                                    if data.players_that_have_won.len() <= data.num_players.unwrap() - 2 {
+                                        pass_turn(ctx, data);
+                                    }
+
                                 }
                             } else {
                                 pass_turn(ctx, data)
@@ -1247,10 +1262,7 @@ impl Widget<AppState> for CanvasWidget {
                                     } else {
                                         pass_turn(ctx, data);
                                     }
-                                } else {
-                                    // do nothing
                                 }
-
                             }
 
                         // Swapping with an opponent's piece in the destination triangle
@@ -2143,7 +2155,13 @@ impl MainWidget<AppState> {
                     )
                     .with_child(Flex::row()
                         .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
-                                pass_turn(ctx, data);                                
+                                data.num_consecutive_passes += 1;
+                                if data.num_consecutive_passes == data.num_players.unwrap() - data.players_that_have_won.len() {
+                                    data.in_game = false;
+                                    data.display_draw_banner = true;
+                                } else {
+                                    pass_turn(ctx, data);  
+                                }                           
                             })
                         )
                     )
@@ -2684,7 +2702,9 @@ fn main() {
         advnset_two_players_three_triangles: false,
         advnset_forced_move_if_available: false,
         advnset_only_enter_own_dest: false,
-        colored_circle_text: Arc::from(CIRCLE_STR)   
+        colored_circle_text: Arc::from(CIRCLE_STR), 
+        num_consecutive_passes: 0,
+        display_draw_banner: false
     };
 
     AppLauncher::with_window(main_window)
