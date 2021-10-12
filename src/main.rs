@@ -103,6 +103,7 @@ lazy_static! {
     static ref colored_circle_label_widget_id : Arc::<Mutex::<Option<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
 
     static ref popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
+    static ref player_won_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
 
     static ref winners_labels_widget_ids : [Arc::<Mutex::<Option::<WidgetId>>>; 6] = [
         Arc::new(Mutex::<Option<WidgetId>>::new(None)),
@@ -901,10 +902,21 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
         match event {
             Event::KeyDown(key_event) => {
                 if key_event.code == druid::Code::Escape {
+                    // Close the End game popup window
                     let popup_window_id_mutex = (*popup_window_id).lock().unwrap();
                     let popup_window_id_option = (*popup_window_id_mutex).clone();
-    
-                    ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
+                    
+                    if popup_window_id_option.is_some() {
+                        ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
+                    }
+
+                    // Close the player won popup window
+                    let player_won_window_id_mutex = (*player_won_window_id).lock().unwrap();
+                    let player_won_window_id_option = (*player_won_window_id_mutex).clone();
+                    
+                    if player_won_window_id_option.is_some() {
+                        ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(player_won_window_id_option.unwrap())));
+                    }
                 }
             },
             _ => {}
@@ -1053,9 +1065,85 @@ impl Widget<AppState> for CanvasWidget {
 
                             if newly_won_player.is_some() {
                                 // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
-                                data.in_game = false;
                                 data.newly_won_player = newly_won_player;
-                                data.display_victory_banner = true;
+                                if !data.advnset_ranked_winner {
+                                    data.display_victory_banner = true;
+                                    data.in_game = false;
+                                } else {
+
+                                    let window_pos : Point = ctx.window().get_position();
+                                    let window_size : Size =  ctx.window().get_size();
+                                    let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
+
+                                    let mut place_str : &'static str = "1st";
+                                    match data.players_that_have_won.len() {
+                                        2 => {
+                                            place_str = "2nd"
+                                        }, 
+                                        3 => {
+                                            place_str = "3rd"
+                                        },
+                                        4 => {
+                                            place_str = "4th"
+                                        },
+                                        5 => {
+                                            place_str = "5th"
+                                        },
+                                        6 => {
+                                            place_str = "6th"
+                                        },
+                                        _ => {}
+                                    }
+
+                                    // let label_str = format!("Player {num} (color_str) has won {place} place!", num = newly_won_player.unwrap() + 1, color_str = color_str, place = place_str);
+
+                                    // let label_1 : Label<AppState> = Label::new(format!("Player {} \u{fe59}", newly_won_player.unwrap() + 1));
+                                    
+                                    // let label_2 : Label<AppState> = Label::new(format!("\u{2B24}"))
+                                    //     .with_text_color(data.player_piece_colors[data.newly_won_player.unwrap()].to_druid_color().clone());
+
+                                    // let label_3 : Label<AppState> = Label::new(format!("\u{fe5a} has won {place} place!", place = place_str));
+                                    
+                                    let label_1 : Label<AppState> = Label::new(format!("Player {} (", newly_won_player.unwrap() + 1));
+                                    
+                                    let label_2 : Label<AppState> = Label::new(format!("\u{2B24}"))
+                                        .with_text_color(data.player_piece_colors[data.newly_won_player.unwrap()].to_druid_color().clone());
+
+                                    let label_3 : Label<AppState> = Label::new(format!(") has won {place} place!", place = place_str));
+                                
+                                    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, 
+                                        Flex::column()
+                                        .main_axis_alignment(MainAxisAlignment::Center)
+                                        .with_child(
+                                            Flex::row()
+                                            .main_axis_alignment(MainAxisAlignment::Center)
+                                            .with_flex_spacer(1.0)
+                                            .with_child(
+                                                label_1
+                                            )
+                                            .with_child(
+                                                label_2
+                                            )
+                                            .with_child(
+                                                label_3
+                                            )
+                                            .with_flex_spacer(1.0)
+                                        )
+                                    ))
+                                    .resizable(false)
+                                    .title("Victory!")
+                                    .set_position(dialog_popup_position)
+                                    .window_size(Size::new(CLOSE_DIALOG_WIDTH, CLOSE_DIALOG_HEIGHT));
+
+                                    window_desc.id = WindowId::next();
+
+                                    let mut player_won_window_id_mutex = (*player_won_window_id).lock().unwrap();
+                                    (*player_won_window_id_mutex) = Some(window_desc.id);
+                                    
+                                    ctx.new_window(window_desc);
+
+                                    pass_turn(ctx, data);
+                                }
                             } else {
                                 pass_turn(ctx, data)
                             }
@@ -1100,13 +1188,17 @@ impl Widget<AppState> for CanvasWidget {
     
                                 if newly_won_player.is_some() {
                                     // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
-                                    data.in_game = false;
                                     data.newly_won_player = newly_won_player;
-                                    data.display_victory_banner = true;
+                                    if !data.advnset_ranked_winner {
+                                        data.display_victory_banner = true;
+                                        data.in_game = false;
+                                    } else {
+                                        pass_turn(ctx, data);
+                                    }
                                 } else {
-                                    pass_turn(ctx, data);
+                                    pass_turn(ctx, data)
                                 }
-    
+        
                             }
                         }
 
@@ -1147,12 +1239,18 @@ impl Widget<AppState> for CanvasWidget {
                                 println!("newly won player = {:?}", newly_won_player);
 
                                 if newly_won_player.is_some() {
-                                    data.in_game = false;
+                                    // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
                                     data.newly_won_player = newly_won_player;
-                                    data.display_victory_banner = true;
+                                    if !data.advnset_ranked_winner {
+                                        data.display_victory_banner = true;
+                                        data.in_game = false;
+                                    } else {
+                                        pass_turn(ctx, data);
+                                    }
                                 } else {
                                     // do nothing
                                 }
+
                             }
 
                         // Swapping with an opponent's piece in the destination triangle
