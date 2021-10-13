@@ -652,7 +652,7 @@ struct AppState {
     advnset_forced_move_if_available: bool,
     advnset_only_enter_own_dest: bool,
     colored_circle_text: ArcStr,
-    num_consecutive_passes: usize,
+    num_consecutive_passes: i32,
     display_draw_banner: bool,
 }
 
@@ -1141,6 +1141,8 @@ impl Widget<AppState> for CanvasWidget {
 
                             self.num_moves_made_so_far += 1;
 
+                            data.num_consecutive_passes = 0;
+
                             let newly_won_player = self.check_if_won(ctx, data);
 
                             if newly_won_player.is_some() {
@@ -1188,10 +1190,12 @@ impl Widget<AppState> for CanvasWidget {
 
                                 data.last_hopper = None;
 
-                                let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
+                                let _boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
                     
                                 self.num_moves_made_so_far += 1;
     
+                                data.num_consecutive_passes = 0;
+
                                 let newly_won_player = self.check_if_won(ctx, data);
     
                                 if newly_won_player.is_some() {
@@ -1239,6 +1243,8 @@ impl Widget<AppState> for CanvasWidget {
                                 data.last_hopper = Some(data.pieces[piece_idx]);    
 
                                 self.num_moves_made_so_far += 1;
+
+                                data.num_consecutive_passes = -1;
 
                                 println!("Got here");
 
@@ -1293,6 +1299,8 @@ impl Widget<AppState> for CanvasWidget {
                                 let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
                     
                                 self.num_moves_made_so_far += 1;
+
+                                data.num_consecutive_passes = 0;
     
                                 let newly_won_player = self.check_if_won(ctx, data);
     
@@ -2156,13 +2164,15 @@ impl MainWidget<AppState> {
                     )
                     .with_child(Flex::row()
                         .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
+                            if data.in_game {
                                 data.num_consecutive_passes += 1;
-                                if data.num_consecutive_passes == data.num_players.unwrap() - data.players_that_have_won.len() {
-                                    data.in_game = false;
-                                    data.display_draw_banner = true;
-                                } else {
-                                    pass_turn(ctx, data);  
-                                }                           
+                                    if data.num_consecutive_passes == (data.num_players.unwrap() - data.players_that_have_won.len()).try_into().unwrap() {
+                                        data.in_game = false;
+                                        data.display_draw_banner = true;
+                                    } else {
+                                        pass_turn(ctx, data);  
+                                    }            
+                                }               
                             })
                         )
                     )
