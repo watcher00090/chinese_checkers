@@ -1727,6 +1727,7 @@ impl MainWidget<AppState> {
 
                                 data.players_that_have_won.clear();
                                 data.last_hopper = None;
+                                data.num_consecutive_passes = 0;
         
                                 ctx.request_paint();
                             })
@@ -2116,9 +2117,10 @@ impl MainWidget<AppState> {
                         , 1.0)
                     )
                     .with_child(Flex::row()
-                        .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
-                                if data.whose_turn.is_none() { return format!(""); }
-                                else if data.display_victory_banner {
+                        .with_child(Label::<AppState>::dynamic(|data: &AppState, _: &Env| { 
+                                if data.display_draw_banner { 
+                                    return format!("Draw!"); 
+                                } else if data.display_victory_banner {
                                     return format!("Player {} has won the game!", data.newly_won_player.unwrap() + 1);
                                 } else {
                                     return format!("Player {} \u{fe59}", data.whose_turn.unwrap() + 1);
@@ -2128,9 +2130,10 @@ impl MainWidget<AppState> {
                         .with_child(
                             WidgetExt::with_id(
                                 druid::widget::ControllerHost::new(
-                                    ColorChangeableLabel::ColorChangeableLabel::<AppState>::new(|data: &AppState, _: &Env| { 
-                                        if data.whose_turn.is_none() { return format!(""); }
-                                        else if data.display_victory_banner {
+                                    ColorChangeableLabel::ColorChangeableLabel::<AppState>::dynamic(|data: &AppState, _: &Env| { 
+                                        if data.display_draw_banner {
+                                            return format!("");
+                                        } else if data.display_victory_banner {
                                             return format!("");
                                         } else {
                                             return format!("\u{2B24}");
@@ -2140,9 +2143,10 @@ impl MainWidget<AppState> {
                                 , ChangeLabelColorController{}), 
                             widget_id.unwrap())
                         )
-                        .with_child(Label::<AppState>::new(|data: &AppState, _: &Env| { 
-                            if data.whose_turn.is_none() { return format!(""); }
-                            else if data.display_victory_banner {
+                        .with_child(Label::<AppState>::dynamic(|data: &AppState, _: &Env| { 
+                            if data.display_draw_banner { 
+                                return format!(""); 
+                            } else if data.display_victory_banner {
                                 return format!("");
                             } else {
                                 return format!("\u{fe5a} to move");
