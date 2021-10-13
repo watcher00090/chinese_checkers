@@ -1,3 +1,5 @@
+#![feature(mutex_unlock)]
+
 use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, RawLabel, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
@@ -23,6 +25,7 @@ use crate::lazy_static::__Deref;
 
 use druid::{Point, Rect, FontDescriptor, Color, Selector, Widget, Data, Lens, WindowDesc, EventCtx, DelegateCtx, Event, Env, LayoutCtx, BoxConstraints, LifeCycle, LifeCycleCtx, Size, PaintCtx, UpdateCtx, WidgetId, WidgetExt};
 use druid::widget::prelude::*;
+
 use std::sync::{Arc, Mutex, MutexGuard};
 use druid::kurbo::{Circle};
 use druid::piet::{FontFamily, FontWeight};
@@ -99,6 +102,8 @@ lazy_static! {
     static ref DIALOG_POPUP_BUTTONS_CONTAINER_PADDING : (f64, f64) = (5.0, 10.0);
     static ref PUBLIC_KEY  : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
     static ref PRIVATE_KEY : OnceCell<std::vec::Vec<u8>> = OnceCell::new();
+
+    static ref main_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(<Mutex<Option<WindowId>>>::new(None));
 
     static ref colored_circle_label_widget_id : Arc::<Mutex::<Option<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
 
@@ -929,6 +934,78 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
         }
         return Some(event_copy);
     }
+
+    fn window_removed(
+        &mut self,
+        id: WindowId,
+        data: &mut AppState,
+        env: &Env,
+        ctx: &mut DelegateCtx<'_>
+    ) {
+        println!("Closing the main application window....");
+
+        let local_main_window_id_mutex_wrapper = (*main_window_id).lock();
+        if local_main_window_id_mutex_wrapper.is_ok() {
+            println!("Got to A");
+            let local_main_window_id_mutex = local_main_window_id_mutex_wrapper.unwrap();
+            let local_main_window_id_option : Option<WindowId> = (*local_main_window_id_mutex).clone();
+            Mutex::unlock(local_main_window_id_mutex);
+            if local_main_window_id_option.is_some() {
+
+                println!("Got to B");
+
+                let local_main_window_id = local_main_window_id_option.unwrap();
+                if id == local_main_window_id {
+
+                    println!("Got to C");
+                    // Close all popup windows
+                    let popup_window_id_mutex_wrapper = (*popup_window_id).lock();
+                    if popup_window_id_mutex_wrapper.is_ok() {
+                        let popup_window_id_mutex = popup_window_id_mutex_wrapper.unwrap();
+                        let popup_window_id_option = (*popup_window_id_mutex).clone();
+                        Mutex::unlock(popup_window_id_mutex);
+                        if popup_window_id_option.is_some() {
+                            println!("Got to D");
+                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
+                        }
+                    }   
+
+                    // Close the player won popup window
+                    let player_won_window_id_mutex_wrapper = (*player_won_window_id).lock();
+                    if player_won_window_id_mutex_wrapper.is_ok() {
+                        println!("Got to E");
+                        let player_won_window_id_mutex = player_won_window_id_mutex_wrapper.unwrap();
+                        let player_won_window_id_option = (*player_won_window_id_mutex).clone();
+                        Mutex::unlock(player_won_window_id_mutex);
+                        if player_won_window_id_option.is_some() {
+                            println!("Got to F");
+                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(player_won_window_id_option.unwrap())));
+                        }
+                    }
+                }
+
+            }
+        }
+
+
+        // if id == local_main_window_id {
+        //     // Close all popup windows
+        //     let popup_window_id_mutex = (*popup_window_id).lock().unwrap();
+        //     let popup_window_id_option = (*popup_window_id_mutex).clone();
+            
+        //     if popup_window_id_option.is_some() {
+        //         ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
+        //     }
+
+        //     // Close the player won popup window
+        //     let player_won_window_id_mutex = (*player_won_window_id).lock().unwrap();
+        //     let player_won_window_id_option = (*player_won_window_id_mutex).clone();
+            
+        //     if player_won_window_id_option.is_some() {
+        //         ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(player_won_window_id_option.unwrap())));
+        //     }
+        // }
+    }
         
     fn command(
         &mut self,
@@ -943,14 +1020,6 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
     
         
     fn window_added(
-        &mut self,
-        id: WindowId,
-        data: &mut AppState,
-        env: &Env,
-        ctx: &mut DelegateCtx<'_>
-    ) {}
-    
-    fn window_removed(
         &mut self,
         id: WindowId,
         data: &mut AppState,
@@ -2138,7 +2207,9 @@ impl MainWidget<AppState> {
                     )
                     .with_child(Flex::row()
                         .with_child(Label::<AppState>::dynamic(|data: &AppState, _: &Env| { 
-                                if data.display_game_over_banner {
+                                if data.whose_turn == None {
+                                    return format!("");
+                                } else if data.display_game_over_banner {
                                     return format!("The Game has Ended!");
                                 } else if data.display_draw_banner { 
                                     return format!("Draw!"); 
@@ -2153,7 +2224,9 @@ impl MainWidget<AppState> {
                             WidgetExt::with_id(
                                 druid::widget::ControllerHost::new(
                                     ColorChangeableLabel::ColorChangeableLabel::<AppState>::dynamic(|data: &AppState, _: &Env| { 
-                                        if data.display_draw_banner {
+                                        if data.whose_turn == None {
+                                            return format!("");
+                                        } else if data.display_draw_banner {
                                             return format!("");
                                         } else if data.display_victory_banner {
                                             return format!("");
@@ -2166,7 +2239,9 @@ impl MainWidget<AppState> {
                             widget_id.unwrap())
                         )
                         .with_child(Label::<AppState>::dynamic(|data: &AppState, _: &Env| { 
-                            if data.display_draw_banner { 
+                            if data.whose_turn == None {
+                                return format!("");
+                            } else if data.display_draw_banner { 
                                 return format!(""); 
                             } else if data.display_victory_banner {
                                 return format!("");
@@ -2700,10 +2775,15 @@ fn create_board() -> im::Vector<Hextile> {
 // Now both players have each others ip addresses as well as the ability to securely send messages to them
 
 fn main() {
-    let main_window = WindowDesc::new(MainWidget::<AppState>::new())
+    let mut main_window = WindowDesc::new(MainWidget::<AppState>::new())
                     .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
                     .resizable(true)
                     .title("Chinese Checkers");
+    let local_main_window_id = WindowId::next();
+    main_window.id = local_main_window_id;
+    let mut global_main_window_id_mutex = (*main_window_id).lock().unwrap();
+    (*global_main_window_id_mutex) = Some(local_main_window_id);
+    Mutex::unlock(global_main_window_id_mutex);
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
         in_game: false, display_victory_banner: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
