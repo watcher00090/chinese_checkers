@@ -156,6 +156,7 @@ lazy_static! {
         colored_circle_text: Arc::from(CIRCLE_STR),  
         num_consecutive_passes: 0,
         display_draw_banner: false,
+        display_game_over_banner: false
     };
 }
 
@@ -654,6 +655,7 @@ struct AppState {
     colored_circle_text: ArcStr,
     num_consecutive_passes: i32,
     display_draw_banner: bool,
+    display_game_over_banner: bool
 }
 
 struct MainWidget<T: Data> {
@@ -1045,12 +1047,21 @@ fn indicate_winner(data: &mut AppState, ctx: &mut EventCtx, newly_won_player: Op
 
     if data.players_that_have_won.len() <= data.num_players.unwrap() - 2 {
         pass_turn(ctx, data);
+    } else { // All places have been assigned
+        let k = data.num_players.unwrap();
+        let mut tot = k * (k + 1) / 2;
+        for i in 0..data.players_that_have_won.len() {
+            tot -= data.players_that_have_won[i]+1;
+        }
+        data.players_that_have_won.push_back(tot-1);
+        data.in_game = false;
+        data.display_game_over_banner = true;
     }
 }
 
 impl Widget<AppState> for CanvasWidget {
 
-    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
+    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
         match event {
             Event::MouseDown(mouse_event) => {
                 println!("in event::MouseDown...");
@@ -1714,6 +1725,7 @@ impl MainWidget<AppState> {
                                                     
                                 data.display_draw_banner = false;
                                 data.display_victory_banner = false;
+                                data.display_game_over_banner = false;
                                 data.board.clear();
                                 data.pieces.clear();
         
@@ -2126,7 +2138,9 @@ impl MainWidget<AppState> {
                     )
                     .with_child(Flex::row()
                         .with_child(Label::<AppState>::dynamic(|data: &AppState, _: &Env| { 
-                                if data.display_draw_banner { 
+                                if data.display_game_over_banner {
+                                    return format!("The Game has Ended!");
+                                } else if data.display_draw_banner { 
                                     return format!("Draw!"); 
                                 } else if data.display_victory_banner {
                                     return format!("Player {} has won the game!", data.newly_won_player.unwrap() + 1);
@@ -2166,19 +2180,18 @@ impl MainWidget<AppState> {
                         .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
                             if data.in_game {
                                 data.num_consecutive_passes += 1;
-                                    if data.num_consecutive_passes == (data.num_players.unwrap() - data.players_that_have_won.len()).try_into().unwrap() {
-                                        data.in_game = false;
-                                        data.display_draw_banner = true;
-                                    } else {
-                                        pass_turn(ctx, data);  
-                                    }            
-                                }               
-                            })
+                                if data.num_consecutive_passes == (data.num_players.unwrap() - data.players_that_have_won.len()).try_into().unwrap() && data.advnset_three_identical_equals_draw {
+                                    data.in_game = false;
+                                    data.display_draw_banner = true;
+                                } else {
+                                    pass_turn(ctx, data);  
+                                }            
+                            }})
                         )
                     )
                     .with_child(SizedBox::new(CanvasWidget {num_moves_made_so_far: 0, piece_is_being_dragged: false, piece_being_dragged: None, hextile_over_which_mouse_event_happened: None}))
                     .with_child(
-                        Either::new(|data: &AppState, _env: &Env| {return data.players_that_have_won.len() > 0},
+                        Either::new(|data: &AppState, _env: &Env| {return data.advnset_ranked_winner && data.players_that_have_won.len() > 0},
                             Flex::column()
                             .with_child(
                                 Label::new("Places:")
@@ -2188,11 +2201,10 @@ impl MainWidget<AppState> {
                                 WidgetExt::with_id(    
                                     druid::widget::ControllerHost::new(    
                                         ColorChangeableLabel::ColorChangeableLabel::new(|data: &AppState, _env: &_| {
-                                            //if data.players_that_have_won.len() < 1 {
-                                            //    return format!("");
-                                            //}
-                                            //return format!("Player {}", data.players_that_have_won[0]);
-                                            return format!("Player 0");
+                                            if data.players_that_have_won.len() < 1 {
+                                               return format!("");
+                                            }
+                                            return format!("Player {}", data.players_that_have_won[0]+1);
                                         }),
                                         ChangePlacesLabelColorController{}
                                     ),  local_first_place_player_label_widget_id.unwrap()
@@ -2205,7 +2217,7 @@ impl MainWidget<AppState> {
                                             if data.players_that_have_won.len() < 2 {
                                                 return format!("");
                                             }
-                                            return format!("Player {}", data.players_that_have_won[1]);
+                                            return format!("Player {}", data.players_that_have_won[1]+1);
                                         }),
                                         ChangePlacesLabelColorController{}
                                     ), local_second_place_player_label_widget_id.unwrap()
@@ -2218,7 +2230,7 @@ impl MainWidget<AppState> {
                                             if data.players_that_have_won.len() < 3 {
                                                 return format!("");
                                             }
-                                            return format!("Player {}", data.players_that_have_won[2]);
+                                            return format!("Player {}", data.players_that_have_won[2]+1);
                                         }), 
                                         ChangePlacesLabelColorController{}
                                     ), local_third_place_player_label_widget_id.unwrap()
@@ -2231,7 +2243,7 @@ impl MainWidget<AppState> {
                                             if data.players_that_have_won.len() < 4 {
                                                 return format!("");
                                             }
-                                            format!("Player {}", data.players_that_have_won[3])
+                                            format!("Player {}", data.players_that_have_won[3]+1)
                                         }), 
                                         ChangePlacesLabelColorController{}      
                                     ), local_fourth_place_player_label_widget_id.unwrap()
@@ -2244,7 +2256,7 @@ impl MainWidget<AppState> {
                                             if data.players_that_have_won.len() < 5 {
                                                 return format!("");
                                             }
-                                            format!("Player {}", data.players_that_have_won[4])
+                                            format!("Player {}", data.players_that_have_won[4]+1)
                                         }), ChangePlacesLabelColorController{}
                                     ), local_fifth_place_player_label_widget_id.unwrap()
                                 )
@@ -2256,7 +2268,7 @@ impl MainWidget<AppState> {
                                             if data.players_that_have_won.len() < 6 {
                                                 return format!("");
                                             }
-                                            format!("Player {}", data.players_that_have_won[5])
+                                            format!("Player {}", data.players_that_have_won[5]+1)
                                         }), ChangePlacesLabelColorController{}
                                     ), local_sixth_place_player_label_widget_id.unwrap()
                                 )
@@ -2715,7 +2727,8 @@ fn main() {
         advnset_only_enter_own_dest: false,
         colored_circle_text: Arc::from(CIRCLE_STR), 
         num_consecutive_passes: 0,
-        display_draw_banner: false
+        display_draw_banner: false,
+        display_game_over_banner: false
     };
 
     AppLauncher::with_window(main_window)
