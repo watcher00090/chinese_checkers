@@ -980,6 +980,74 @@ fn pass_turn(ctx: &mut EventCtx, data: &mut AppState) {
     
 }
 
+fn indicate_winner(data: &mut AppState, ctx: &mut EventCtx, newly_won_player: Option<usize>) {
+    let window_pos : Point = ctx.window().get_position();
+    let window_size : Size =  ctx.window().get_size();
+    let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
+
+    let mut place_str : &'static str = "1st";
+    match data.players_that_have_won.len() {
+        2 => {
+            place_str = "2nd"
+        }, 
+        3 => {
+            place_str = "3rd"
+        },
+        4 => {
+            place_str = "4th"
+        },
+        5 => {
+            place_str = "5th"
+        },
+        6 => {
+            place_str = "6th"
+        },
+        _ => {}
+    }
+    
+    let label_1 : Label<AppState> = Label::new(format!("Player {} (", newly_won_player.unwrap() + 1));
+    
+    let label_2 : Label<AppState> = Label::new(format!("\u{2B24}"))
+        .with_text_color(data.player_piece_colors[data.newly_won_player.unwrap()].to_druid_color().clone());
+
+    let label_3 : Label<AppState> = Label::new(format!(") has won {place} place!", place = place_str));
+
+    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, 
+        Flex::column()
+        .main_axis_alignment(MainAxisAlignment::Center)
+        .with_child(
+            Flex::row()
+            .main_axis_alignment(MainAxisAlignment::Center)
+            .with_flex_spacer(1.0)
+            .with_child(
+                label_1
+            )
+            .with_child(
+                label_2
+            )
+            .with_child(
+                label_3
+            )
+            .with_flex_spacer(1.0)
+        )
+    ))
+    .resizable(false)
+    .title("Victory!")
+    .set_position(dialog_popup_position)
+    .window_size(Size::new(CLOSE_DIALOG_WIDTH, CLOSE_DIALOG_HEIGHT));
+
+    window_desc.id = WindowId::next();
+
+    let mut player_won_window_id_mutex = (*player_won_window_id).lock().unwrap();
+    (*player_won_window_id_mutex) = Some(window_desc.id);
+    
+    ctx.new_window(window_desc);
+
+    if data.players_that_have_won.len() <= data.num_players.unwrap() - 2 {
+        pass_turn(ctx, data);
+    }
+}
+
 impl Widget<AppState> for CanvasWidget {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
@@ -1082,82 +1150,7 @@ impl Widget<AppState> for CanvasWidget {
                                     data.display_victory_banner = true;
                                     data.in_game = false;
                                 } else {
-
-                                    let window_pos : Point = ctx.window().get_position();
-                                    let window_size : Size =  ctx.window().get_size();
-                                    let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
-
-                                    let mut place_str : &'static str = "1st";
-                                    match data.players_that_have_won.len() {
-                                        2 => {
-                                            place_str = "2nd"
-                                        }, 
-                                        3 => {
-                                            place_str = "3rd"
-                                        },
-                                        4 => {
-                                            place_str = "4th"
-                                        },
-                                        5 => {
-                                            place_str = "5th"
-                                        },
-                                        6 => {
-                                            place_str = "6th"
-                                        },
-                                        _ => {}
-                                    }
-
-                                    // let label_str = format!("Player {num} (color_str) has won {place} place!", num = newly_won_player.unwrap() + 1, color_str = color_str, place = place_str);
-
-                                    // let label_1 : Label<AppState> = Label::new(format!("Player {} \u{fe59}", newly_won_player.unwrap() + 1));
-                                    
-                                    // let label_2 : Label<AppState> = Label::new(format!("\u{2B24}"))
-                                    //     .with_text_color(data.player_piece_colors[data.newly_won_player.unwrap()].to_druid_color().clone());
-
-                                    // let label_3 : Label<AppState> = Label::new(format!("\u{fe5a} has won {place} place!", place = place_str));
-                                    
-                                    let label_1 : Label<AppState> = Label::new(format!("Player {} (", newly_won_player.unwrap() + 1));
-                                    
-                                    let label_2 : Label<AppState> = Label::new(format!("\u{2B24}"))
-                                        .with_text_color(data.player_piece_colors[data.newly_won_player.unwrap()].to_druid_color().clone());
-
-                                    let label_3 : Label<AppState> = Label::new(format!(") has won {place} place!", place = place_str));
-                                
-                                    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, 
-                                        Flex::column()
-                                        .main_axis_alignment(MainAxisAlignment::Center)
-                                        .with_child(
-                                            Flex::row()
-                                            .main_axis_alignment(MainAxisAlignment::Center)
-                                            .with_flex_spacer(1.0)
-                                            .with_child(
-                                                label_1
-                                            )
-                                            .with_child(
-                                                label_2
-                                            )
-                                            .with_child(
-                                                label_3
-                                            )
-                                            .with_flex_spacer(1.0)
-                                        )
-                                    ))
-                                    .resizable(false)
-                                    .title("Victory!")
-                                    .set_position(dialog_popup_position)
-                                    .window_size(Size::new(CLOSE_DIALOG_WIDTH, CLOSE_DIALOG_HEIGHT));
-
-                                    window_desc.id = WindowId::next();
-
-                                    let mut player_won_window_id_mutex = (*player_won_window_id).lock().unwrap();
-                                    (*player_won_window_id_mutex) = Some(window_desc.id);
-                                    
-                                    ctx.new_window(window_desc);
-
-                                    if data.players_that_have_won.len() <= data.num_players.unwrap() - 2 {
-                                        pass_turn(ctx, data);
-                                    }
-
+                                    indicate_winner(data, ctx, newly_won_player);
                                 }
                             } else {
                                 pass_turn(ctx, data)
@@ -1208,7 +1201,7 @@ impl Widget<AppState> for CanvasWidget {
                                         data.display_victory_banner = true;
                                         data.in_game = false;
                                     } else {
-                                        pass_turn(ctx, data);
+                                        indicate_winner(data, ctx, newly_won_player);
                                     }
                                 } else {
                                     pass_turn(ctx, data)
@@ -1260,7 +1253,7 @@ impl Widget<AppState> for CanvasWidget {
                                         data.display_victory_banner = true;
                                         data.in_game = false;
                                     } else {
-                                        pass_turn(ctx, data);
+                                        indicate_winner(data, ctx, newly_won_player);
                                     }
                                 }
                             }
@@ -1710,7 +1703,8 @@ impl MainWidget<AppState> {
                                 let player_count = data.number_of_players_selected;
                                 data.num_players = Some(player_count);
                                 println!("Attempting to start a new game with {} players...", player_count);
-                                                        
+                                                    
+                                data.display_draw_banner = false;
                                 data.display_victory_banner = false;
                                 data.board.clear();
                                 data.pieces.clear();
@@ -1730,6 +1724,9 @@ impl MainWidget<AppState> {
                                 data.player_piece_colors = im::vector::Vector::from(player_piece_colors.clone());
 
                                 data.whose_turn = Some(0);
+
+                                data.players_that_have_won.clear();
+                                data.last_hopper = None;
         
                                 ctx.request_paint();
                             })
