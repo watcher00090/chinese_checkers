@@ -107,7 +107,8 @@ lazy_static! {
 
     static ref colored_circle_label_widget_id : Arc::<Mutex::<Option<WidgetId>>> = Arc::new(Mutex::<Option<WidgetId>>::new(None));
 
-    static ref popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
+    static ref end_game_popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
+    static ref help_popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
     static ref player_won_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
 
     static ref winners_labels_widget_ids : [Arc::<Mutex::<Option::<WidgetId>>>; 6] = [
@@ -230,6 +231,9 @@ static NO_PLAYER : usize = usize::MAX;
 
 static CLOSE_DIALOG_WIDTH : f64 = 300f64;
 static CLOSE_DIALOG_HEIGHT: f64 = 150f64;
+
+static HELP_DIALOG_WIDTH  : f64 = 400f64;
+static HELP_DIALOG_HEIGHT : f64 = 200f64; 
 
 // Furthest points of the board
 // let top : Hextile = Hextile{y_hex : 4, x_hex : 4, z_hex : -8, c : [0.0,0.0,0.0,0.0], p : None};
@@ -912,19 +916,24 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
             Event::KeyDown(key_event) => {
                 if key_event.code == druid::Code::Escape {
                     // Close the End game popup window
-                    let popup_window_id_mutex = (*popup_window_id).lock().unwrap();
-                    let popup_window_id_option = (*popup_window_id_mutex).clone();
-                    
-                    if popup_window_id_option.is_some() {
-                        ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
+                    let end_game_popup_window_id_mutex = (*end_game_popup_window_id).lock().unwrap();
+                    let end_game_popup_window_id_option = (*end_game_popup_window_id_mutex).clone();
+                    if end_game_popup_window_id_option.is_some() {
+                        ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(end_game_popup_window_id_option.unwrap())));
                     }
 
                     // Close the player won popup window
                     let player_won_window_id_mutex = (*player_won_window_id).lock().unwrap();
                     let player_won_window_id_option = (*player_won_window_id_mutex).clone();
-                    
                     if player_won_window_id_option.is_some() {
                         ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(player_won_window_id_option.unwrap())));
+                    }
+
+                    // Close the help popup window
+                    let help_popup_window_id_mutex = (*help_popup_window_id).lock().unwrap();
+                    let help_popup_window_id_option = (*help_popup_window_id_mutex).clone();
+                    if help_popup_window_id_option.is_some() {
+                        ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(help_popup_window_id_option.unwrap())));
                     }
                 }
             },
@@ -940,69 +949,88 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
         env: &Env,
         ctx: &mut DelegateCtx<'_>
     ) {
-        println!("Closing the main application window....");
-
         let local_main_window_id_mutex_wrapper = (*main_window_id).lock();
         if local_main_window_id_mutex_wrapper.is_ok() {
-            println!("Got to A");
             let local_main_window_id_mutex = local_main_window_id_mutex_wrapper.unwrap();
             let local_main_window_id_option : Option<WindowId> = (*local_main_window_id_mutex).clone();
             Mutex::unlock(local_main_window_id_mutex);
             if local_main_window_id_option.is_some() {
-
-                println!("Got to B");
-
                 let local_main_window_id = local_main_window_id_option.unwrap();
                 if id == local_main_window_id {
-
-                    println!("Got to C");
                     // Close all popup windows
-                    let popup_window_id_mutex_wrapper = (*popup_window_id).lock();
-                    if popup_window_id_mutex_wrapper.is_ok() {
-                        let popup_window_id_mutex = popup_window_id_mutex_wrapper.unwrap();
-                        let popup_window_id_option = (*popup_window_id_mutex).clone();
-                        Mutex::unlock(popup_window_id_mutex);
-                        if popup_window_id_option.is_some() {
-                            println!("Got to D");
-                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
+
+                    // Close the end game popup window
+                    let end_game_popup_window_id_mutex_wrapper = (*end_game_popup_window_id).lock();
+                    if end_game_popup_window_id_mutex_wrapper.is_ok() {
+                        let end_game_popup_window_id_mutex = end_game_popup_window_id_mutex_wrapper.unwrap();
+                        let end_game_popup_window_id_option = (*end_game_popup_window_id_mutex).clone();
+                        Mutex::unlock(end_game_popup_window_id_mutex);
+                        if end_game_popup_window_id_option.is_some() {
+                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(end_game_popup_window_id_option.unwrap())));
                         }
                     }   
 
                     // Close the player won popup window
                     let player_won_window_id_mutex_wrapper = (*player_won_window_id).lock();
                     if player_won_window_id_mutex_wrapper.is_ok() {
-                        println!("Got to E");
                         let player_won_window_id_mutex = player_won_window_id_mutex_wrapper.unwrap();
                         let player_won_window_id_option = (*player_won_window_id_mutex).clone();
                         Mutex::unlock(player_won_window_id_mutex);
                         if player_won_window_id_option.is_some() {
-                            println!("Got to F");
                             ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(player_won_window_id_option.unwrap())));
                         }
                     }
-                }
 
+                    // Close the help popup window
+                    let help_popup_window_id_mutex_wrapper = (*help_popup_window_id).lock();
+                    if help_popup_window_id_mutex_wrapper.is_ok() {
+                        let help_popup_window_id_mutex = help_popup_window_id_mutex_wrapper.unwrap();
+                        let help_popup_window_id_option = (*help_popup_window_id_mutex).clone();
+                        Mutex::unlock(help_popup_window_id_mutex);
+                        if help_popup_window_id_option.is_some() {
+                            ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(help_popup_window_id_option.unwrap())));
+                        }
+                    }
+                }
             }
         }
 
+        let end_game_popup_window_id_mutex_wrapper = (*end_game_popup_window_id).lock();
+        if end_game_popup_window_id_mutex_wrapper.is_ok() {
+            let mut end_game_popup_window_id_mutex = end_game_popup_window_id_mutex_wrapper.unwrap();
+            let end_game_popup_window_id_option : Option<WindowId> = (*end_game_popup_window_id_mutex).clone();
+            if end_game_popup_window_id_option.is_some() && id == end_game_popup_window_id_option.unwrap() {  
+                (*end_game_popup_window_id_mutex) = None;
+                Mutex::unlock(end_game_popup_window_id_mutex);
+            } else {
+                Mutex::unlock(end_game_popup_window_id_mutex);
+            }
+        }
 
-        // if id == local_main_window_id {
-        //     // Close all popup windows
-        //     let popup_window_id_mutex = (*popup_window_id).lock().unwrap();
-        //     let popup_window_id_option = (*popup_window_id_mutex).clone();
-            
-        //     if popup_window_id_option.is_some() {
-        //         ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(popup_window_id_option.unwrap())));
-        //     }
+        let help_popup_window_id_mutex_wrapper = (*help_popup_window_id).lock();
+        if help_popup_window_id_mutex_wrapper.is_ok() {
+            let mut help_popup_window_id_mutex = help_popup_window_id_mutex_wrapper.unwrap();
+            let help_popup_window_id_option : Option<WindowId> = (*help_popup_window_id_mutex).clone();
+            if help_popup_window_id_option.is_some() && id == help_popup_window_id_option.unwrap() {  
+                (*help_popup_window_id_mutex) = None;
+                Mutex::unlock(help_popup_window_id_mutex);
+            } else {
+                Mutex::unlock(help_popup_window_id_mutex);
+            }
+        }
 
-        //     // Close the player won popup window
-        //     let player_won_window_id_mutex = (*player_won_window_id).lock().unwrap();
-        //     let player_won_window_id_option = (*player_won_window_id_mutex).clone();
-            
-        //     if player_won_window_id_option.is_some() {
-        //         ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(player_won_window_id_option.unwrap())));
-        //     }
-        // }
+        let player_won_window_id_mutex_wrapper = (*player_won_window_id).lock();
+        if player_won_window_id_mutex_wrapper.is_ok() {
+            let mut player_won_window_id_mutex = player_won_window_id_mutex_wrapper.unwrap();
+            let player_won_window_id_option : Option<WindowId> = (*player_won_window_id_mutex).clone();
+            if player_won_window_id_option.is_some() && id == player_won_window_id_option.unwrap() {  
+                (*player_won_window_id_mutex) = None;
+                Mutex::unlock(player_won_window_id_mutex);
+            } else {
+                Mutex::unlock(player_won_window_id_mutex);
+            }
+        }
+
     }
         
     fn command(
@@ -2158,23 +2186,30 @@ impl MainWidget<AppState> {
                                 Container::new(
                                     Align::centered(
                                         Button::new("Quit").on_click(|ctx, _data: &mut AppState, _env| {
-
-                                            let window_pos : Point = ctx.window().get_position();
-                                            let window_size : Size =  ctx.window().get_size();
-                                            let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
-
-                                            let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, CloseDialogWidget::<AppState>::make()))
-                                            .resizable(false)
-                                            .title("End Current Game?")
-                                            .set_position(dialog_popup_position)
-                                            .window_size(Size::new(CLOSE_DIALOG_WIDTH, CLOSE_DIALOG_HEIGHT));
-
-                                            window_desc.id = WindowId::next();
-
-                                            let mut popup_window_id_mutex = (*popup_window_id).lock().unwrap();
-                                            (*popup_window_id_mutex) = Some(window_desc.id);
-                                            
-                                            ctx.new_window(window_desc);
+                                            let end_game_popup_window_id_mutex_wrapper = (*end_game_popup_window_id).lock();
+                                            if end_game_popup_window_id_mutex_wrapper.is_ok() {
+                                                let end_game_popup_window_id_mutex = end_game_popup_window_id_mutex_wrapper.unwrap();
+                                                let end_game_popup_window_id_option = (*end_game_popup_window_id_mutex).clone();
+                                                Mutex::unlock(end_game_popup_window_id_mutex);
+                                                if end_game_popup_window_id_option.is_none() {
+                                                    let window_pos : Point = ctx.window().get_position();
+                                                    let window_size : Size =  ctx.window().get_size();
+                                                    let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
+        
+                                                    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, CloseDialogWidget::<AppState>::make()))
+                                                    .resizable(false)
+                                                    .title("End Current Game?")
+                                                    .set_position(dialog_popup_position)
+                                                    .window_size(Size::new(CLOSE_DIALOG_WIDTH, CLOSE_DIALOG_HEIGHT));
+        
+                                                    window_desc.id = WindowId::next();
+        
+                                                    let mut end_game_popup_window_id_mutex = (*end_game_popup_window_id).lock().unwrap();
+                                                    (*end_game_popup_window_id_mutex) = Some(window_desc.id);
+                                                    
+                                                    ctx.new_window(window_desc);
+                                                }
+                                            }
                                         })
                                     )
                                 )
@@ -2185,18 +2220,35 @@ impl MainWidget<AppState> {
                                 Container::new(
                                     Align::centered(
                                         Button::new("Help").on_click(|ctx: &mut EventCtx, _data: &mut AppState, _env| {
-                                            println!("Opening the help dialog...");
-                                            let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
-                                                let main = Flex::column()
-                                                .with_child(
-                                                    Label::new("Help")
-                                                );
-                                                return main;
-                                            }()).resizable(false)
-                                            .title("Help")
-                                            .window_size(Size::new(400f64, 200f64));
+                                            let help_popup_window_id_mutex_wrapper = (*help_popup_window_id).lock();
+                                            if help_popup_window_id_mutex_wrapper.is_ok() {
+                                                let help_popup_window_id_mutex = help_popup_window_id_mutex_wrapper.unwrap();
+                                                let help_popup_window_id_option = (*help_popup_window_id_mutex).clone();
+                                                Mutex::unlock(help_popup_window_id_mutex);
+                                                if help_popup_window_id_option.is_none() {
+                                                    println!("Opening the help dialog...");
 
-                                            ctx.new_window(window_desc);
+                                                    let window_pos : Point = ctx.window().get_position();
+                                                    let window_size : Size =  ctx.window().get_size();
+                                                    let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - HELP_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - HELP_DIALOG_HEIGHT / 2.0);
+        
+                                                    let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
+                                                        let main = Flex::column()
+                                                        .with_child(
+                                                            Label::new("Help")
+                                                        );
+                                                        return main;
+                                                    }()).resizable(false)
+                                                    .title("Help")
+                                                    .set_position(dialog_popup_position)
+                                                    .window_size(Size::new(HELP_DIALOG_WIDTH, HELP_DIALOG_HEIGHT));
+        
+                                                    let mut help_popup_window_id_mutex = (*help_popup_window_id).lock().unwrap();
+                                                    (*help_popup_window_id_mutex) = Some(window_desc.id);
+        
+                                                    ctx.new_window(window_desc);        
+                                                } // if there's already a popup help window, don't open another one
+                                            } 
                                         })
                                     )
                                 )    
@@ -2649,14 +2701,10 @@ impl CloseDialogWidget<AppState> {
 
 impl Widget<AppState> for CloseDialogWidget<AppState> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
-        println!("HERE!!!");
         match event {
             Event::WindowConnected => {
                 ctx.window().bring_to_front_and_focus();
             },
-            // Event::KeyDown(key) => {
-            //     print!("key = {:?}", key)
-            // },
             _ => {}
         }
 
