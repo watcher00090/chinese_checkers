@@ -153,7 +153,6 @@ lazy_static! {
         anti_spoiling_rule: AntiSpoilingRule::FilledDest,
         advnset_ranked_winner: false,
         advnset_all_pass_equals_draw: false,
-        advnset_three_identical_equals_draw: false,
         advnset_three_players_two_triangles: false,
         advnset_two_players_three_triangles: false,
         advnset_forced_move_if_available: false,
@@ -652,7 +651,6 @@ struct AppState {
     anti_spoiling_rule: AntiSpoilingRule,
     advnset_ranked_winner: bool,
     advnset_all_pass_equals_draw: bool,
-    advnset_three_identical_equals_draw: bool,
     advnset_three_players_two_triangles: bool,
     advnset_two_players_three_triangles: bool,
     advnset_forced_move_if_available: bool,
@@ -1134,7 +1132,7 @@ impl Widget<AppState> for CanvasWidget {
         match event {
             Event::MouseDown(mouse_event) => {
                 println!("in event::MouseDown...");
-                if self.is_within_a_hextile(data, mouse_event.pos) {
+                if self.is_within_a_hextile(data, mouse_event.pos) && data.in_game {
                     if self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.is_some() {
                         if data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()].player_num == data.whose_turn.unwrap() {
                             self.piece_being_dragged = Some(data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()]);
@@ -2255,9 +2253,15 @@ impl MainWidget<AppState> {
                         .with_child(Button::new("End Turn").on_click(|ctx, data: &mut AppState, _env| {
                             if data.in_game {
                                 data.num_consecutive_passes += 1;
-                                if data.num_consecutive_passes == (data.num_players.unwrap() - data.players_that_have_won.len()).try_into().unwrap() && data.advnset_three_identical_equals_draw {
+                                let mut incr : usize = 0;
+                                if data.num_consecutive_passes > 0 {
+                                    incr = data.num_consecutive_passes as usize;
+                                }
+                                // println!("data.num_consecutive_passes = {passes}, num_players = {players}, data.advnset_three_equals_draw = {set}", passes = data.num_consecutive_passes, players = data.num_players.unwrap(), set = data.advnset_all_pass_equals_draw);
+                                if ((data.num_consecutive_passes < 0 && data.players_that_have_won.len() == data.num_players.unwrap() + 1) || (data.num_consecutive_passes >= 0 && data.players_that_have_won.len() + incr == data.num_players.unwrap())) && data.advnset_all_pass_equals_draw {
                                     data.in_game = false;
                                     data.display_draw_banner = true;
+                                    println!("Currently displaying draw banner....")
                                 } else {
                                     pass_turn(ctx, data);  
                                 }            
@@ -2800,7 +2804,6 @@ fn main() {
         anti_spoiling_rule: AntiSpoilingRule::FilledDest,
         advnset_ranked_winner: false,
         advnset_all_pass_equals_draw: false,
-        advnset_three_identical_equals_draw: false,
         advnset_three_players_two_triangles: false,
         advnset_two_players_three_triangles: false,
         advnset_forced_move_if_available: false,
