@@ -2250,7 +2250,7 @@ impl MainWidget<AppState> {
                                                     let window_desc : WindowDesc<AppState> = WindowDesc::new(|| -> druid::widget::Flex<AppState> {
                                                         let main = Flex::column()
                                                         .with_child(
-                                                            Label::new("Help")
+                                                            Label::new("Gameplay proceeds clockwise.")
                                                         );
                                                         return main;
                                                     }()).resizable(false)
