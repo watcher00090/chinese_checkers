@@ -1775,83 +1775,98 @@ impl MainWidget<AppState> {
                                 Label::new("New Game").with_font(font)
                             )
                         )
-                        .with_child(Flex::row()
-                            .with_child(Label::new(|data: &AppState, _env: &Env| format!("Number of Players: {}", data.number_of_players_selected)))
-                            .with_child(
-                                Button::new("Set Player Count")
-                                .on_click(|ctx, data: &mut AppState, _env| {
-                                    let item2 = MenuItem::<AppState>::new(LocalizedString::new("2")).on_activate(
-                                        |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| {
-                                            data.number_of_players_selected = 2;
-                                        }
-                                    );
-                                    let item3 = MenuItem::<AppState>::new(LocalizedString::new("3")).on_activate(
-                                        |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
-                                            data.number_of_players_selected = 3;
-                                        }
-                                    );
-                                    let item4 = MenuItem::<AppState>::new(LocalizedString::new("4")).on_activate(
-                                        |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
-                                            data.number_of_players_selected = 4;
-                                        }
-                                    );
-                                    let item6 = MenuItem::<AppState>::new(LocalizedString::new("6")).on_activate(
-                                        |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
-                                            data.number_of_players_selected = 6;
-                                        }
-                                    );
-                                    let new_game_context_menu = Menu::new("How Many Players?").entry(item2).entry(item3).entry(item4).entry(item6);
-                                    ctx.show_context_menu(new_game_context_menu, data.mouse_click_screen_coordinates.unwrap());
-                                })
+                        .with_child(
+                            Padding::new(padding_dp,
+                                WidgetExt::fix_width(
+                                    Flex::row()
+                                    .with_child(
+                                        Button::new("Set Player Count")
+                                        .on_click(|ctx, data: &mut AppState, _env| {
+                                            let item2 = MenuItem::<AppState>::new(LocalizedString::new("2")).on_activate(
+                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| {
+                                                    data.number_of_players_selected = 2;
+                                                }
+                                            );
+                                            let item3 = MenuItem::<AppState>::new(LocalizedString::new("3")).on_activate(
+                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
+                                                    data.number_of_players_selected = 3;
+                                                }
+                                            );
+                                            let item4 = MenuItem::<AppState>::new(LocalizedString::new("4")).on_activate(
+                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
+                                                    data.number_of_players_selected = 4;
+                                                }
+                                            );
+                                            let item6 = MenuItem::<AppState>::new(LocalizedString::new("6")).on_activate(
+                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
+                                                    data.number_of_players_selected = 6;
+                                                }
+                                            );
+                                            let new_game_context_menu = Menu::new("How Many Players?").entry(item2).entry(item3).entry(item4).entry(item6);
+                                            ctx.show_context_menu(new_game_context_menu, data.mouse_click_screen_coordinates.unwrap());
+                                        })
+                                    )
+                                    .with_flex_spacer(1.0)                                               
+                                    .with_child(Label::new(|data: &AppState, _env: &Env| format!("Number of Players: {}", data.number_of_players_selected)))
+                                    .with_flex_spacer(1.0)
+                                , 300.0)
                             )
                         )
                         .with_child(
-                            Button::new("Advanced Settings").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                                data.window_type = AppPage::AdvancedSettings;
-                            })
+                            Padding::new(padding_dp,
+                                WidgetExt::fix_width(
+                                    Button::new("Advanced Settings").on_click(|_ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                        data.window_type = AppPage::AdvancedSettings;
+                                    })
+                                , 300.0)
+                            )
                         )
                         .with_child(
-                            Button::new("Start Game").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                                data.window_type = AppPage::LocalGame;
+                            Padding::new((0.0, 10.0, 0.0, 20.0), 
+                                WidgetExt::fix_width(
+                                    Button::new("Start Game").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
+                                        data.window_type = AppPage::LocalGame;
 
-                                let player_count = data.number_of_players_selected;
-                                data.num_players = Some(player_count);
-                                println!("Attempting to start a new game with {} players...", player_count);
-                                                    
-                                data.display_draw_banner = false;
-                                data.display_victory_banner = false;
-                                data.display_game_over_banner = false;
-                                data.board.clear();
-                                data.pieces.clear();
-        
-                                let mut regions_to_players  = std::vec::Vec::new();
-                                let mut player_piece_colors = std::vec::Vec::new();
+                                        let player_count = data.number_of_players_selected;
+                                        data.num_players = Some(player_count);
+                                        println!("Attempting to start a new game with {} players...", player_count);
+                                                            
+                                        data.display_draw_banner = false;
+                                        data.display_victory_banner = false;
+                                        data.display_game_over_banner = false;
+                                        data.board.clear();
+                                        data.pieces.clear();
+                
+                                        let mut regions_to_players  = std::vec::Vec::new();
+                                        let mut player_piece_colors = std::vec::Vec::new();
 
-                                MainWidget::default_initialize(&mut regions_to_players, &mut player_piece_colors, player_count);
-                                
-                                data.board = create_board();
-        
-                                initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap(), regions_to_players.clone(), player_piece_colors.clone());
-        
-                                data.in_game = true;
-        
-                                data.regions_to_players  = im::vector::Vector::from(regions_to_players.clone());
-                                data.player_piece_colors = im::vector::Vector::from(player_piece_colors.clone());
+                                        MainWidget::default_initialize(&mut regions_to_players, &mut player_piece_colors, player_count);
+                                        
+                                        data.board = create_board();
+                
+                                        initialize_pieces_for_board(&mut data.board, &mut data.pieces , data.num_players.unwrap(), regions_to_players.clone(), player_piece_colors.clone());
+                
+                                        data.in_game = true;
+                
+                                        data.regions_to_players  = im::vector::Vector::from(regions_to_players.clone());
+                                        data.player_piece_colors = im::vector::Vector::from(player_piece_colors.clone());
 
-                                data.whose_turn = Some(0);
+                                        data.whose_turn = Some(0);
 
-                                data.players_that_have_won.clear();
-                                data.last_hopper = None;
-                                data.num_consecutive_passes = 0;
-        
-                                ctx.request_paint();
-                            })
+                                        data.players_that_have_won.clear();
+                                        data.last_hopper = None;
+                                        data.num_consecutive_passes = 0;
+                
+                                        ctx.request_paint();
+                                    })
+                                , 300.0)
+                            )
                         )
                     )   
                 ).background(chinese_checkers_menu_background_color);
 
                 let inner_menu_aligned = Flex::column().main_axis_alignment(MainAxisAlignment::Center).with_child(
-                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(WidgetExt::fix_width(inner_menu, 400.0))
+                    Flex::row().main_axis_alignment(MainAxisAlignment::Center).with_child(inner_menu)
                 );
 
                 let create_local_game_page = Flex::column()
@@ -2504,17 +2519,6 @@ impl MainWidget<AppState> {
                             , 300.0)
                         )
                     )
-                    // .with_child(
-                    //     Padding::new(padding_dp, 
-                    //         WidgetExt::fix_width(
-                    //             Button::new("Join Game")
-                    //             .on_click(|_ctx, data : &mut AppState, _env| {
-                    //                 data.window_type = AppPage::JoinRemoteGame;
-                    //                 println!("Join game button pressed....");
-                    //             })
-                    //         , 300.0)
-                    //     )
-                    // )
                     .with_child(
                         Padding::new(padding_dp, 
                             WidgetExt::fix_width(
