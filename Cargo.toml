@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-druid = {git = "https://github.com/linebender/druid", rev = "232314d", features = ["im", "svg"]}
+druid = {git = "https://github.com/linebender/druid", rev = "232314d", features = ["im", "svg", "raw-win-handle"]}
 druid-widget-nursery = {git = "https://github.com/linebender/druid-widget-nursery", rev = "3120a82"}
 # druid = {git = "https://github.com/linebender/druid", rev = "f19ddf1", features = ["im", "svg"]}
 # druid-widget-nursery = {git = "https://github.com/linebender/druid-widget-nursery", rev = "08c7e22"}
@@ -16,3 +16,10 @@ lazy_static = "1.4.0"
 tracing = "0.1.26"
 once_cell = "1.8.0"
 selectors = "0.23.0"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+winapi = "0.3.9"
+raw-window-handle = "0.3.3"

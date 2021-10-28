@@ -1,4 +1,5 @@
 #![feature(mutex_unlock)]
+#![windows_subsystem = "windows"]
 
 use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, RawLabel, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
@@ -68,6 +69,25 @@ mod radio;
 use radio::RadioGroup;
 
 mod ColorChangeableLabel;
+
+use winapi::um::libloaderapi::GetModuleHandleA;
+use winapi::um::winuser::LoadImageA;
+
+use  winapi::um::winuser::SetClassLongPtrA;
+
+use winapi::um::winnt::PSTR;
+use winapi::shared::windef::HWND;
+use winapi::shared::windef::HWND__;
+use winapi::um::winuser::GCLP_HICON;
+use winapi::um::errhandlingapi::GetLastError;
+use winapi::um::winuser::IMAGE_ICON;
+use winapi::um::winuser::LR_DEFAULTCOLOR;
+use winapi::um::winuser::LR_LOADFROMFILE;
+use winapi::um::winnt::LPCSTR;
+
+use raw_window_handle::{RawWindowHandle};
+
+use druid::HasRawWindowHandle;
 
 #[macro_use]
 extern crate lazy_static;
@@ -251,6 +271,10 @@ static HELP_DIALOG_HEIGHT : f64 = 200f64;
 // let hex_bottom_left : Hextile = Hextile{y_hex : 0, x_hex : -4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
 // let hex_bottom_right : Hextile = Hextile{y_hex : -4, x_hex : 0, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
 
+static NULL_PIECECOLOR : PieceColor = PieceColor::Red;
+static NULL_BOARDREGIONBOUNDARY : BoardRegionBoundaryHexCoords = BottomTriangleBoundaryCoords;
+static NULL_STARTINGREGION : StartingRegion = StartingRegion::TopLeft;
+
 #[derive(Clone, Copy)]
 struct BoardRegionBoundaryHexCoords {
     x_min: i32,
@@ -404,9 +428,10 @@ impl StartingRegion {
             }, 
             StartingRegion::BottomRight => {
                 StartingRegion::TopLeft
-            }
+            },
             _ => {
-                panic!("ERROR: opposite() method of StartingRegion: unrecognized input argument, exiting...");
+                std::process::exit(1);
+                return NULL_STARTINGREGION;
             }
         }
     }
@@ -492,7 +517,8 @@ impl PieceColor {
                 return &*GREY_COLOR;
             },
             _ => {
-                panic!("ERROR: unrecognized piece color passed in to to_druid_color(), exiting immediately...");
+                std::process::exit(1);
+                return NULL_PIECECOLOR.to_druid_color();
             }
         }
     }
@@ -747,7 +773,7 @@ impl CanvasWidget {
             return contains_pieces_of_given_player && (self.num_moves_made_so_far > data.num_players.unwrap());
 
         } else {
-            panic!("INTERNAL ERROR: Error in check_if_won, unrecognized anti-spoiling rule, exiting....")
+            std::process::exit(1);
         }
             
         return false;
@@ -1159,7 +1185,6 @@ impl Widget<AppState> for CanvasWidget {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
         match event {
             Event::MouseDown(mouse_event) => {
-                println!("in event::MouseDown...");
                 if self.is_within_a_hextile(data, mouse_event.pos) && data.in_game {
                     if self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.is_some() {
                         if data.pieces[self.hextile_over_which_mouse_event_happened.unwrap().piece_idx.unwrap()].player_num == data.whose_turn.unwrap() {
@@ -1198,7 +1223,7 @@ impl Widget<AppState> for CanvasWidget {
                     }
                     if target_square.piece_idx.is_some() && data.anti_spoiling_rule != AntiSpoilingRule::Swapping {
 
-                        println!("Error: Square already occupied: please move to an occupied square instead");
+                        // square already occupied, do nothing
 
                     } else if check_step(starting_square, target_square, data) && data.last_hopper.is_none() {
 
@@ -1216,8 +1241,6 @@ impl Widget<AppState> for CanvasWidget {
                             data.pieces[piece_idx].x_hex = target_square.x_hex;
                             data.pieces[piece_idx].y_hex = target_square.y_hex;
                             data.pieces[piece_idx].z_hex = target_square.z_hex;
-
-                            println!("Starting square coordinates: x_hex = {x_hex}, y_hex = {y_hex}, z_hex = {z_hex}", x_hex = starting_square.x_hex, y_hex = starting_square.y_hex, z_hex = starting_square.z_hex);
                             
                             data.pieces[piece_idx].hextile_idx = target_square_idx;
 
@@ -1225,26 +1248,6 @@ impl Widget<AppState> for CanvasWidget {
 
                             let boundary_coords = boundary_coords_for_region(data.regions_to_players[player_to_move].opposite());
             
-                            // START DEBUG CODE
-                            // println!("Length of BoardVec = {bvl}, length of PiecesVec = {pvl}", bvl = data.board.len(), pvl = data.pieces.len());
-                            // for x_hex in boundary_coords.x_min..boundary_coords.x_max+1 {
-                            //     for y_hex in boundary_coords.y_min..boundary_coords.y_max+1 {
-                            //         for z_hex in boundary_coords.z_min..boundary_coords.z_max+1 {
-                            //             if x_hex + y_hex + z_hex == 0 {
-                            //                 println!("x_hex = {x}, y_hex = {y}, z_hex = {z}", x = x_hex, y = y_hex, z = z_hex);
-                            //                 let tile : Hextile = data.board[hextile_idx_at_coordinates(x_hex, y_hex, z_hex, &data.board).unwrap()]; 
-                            //                 if tile.piece_idx.is_none() {
-                            //                     //
-                            //                 } else {
-                            //                     println!("Player num of piece: {}", data.pieces[tile.piece_idx.unwrap()].player_num);
-                            //                 }            
-                            //             }
-                            //         }
-                            //     }
-                            // }
-                            // println!();
-                            // END DEBUG CODE
-
                             self.num_moves_made_so_far += 1;
 
                             data.num_consecutive_passes = 0;
@@ -1322,8 +1325,6 @@ impl Widget<AppState> for CanvasWidget {
 
                     } else if check_hop(starting_square, target_square, data) {
                     
-                        println!("making hop move...");
-
                         // Nothing in the target square
                         if ! target_square.piece_idx.is_some() {
 
@@ -1334,8 +1335,6 @@ impl Widget<AppState> for CanvasWidget {
                             let dest_square_idx : usize = data.board.iter().position(|&tile| tile.same_hex_coords(target_square)).unwrap();
 
                             if data.last_hopper.is_none() || (data.last_hopper.is_some() && data.last_hopper.unwrap().same_hex_coords(starting_square)) {
-
-                                println!("data.last_hopper is none? {is_none}", is_none = data.last_hopper.is_none());
 
                                 data.board[starting_square_idx].piece_idx = None;
                                 data.board[target_square_idx].piece_idx = Some(piece_idx);
@@ -1352,11 +1351,7 @@ impl Widget<AppState> for CanvasWidget {
 
                                 data.num_consecutive_passes = -1;
 
-                                println!("Got here");
-
                                 let newly_won_player = self.check_if_won(ctx, data);
-
-                                println!("newly won player = {:?}", newly_won_player);
 
                                 if newly_won_player.is_some() {
                                     // If the player who just moved won, don't update data.whose_turn: we will use it in the top banner
@@ -1568,7 +1563,6 @@ struct ChangeLabelColorController {}
 
 impl<AppState, W: Widget<AppState>> Controller<AppState, W> for ChangeLabelColorController where W: ColorChangeableLabel::CanChangeColor {
     fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
-        println!("In the change color controller");
         match event {
             Event::Command(command) => {
                 let update_color_cmd = Selector::new("UPDATE_COLORED_CIRCLE_COLOR");
@@ -1576,7 +1570,6 @@ impl<AppState, W: Widget<AppState>> Controller<AppState, W> for ChangeLabelColor
                     let new_color_option : Option<&PieceColor> = command.get(update_color_cmd);
                     let new_color : PieceColor = *(new_color_option.unwrap());
                     let new_druid_color : Color = new_color.to_druid_color().clone();
-                    println!("Updating the Label's color...");
 
                     child.set_text_color(new_druid_color.clone());
                 }
@@ -1598,7 +1591,6 @@ impl<AppState: Data, W: Widget<AppState>> Controller<AppState, W> for ChangePlac
                     let new_winner_color_option : Option<&PieceColor> = command.get(cmd);
                     let new_winner_color : PieceColor = *(new_winner_color_option.unwrap());
                     let new_winner_druid_color : Color = new_winner_color.to_druid_color().clone();
-                    println!("Updating the label's color to {:?}..", new_winner_color);
 
                     child.set_text_color(new_winner_druid_color.clone());
                 }
@@ -1637,7 +1629,7 @@ impl MainWidget<AppState> {
 
     fn default_initialize(players_to_regions: &mut std::vec::Vec<StartingRegion>, players_to_colors: &mut std::vec::Vec<PieceColor>, player_count: usize) {
         if players_to_regions.len() != 0 || players_to_colors.len() != 0 {
-            panic!("INTERNAL ERROR: in default_initialize, the length of one of the input vectors is nonzero, exiting...")
+            std::process::exit(1);
         }
         if player_count == 6 {
             // Turns proceed clockwise. TODO: add a note about this to a help dialog
@@ -1686,7 +1678,7 @@ impl MainWidget<AppState> {
             players_to_colors.push(PieceColor::Black);
 
         } else {
-            panic!("INTERNAL ERROR: in default_initialize(), unrecognized value for player_count, exiting....")
+            std::process::exit(1);
         }
     }
 
@@ -1829,7 +1821,6 @@ impl MainWidget<AppState> {
 
                                         let player_count = data.number_of_players_selected;
                                         data.num_players = Some(player_count);
-                                        println!("Attempting to start a new game with {} players...", player_count);
                                                             
                                         data.display_draw_banner = false;
                                         data.display_victory_banner = false;
@@ -2070,7 +2061,6 @@ impl MainWidget<AppState> {
                                                                     let tmp : String = res.unwrap().clone();
                                                                     return tmp;
                                                                 } else {
-                                                                    println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: the ROOM_ID OnceCell has not been set yet even though it should have been...");
                                                                     return String::from("");
                                                                 }
                                                             },
@@ -2151,8 +2141,8 @@ impl MainWidget<AppState> {
                     let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
                         Ok(svg) => svg,
                         Err(err) => {
-                            error!("{}", err);
-                            error!("Using an empty SVG instead.");
+                            // error!("{}", err);
+                            // error!("Using an empty SVG instead.");
                             SvgData::default()
                         }
                     };
@@ -2241,8 +2231,6 @@ impl MainWidget<AppState> {
                                                 let help_popup_window_id_option = (*help_popup_window_id_mutex).clone();
                                                 Mutex::unlock(help_popup_window_id_mutex);
                                                 if help_popup_window_id_option.is_none() {
-                                                    println!("Opening the help dialog...");
-
                                                     let window_pos : Point = ctx.window().get_position();
                                                     let window_size : Size =  ctx.window().get_size();
                                                     let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - HELP_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - HELP_DIALOG_HEIGHT / 2.0);
@@ -2324,11 +2312,9 @@ impl MainWidget<AppState> {
                                 if data.num_consecutive_passes > 0 {
                                     incr = data.num_consecutive_passes as usize;
                                 }
-                                // println!("data.num_consecutive_passes = {passes}, num_players = {players}, data.advnset_three_equals_draw = {set}", passes = data.num_consecutive_passes, players = data.num_players.unwrap(), set = data.advnset_all_pass_equals_draw);
                                 if ((data.num_consecutive_passes < 0 && data.players_that_have_won.len() == data.num_players.unwrap() + 1) || (data.num_consecutive_passes >= 0 && data.players_that_have_won.len() + incr == data.num_players.unwrap())) && data.advnset_all_pass_equals_draw {
                                     data.in_game = false;
                                     data.display_draw_banner = true;
-                                    println!("Currently displaying draw banner....")
                                 } else {
                                     pass_turn(ctx, data);  
                                 }            
@@ -2446,7 +2432,6 @@ impl MainWidget<AppState> {
                                     Button::new("New Local Game")
                                     .on_click(|_ctx, data : &mut AppState, _env| {
                                         data.window_type = AppPage::CreateLocalGame;
-                                        println!("New Local Game button pressed....");
                                     })
                                 , 300.0)
                             )
@@ -2457,7 +2442,6 @@ impl MainWidget<AppState> {
                                     Button::new("New Remote Game")
                                     .on_click(|_ctx, data : &mut AppState, _env| {
                                         data.window_type = AppPage::CreateRemoteGame;
-                                        println!("New Remote Game button pressed....");
                                     })
                                 , 300.0)
                             )
@@ -2468,7 +2452,6 @@ impl MainWidget<AppState> {
                                     Button::new("Back")
                                     .on_click(|_ctx, data : &mut AppState, _env| {
                                         data.window_type = AppPage::Start;
-                                        println!("Back button pressed from new game page....");
                                     })
                                 , 300.0)
                             )
@@ -2531,7 +2514,6 @@ impl MainWidget<AppState> {
                             WidgetExt::fix_width(
                                 Button::new("Quit")
                                 .on_click(|ctx, _data: &mut AppState, _env| {
-                                    println!("closing the application....");
                                     ctx.window().close();
                                 })
                             , 300.0)
@@ -2547,8 +2529,8 @@ impl MainWidget<AppState> {
                     let svg_background = match include_str!("./start-page-background.svg").parse::<SvgData>() {
                         Ok(svg) => svg,
                         Err(err) => {
-                            error!("{}", err);
-                            error!("Using an empty SVG instead.");
+                            // error!("{}", err);
+                            // error!("Using an empty SVG instead.");
                             SvgData::default()
                         }
                     };
@@ -2587,7 +2569,8 @@ fn boundary_coords_for_region(region: StartingRegion) -> BoardRegionBoundaryHexC
             return TopLeftTriangleBoundaryCoords;
         },
         _ => {
-            panic!("Internal Error: boundary_coords_for_region(): unrecognized StartingRegion value, exiting immediately....");
+            std::process::exit(1);
+            return NULL_BOARDREGIONBOUNDARY;
         }
     }
 }
@@ -2606,10 +2589,8 @@ fn hextile_idx_at_coordinates(x_hex: i32, y_hex: i32, z_hex: i32, board: &im::Ve
 fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im::Vector<Piece>, num_players: usize, players_to_regions_vec: std::vec::Vec<StartingRegion>, players_to_colors_vec: std::vec::Vec<PieceColor>) {
 
     if players_to_regions_vec.len() != players_to_colors_vec.len() {
-        panic!("INTERNAL ERROR: in initialize_pieces_for_board, playersToRegions.size() != playersToColors.size(), exiting....")
+        std::process::exit(1);
     }
-
-    println!("From inside initialize_pieces_for_board(): size of board Vec = {x}", x = board.len());
 
     let players_to_regions: &[StartingRegion] = &players_to_regions_vec;
     let players_to_colors:  &[PieceColor] = &players_to_colors_vec;
@@ -2627,8 +2608,7 @@ fn initialize_pieces_for_board(board: &mut im::Vector<Hextile>, pieces: &mut im:
                         let hextile_idx_wrapper : Option<usize> = hextile_idx_at_coordinates(x, y, z,board);
 
                         if hextile_idx_wrapper.is_none() {
-                            println!("from inside initialize_pieces_for_board(), prior to panicking: x_hex={x_hex},y_hex={y_hex},z_hex={z_hex}",x_hex=x,y_hex=y,z_hex=z);
-                            panic!("Internal Error: initialize_pieces_for_board(): Unable to find a square on the board with the given hex coordinates. Exiting immediately....");
+                            std::process::exit(1);
                         }
 
                         let hextile_idx = hextile_idx_wrapper.unwrap();
@@ -2672,7 +2652,6 @@ impl CloseDialogWidget<AppState> {
                 Flex::row()
                 .with_child(
                     Button::new("Yes").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                        println!("Yes button pressed...");
                         data.window_type = AppPage::Start;
                         data.board.clear();
                         data.pieces.clear();
@@ -2691,7 +2670,6 @@ impl CloseDialogWidget<AppState> {
                 Flex::row()
                 .with_child(
                     Button::new("No").on_click(|ctx: &mut EventCtx, data: &mut AppState, _env: &Env| {
-                        println!("No button pressed...");
                         ctx.submit_command(druid::commands::CLOSE_WINDOW.to(Target::Auto));
                     })
                 )
@@ -2737,6 +2715,43 @@ impl Widget<AppState> for MainWidget<AppState> {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
         self.main_container.event(ctx, event, data, _env);
+        
+        #[cfg(windows)] {
+            match event {
+                Event::WindowConnected => {
+                    match ctx.window().raw_window_handle() {
+                        RawWindowHandle::Windows(handle) => {
+                            unsafe {
+                                let exeInstance = GetModuleHandleA(std::ptr::null());
+                                // // let image = LoadIconA(GetModuleHandleA(std::ptr::null()), "main_icon\0".as_ptr() as _);
+                                
+                                let image = LoadImageA(
+                                    exeInstance,
+                                    "chinese-checkers.ico\0".as_ptr() as *const i8,
+                                    IMAGE_ICON,
+                                    256,
+                                    256,
+                                    LR_DEFAULTCOLOR | LR_LOADFROMFILE
+                                );
+
+                                // );
+                                println!("Image = {:?}", image);
+
+                                println!("Last error = {:?}", GetLastError());
+
+                                SetClassLongPtrA(
+                                    handle.hwnd as isize as HWND,
+                                    GCLP_HICON,
+                                    image as isize
+                                );
+                            }
+                        },
+                        _ => {}
+                    }
+                },
+                _ => {}
+            }
+        }
 
         match event {
             Event::MouseDown(mouse_event) => {
@@ -2867,50 +2882,6 @@ fn main() {
     };
 
     AppLauncher::with_window(main_window)
-        // .configure_env(|_env, _data| { // OnceCell
-
-        //     // Create the user's public/private key pair
-        //     // let mut rng = rand::thread_rng();
-        //     // let mut builder = RsaPrivateKeyBuilder::new(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
-        //     // builder = builder.set_factors(BigNum::from_u32(rng.gen::<u32>()).unwrap(), BigNum::from_u32(rng.gen::<u32>()).unwrap()).unwrap();
-        //     let result = Rsa::generate(2048).unwrap();
-        //     let public_key_bytes = result.public_key_to_pem().unwrap();
-
-        //     let ip_addr : String = local_ip().unwrap().to_string();
-        
-        //     let keypair : PKey<Private>= openssl::pkey::PKey::try_from(result).unwrap();
-
-        //     let encrypter = Encrypter::new(&keypair).unwrap();
-
-        //     let s = ip_addr.to_owned();
-        //     let input = &s[..];
-
-        //     let buffer_len = encrypter.encrypt_len(&input.as_bytes()).unwrap();
-        //     let mut encrypted = std::vec::Vec::<u8>::new();
-        //     encrypted.extend(iter::repeat(0).take(buffer_len));
-
-        //     let encrypted_len = encrypter.encrypt(input.as_bytes(), &mut encrypted).unwrap();
-
-        //     println!("encyrpted_len = {}", encrypted_len);
-
-        //     encrypted.truncate(encrypted_len);
-
-        //     let string_list : std::vec::Vec<String> = encrypted.iter().map(|val| val.to_string()).collect();
-        //     let room_id_str = string_list.join("-");
-
-        //     let pubkey_bytes : std::vec::Vec<String> = public_key_bytes.iter().map(|val| val.to_string()).collect();
-        //     let pubkey_str = pubkey_bytes.join("-");
-
-        //     // let public_key_bytes = &public_key_bytes_tmp[..];
-
-        //     let res = ROOM_ID.set(
-        //         room_id_str + "@" + &pubkey_str
-        //     );
-
-        //     if res.is_err() {
-        //         println!("ERROR: attempting to set the ROOM_ID OnceCell in configure_env produced an error...");
-        //     }
-        //})
         .delegate(GlobalDelegate::make())
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
