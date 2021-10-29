@@ -894,11 +894,14 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
     return false;
 }
 
-struct GlobalDelegate {}
+struct GlobalDelegate {
+    cmd_left_down: bool,
+    cmd_right_down: bool
+}
 
 impl GlobalDelegate {
     fn make() -> Self {
-        return GlobalDelegate {};
+        return GlobalDelegate {cmd_left_down: false, cmd_right_down: false};
     }
 }
 
@@ -913,7 +916,35 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
     ) -> Option<Event> {
         let event_copy = event.clone();
         match event {
+            Event::KeyUp(key_event) => {
+                if key_event.code == druid::Code::MetaLeft {
+                    self.cmd_left_down = false;
+                    println!("Left Cmd key released");
+                }
+                if key_event.code == druid::Code::MetaRight {
+                    self.cmd_right_down = false;
+                    println!("Right Cmd key released");
+                }
+            },
             Event::KeyDown(key_event) => {
+                if key_event.code == druid::Code::MetaLeft {
+                    self.cmd_left_down = true;
+                    println!("Left Cmd key pressed");
+                }
+                if key_event.code == druid::Code::MetaRight {
+                    self.cmd_right_down = true;
+                    println!("Right Cmd key pressed");
+                }
+                if key_event.code == druid::Code::KeyQ && (self.cmd_left_down || self.cmd_right_down) {
+                    println!("Detected Cmd+Q, exiting the program...");
+                    ctx.submit_command(druid::commands::CLOSE_ALL_WINDOWS);
+                }
+                if key_event.code == druid::Code::KeyH && (self.cmd_left_down || self.cmd_right_down) {
+                    println!("Detected Cmd+H, hiding the application...");
+                    self.cmd_left_down = false;
+                    self.cmd_right_down = false;
+                    ctx.submit_command(druid::commands::HIDE_APPLICATION);
+                }
                 if key_event.code == druid::Code::Escape {
                     // Close the End game popup window
                     let end_game_popup_window_id_mutex = (*end_game_popup_window_id).lock().unwrap();
@@ -2911,6 +2942,7 @@ fn main() {
         //         println!("ERROR: attempting to set the ROOM_ID OnceCell in configure_env produced an error...");
         //     }
         //})
+        .log_to_console()
         .delegate(GlobalDelegate::make())
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
