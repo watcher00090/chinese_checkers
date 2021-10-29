@@ -70,23 +70,46 @@ use radio::RadioGroup;
 
 mod ColorChangeableLabel;
 
+#[cfg(windows)]
 use winapi::um::libloaderapi::GetModuleHandleA;
+
+#[cfg(windows)]
 use winapi::um::winuser::LoadImageA;
 
+#[cfg(windows)]
 use  winapi::um::winuser::SetClassLongPtrA;
 
+#[cfg(windows)]
 use winapi::um::winnt::PSTR;
+
+#[cfg(windows)]
 use winapi::shared::windef::HWND;
+
+#[cfg(windows)]
 use winapi::shared::windef::HWND__;
+
+#[cfg(windows)]
 use winapi::um::winuser::GCLP_HICON;
+
+#[cfg(windows)]
 use winapi::um::errhandlingapi::GetLastError;
+
+#[cfg(windows)]
 use winapi::um::winuser::IMAGE_ICON;
+
+#[cfg(windows)]
 use winapi::um::winuser::LR_DEFAULTCOLOR;
+
+#[cfg(windows)]
 use winapi::um::winuser::LR_LOADFROMFILE;
+
+#[cfg(windows)]
 use winapi::um::winnt::LPCSTR;
 
+#[cfg(windows)]
 use raw_window_handle::{RawWindowHandle};
 
+#[cfg(windows)]
 use druid::HasRawWindowHandle;
 
 #[macro_use]
