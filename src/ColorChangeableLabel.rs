@@ -19,7 +19,6 @@ use std::sync::Arc;
 
 use druid::Cursor;
 
-use druid::debug_state::DebugState;
 use druid::kurbo::Vec2;
 use druid::text::TextStorage;
 use druid::widget::prelude::*;
@@ -174,7 +173,7 @@ impl<T: TextStorage> RawLabel<T> {
             layout: TextLayout::new(),
             line_break_mode: LineBreaking::Overflow,
             disabled: false,
-            default_text_color: druid::theme::TEXT_COLOR.into(),
+            default_text_color: druid::theme::SELECTION_TEXT_COLOR.into(),
         }
     }
 
@@ -545,13 +544,13 @@ impl<T: Data> Widget<T> for ColorChangeableLabel<T> {
         self.label.paint(ctx, &self.current_text, env)
     }
 
-    fn debug_state(&self, _data: &T) -> DebugState {
-        DebugState {
-            display_name: self.short_type_name().to_string(),
-            main_value: self.current_text.to_string(),
-            ..Default::default()
-        }
-    }
+    // fn debug_state(&self, _data: &T) -> DebugState {
+    //     DebugState {
+    //         display_name: self.short_type_name().to_string(),
+    //         main_value: self.current_text.to_string(),
+    //         ..Default::default()
+    //     }
+    // }
 }
 
 impl<T: TextStorage> Widget<T> for RawLabel<T> {
@@ -564,20 +563,20 @@ impl<T: TextStorage> Widget<T> for RawLabel<T> {
         match event {
             Event::MouseUp(event) => {
                 // Account for the padding
-                let pos = event.pos - Vec2::new(LABEL_X_PADDING, 0.0);
-                if let Some(link) = self.layout.link_for_pos(pos) {
-                    ctx.submit_command(link.command.clone());
-                }
+                // let pos = event.pos - Vec2::new(LABEL_X_PADDING, 0.0);
+                // if let Some(link) = self.layout.link_for_pos(pos) {
+                //     ctx.submit_command(link.command.clone());
+                // }
             }
             Event::MouseMove(event) => {
                 // Account for the padding
                 let pos = event.pos - Vec2::new(LABEL_X_PADDING, 0.0);
 
-                if self.layout.link_for_pos(pos).is_some() {
-                    ctx.set_cursor(&Cursor::Pointer);
-                } else {
-                    ctx.clear_cursor();
-                }
+                // if self.layout.link_for_pos(pos).is_some() {
+                //     ctx.set_cursor(&Cursor::Pointer);
+                // } else {
+                //     ctx.clear_cursor();
+                // }
             }
             _ => {}
         }
@@ -589,15 +588,15 @@ impl<T: TextStorage> Widget<T> for RawLabel<T> {
             LifeCycle::WidgetAdded => {
                 self.layout.set_text(data.to_owned());
             }
-            LifeCycle::DisabledChanged(disabled) => {
-                let color = if *disabled {
-                    KeyOrValue::Key(druid::theme::DISABLED_TEXT_COLOR)
-                } else {
-                    self.default_text_color.clone()
-                };
-                self.layout.set_text_color(color);
-                ctx.request_layout();
-            }
+            // LifeCycle::DisabledChanged(disabled) => {
+            //     let color = if *disabled {
+            //         KeyOrValue::Key(druid::theme::SELECTION_TEXT_COLOR)
+            //     } else {
+            //         self.default_text_color.clone()
+            //     };
+            //     self.layout.set_text_color(color);
+            //     ctx.request_layout();
+            // }
             _ => {}
         }
     }

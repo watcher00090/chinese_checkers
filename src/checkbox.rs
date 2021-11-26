@@ -40,18 +40,22 @@ impl Checkbox {
 }
 
 impl Widget<bool> for Checkbox {
+
     #[instrument(name = "CheckBox", level = "trace", skip(self, ctx, event, data, _env))]
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut bool, _env: &Env) {
         match event {
             Event::MouseDown(_) => {
-                if !ctx.is_disabled() {
-                    ctx.set_active(true);
-                    ctx.request_paint();
-                    trace!("Checkbox {:?} pressed", ctx.widget_id());
-                }
+            //     ctx.set_active(true);
+            //     ctx.request_paint();
+            //     trace!("Checkbox {:?} pressed", ctx.widget_id());
+                // }
+                ctx.set_active(true);
+                ctx.request_paint();
+                trace!("Checkbox {:?} pressed", ctx.widget_id());
             }
             Event::MouseUp(_) => {
-                if ctx.is_active() && !ctx.is_disabled() {
+                // if ctx.is_active() && !ctx.is_disabled() {
+                if ctx.is_active() {
                     if ctx.is_hot() {
                         if *data {
                             *data = false;
@@ -72,7 +76,8 @@ impl Widget<bool> for Checkbox {
     #[instrument(name = "CheckBox", level = "trace", skip(self, ctx, event, data, env))]
     fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, data: &bool, env: &Env) {
         self.child_label.lifecycle(ctx, event, data, env);
-        if let LifeCycle::HotChanged(_) | LifeCycle::DisabledChanged(_) = event {
+        // if let LifeCycle::HotChanged(_) | LifeCycle::DisabledChanged(_) = event {
+        if let LifeCycle::HotChanged(_) = event {
             ctx.request_paint();
         }
     }
@@ -128,7 +133,7 @@ impl Widget<bool> for Checkbox {
 
         ctx.fill(rect, &background_gradient);
 
-        let border_color = if ctx.is_hot() && !ctx.is_disabled() {
+        let border_color = if ctx.is_hot() {
             env.get(theme::BORDER_LIGHT)
         } else {
             env.get(theme::BORDER_DARK)
@@ -147,11 +152,7 @@ impl Widget<bool> for Checkbox {
                 .line_cap(LineCap::Round)
                 .line_join(LineJoin::Round);
 
-            let brush = if ctx.is_disabled() {
-                env.get(theme::DISABLED_TEXT_COLOR)
-            } else {
-                env.get(theme::TEXT_COLOR)
-            };
+            let brush = env.get(theme::LABEL_COLOR);
 
             ctx.stroke_styled(path, &brush, 2., &style);
         }
@@ -159,4 +160,5 @@ impl Widget<bool> for Checkbox {
         // Paint the text label
         self.child_label.draw_at(ctx, (size + x_padding, 0.0));
     }
+
 }

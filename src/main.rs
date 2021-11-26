@@ -1,13 +1,13 @@
-#![feature(mutex_unlock)]
+#![windows_subsystem = "windows"]
 
 use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, RawLabel, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
 use druid::AppLauncher;
 use druid::lens::{self, LensExt};
 use druid::LocalizedString;
 
-use druid::menu::MenuEventCtx;
-use druid::menu::MenuItem;
-use druid::menu::Menu;
+use druid::ContextMenu;
+use druid::MenuDesc;
+use druid::MenuItem;
 
 use std::any::Any;
 
@@ -33,7 +33,7 @@ use druid::im;
 use druid::im::{vector, Vector};
 use std::convert::TryInto;
 
-use druid_widget_nursery::DropdownSelect;
+// use druid_widget_nursery::DropdownSelect;
 
 use druid::widget::LineBreaking;
 
@@ -57,8 +57,6 @@ use tracing::error;
 
 use once_cell::sync::OnceCell;
 
-use druid::text::{Selection, Validation, ValidationError, Formatter};
-
 // Use our modified version of the Checkbox
 mod checkbox;
 use checkbox::Checkbox;
@@ -81,6 +79,11 @@ static mut background_svg_store: Option<Svg> = None;
 static DATA_BUF_LEN : usize = 20000;
 
 lazy_static! {
+    static ref SET_PLAYER_COUNT_TO_2_SELECTOR : Selector = Selector::new("SET_PLAYER_COUNT_TO_2");
+    static ref SET_PLAYER_COUNT_TO_3_SELECTOR : Selector = Selector::new("SET_PLAYER_COUNT_TO_3");
+    static ref SET_PLAYER_COUNT_TO_4_SELECTOR : Selector = Selector::new("SET_PLAYER_COUNT_TO_4");
+    static ref SET_PLAYER_COUNT_TO_6_SELECTOR : Selector = Selector::new("SET_PLAYER_COUNT_TO_6");
+
     // Global mutable variable storing the room_id of the remote gameplay room most recently created by this user
     static ref last_room_id : Arc::<Mutex::<String>> = Arc::new(Mutex::<String>::new(String::from("")));
     // Global mutable variable storing the WidgetId of the root widget. 
@@ -110,6 +113,9 @@ lazy_static! {
     static ref end_game_popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
     static ref help_popup_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
     static ref player_won_window_id : Arc<Mutex<Option<WindowId>>> = Arc::new(Mutex::<Option<WindowId>>::new(None));
+
+    static ref last_mouse_press_mutex_x : Arc<Mutex<Option<f64>>> = Arc::new(Mutex::<Option<f64>>::new(None));
+    static ref last_mouse_press_mutex_y : Arc<Mutex<Option<f64>>> = Arc::new(Mutex::<Option<f64>>::new(None));
 
     static ref winners_labels_widget_ids : [Arc::<Mutex::<Option::<WidgetId>>>; 6] = [
         Arc::new(Mutex::<Option<WidgetId>>::new(None)),
@@ -896,12 +902,13 @@ fn check_hop(start: Hextile, dest: Hextile, data: &AppState) -> bool {
 
 struct GlobalDelegate {
     cmd_left_down: bool,
-    cmd_right_down: bool
+    cmd_right_down: bool,
+    just_hid_application: bool
 }
 
 impl GlobalDelegate {
     fn make() -> Self {
-        return GlobalDelegate {cmd_left_down: false, cmd_right_down: false};
+        return GlobalDelegate {cmd_left_down: false, cmd_right_down: false, just_hid_application: false};
     }
 }
 
@@ -916,12 +923,32 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
     ) -> Option<Event> {
         let event_copy = event.clone();
         match event {
+            Event::MouseDown(mouse_event) => {
+                let mutex_x_res = (*last_mouse_press_mutex_x).lock();
+                let mutex_y_res = (*last_mouse_press_mutex_y).lock();
+                if mutex_x_res.is_ok() && mutex_y_res.is_ok() {
+                    let mut mutex_x = mutex_x_res.unwrap();
+                    let mut mutex_y = mutex_y_res.unwrap();
+                    (*mutex_x) = Some(mouse_event.window_pos.x);
+                    (*mutex_y) = Some(mouse_event.window_pos.y);
+                    drop(mutex_x);
+                    drop(mutex_y);
+                }
+            },
             Event::KeyUp(key_event) => {
                 if key_event.code == druid::Code::MetaLeft {
+                    if self.cmd_left_down == false {
+                        self.just_hid_application = false;
+                        println!("just_hid_application has been set to false.");
+                    }
                     self.cmd_left_down = false;
                     println!("Left Cmd key released");
                 }
                 if key_event.code == druid::Code::MetaRight {
+                    if self.cmd_right_down == false {
+                        self.just_hid_application = false;
+                        println!("just_hid_application has been set to false.");
+                    }
                     self.cmd_right_down = false;
                     println!("Right Cmd key released");
                 }
@@ -941,9 +968,17 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
                 }
                 if key_event.code == druid::Code::KeyH && (self.cmd_left_down || self.cmd_right_down) {
                     println!("Detected Cmd+H, hiding the application...");
-                    self.cmd_left_down = false;
-                    self.cmd_right_down = false;
                     ctx.submit_command(druid::commands::HIDE_APPLICATION);
+                    self.just_hid_application = true;
+                }
+                if key_event.code == druid::Code::KeyQ && self.just_hid_application {
+                    println!("Detected Cmd+Q, exiting the program...");
+                    ctx.submit_command(druid::commands::CLOSE_ALL_WINDOWS);
+                }
+                if key_event.code == druid::Code::KeyH && self.just_hid_application {
+                    println!("Detected Cmd+H, hiding the application...");
+                    ctx.submit_command(druid::commands::HIDE_APPLICATION);
+                    self.just_hid_application = true;
                 }
                 if key_event.code == druid::Code::Escape {
                     // Close the End game popup window
@@ -984,7 +1019,7 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
         if local_main_window_id_mutex_wrapper.is_ok() {
             let local_main_window_id_mutex = local_main_window_id_mutex_wrapper.unwrap();
             let local_main_window_id_option : Option<WindowId> = (*local_main_window_id_mutex).clone();
-            Mutex::unlock(local_main_window_id_mutex);
+            drop(local_main_window_id_mutex);
             if local_main_window_id_option.is_some() {
                 let local_main_window_id = local_main_window_id_option.unwrap();
                 if id == local_main_window_id {
@@ -995,7 +1030,7 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
                     if end_game_popup_window_id_mutex_wrapper.is_ok() {
                         let end_game_popup_window_id_mutex = end_game_popup_window_id_mutex_wrapper.unwrap();
                         let end_game_popup_window_id_option = (*end_game_popup_window_id_mutex).clone();
-                        Mutex::unlock(end_game_popup_window_id_mutex);
+                        drop(end_game_popup_window_id_mutex);
                         if end_game_popup_window_id_option.is_some() {
                             ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(end_game_popup_window_id_option.unwrap())));
                         }
@@ -1006,7 +1041,7 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
                     if player_won_window_id_mutex_wrapper.is_ok() {
                         let player_won_window_id_mutex = player_won_window_id_mutex_wrapper.unwrap();
                         let player_won_window_id_option = (*player_won_window_id_mutex).clone();
-                        Mutex::unlock(player_won_window_id_mutex);
+                        drop(player_won_window_id_mutex);
                         if player_won_window_id_option.is_some() {
                             ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(player_won_window_id_option.unwrap())));
                         }
@@ -1017,7 +1052,7 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
                     if help_popup_window_id_mutex_wrapper.is_ok() {
                         let help_popup_window_id_mutex = help_popup_window_id_mutex_wrapper.unwrap();
                         let help_popup_window_id_option = (*help_popup_window_id_mutex).clone();
-                        Mutex::unlock(help_popup_window_id_mutex);
+                        drop(help_popup_window_id_mutex);
                         if help_popup_window_id_option.is_some() {
                             ctx.submit_command(druid::commands::CLOSE_WINDOW.to(druid::Target::Window(help_popup_window_id_option.unwrap())));
                         }
@@ -1032,9 +1067,9 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
             let end_game_popup_window_id_option : Option<WindowId> = (*end_game_popup_window_id_mutex).clone();
             if end_game_popup_window_id_option.is_some() && id == end_game_popup_window_id_option.unwrap() {  
                 (*end_game_popup_window_id_mutex) = None;
-                Mutex::unlock(end_game_popup_window_id_mutex);
+                drop(end_game_popup_window_id_mutex);
             } else {
-                Mutex::unlock(end_game_popup_window_id_mutex);
+                drop(end_game_popup_window_id_mutex);
             }
         }
 
@@ -1044,9 +1079,9 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
             let help_popup_window_id_option : Option<WindowId> = (*help_popup_window_id_mutex).clone();
             if help_popup_window_id_option.is_some() && id == help_popup_window_id_option.unwrap() {  
                 (*help_popup_window_id_mutex) = None;
-                Mutex::unlock(help_popup_window_id_mutex);
+                drop(help_popup_window_id_mutex);
             } else {
-                Mutex::unlock(help_popup_window_id_mutex);
+                drop(help_popup_window_id_mutex);
             }
         }
 
@@ -1056,9 +1091,9 @@ impl druid::AppDelegate<AppState> for GlobalDelegate {
             let player_won_window_id_option : Option<WindowId> = (*player_won_window_id_mutex).clone();
             if player_won_window_id_option.is_some() && id == player_won_window_id_option.unwrap() {  
                 (*player_won_window_id_mutex) = None;
-                Mutex::unlock(player_won_window_id_mutex);
+                drop(player_won_window_id_mutex);
             } else {
-                Mutex::unlock(player_won_window_id_mutex);
+                drop(player_won_window_id_mutex);
             }
         }
 
@@ -1140,25 +1175,27 @@ fn indicate_winner(data: &mut AppState, ctx: &mut EventCtx, newly_won_player: Op
 
     let label_3 : Label<AppState> = Label::new(format!(") has won {place} place!", place = place_str));
 
-    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, 
-        Flex::column()
-        .main_axis_alignment(MainAxisAlignment::Center)
-        .with_child(
-            Flex::row()
+    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(|| { 
+        Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, 
+            Flex::column()
             .main_axis_alignment(MainAxisAlignment::Center)
-            .with_flex_spacer(1.0)
             .with_child(
-                label_1
+                Flex::row()
+                .main_axis_alignment(MainAxisAlignment::Center)
+                .with_flex_spacer(1.0)
+                .with_child(
+                    label_1
+                )
+                .with_child(
+                    label_2
+                )
+                .with_child(
+                    label_3
+                )
+                .with_flex_spacer(1.0)
             )
-            .with_child(
-                label_2
-            )
-            .with_child(
-                label_3
-            )
-            .with_flex_spacer(1.0)
         )
-    ))
+    })
     .resizable(false)
     .title("Victory!")
     .set_position(dialog_popup_position)
@@ -1562,38 +1599,38 @@ impl Widget<AppState> for CanvasWidget {
 }
 
 // Formatter that ensures that the user can't edit the room id in the create_remote_game page
-struct RoomIDFormatter<String> {
-    base: String
-}
+// struct RoomIDFormatter<String> {
+//     base: String
+// }
 
-impl RoomIDFormatter<String> {
-    fn new(input: String) -> Self {
-        return RoomIDFormatter::<String>{base: input}
-    }
-}
+// impl RoomIDFormatter<String> {
+//     fn new(input: String) -> Self {
+//         return RoomIDFormatter::<String>{base: input}
+//     }
+// }
 
-impl Formatter<String> for RoomIDFormatter<String> {
-    fn format(&self, _: &String) -> String {
-        return self.base.clone();
-    }
+// impl Formatter<String> for RoomIDFormatter<String> {
+//     fn format(&self, _: &String) -> String {
+//         return self.base.clone();
+//     }
 
-    fn validate_partial_input(&self, input: &str, _sel: &Selection) -> Validation {
-        if String::from(input) ==  self.base {
-            return Validation::success();
-        } else {
-            return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-        }
-    }
+//     fn validate_partial_input(&self, input: &str, _sel: &Selection) -> Validation {
+//         if String::from(input) ==  self.base {
+//             return Validation::success();
+//         } else {
+//             return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+//         }
+//     }
 
-    fn value(&self, input: &str) -> Result<String, ValidationError> {
-        if String::from(input) == self.base {
-            return Ok(self.base.clone())
-        } else {
-            return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
-        }
-    }
+//     fn value(&self, input: &str) -> Result<String, ValidationError> {
+//         if String::from(input) == self.base {
+//             return Ok(self.base.clone())
+//         } else {
+//             return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
+//         }
+//     }
 
-}
+// }
 
 struct ChangeLabelColorController {}
 
@@ -1659,7 +1696,7 @@ impl MainWidget<AppState> {
 
     fn new() -> IdentityWrapper<Self> {                    
         let main_widget = MainWidget::<AppState> {
-            main_container: MainWidget::build_page_ui(AppPage::Start, &*NULL_DATA, &druid::Env::empty()),
+            main_container: MainWidget::build_page_ui(AppPage::Start, &*NULL_DATA, None),
         };
 
         let widget_id_holder : MutexGuard<WidgetId> = root_widget_id_guard.lock().unwrap();      
@@ -1721,7 +1758,7 @@ impl MainWidget<AppState> {
         }
     }
 
-    fn build_page_ui(page: AppPage, data: &AppState, env: &Env) -> Container<AppState> {
+    fn build_page_ui(page: AppPage, data: &AppState, env: Option<&Env>) -> Container<AppState> {
         match page {
             AppPage::JoinRemoteGame => {
                 let font = FontDescriptor::new(FontFamily::SYSTEM_UI).with_size(36.0).with_weight(FontWeight::BOLD);
@@ -1813,28 +1850,17 @@ impl MainWidget<AppState> {
                                     .with_child(
                                         Button::new("Set Player Count")
                                         .on_click(|ctx, data: &mut AppState, _env| {
-                                            let item2 = MenuItem::<AppState>::new(LocalizedString::new("2")).on_activate(
-                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| {
-                                                    data.number_of_players_selected = 2;
-                                                }
-                                            );
-                                            let item3 = MenuItem::<AppState>::new(LocalizedString::new("3")).on_activate(
-                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
-                                                    data.number_of_players_selected = 3;
-                                                }
-                                            );
-                                            let item4 = MenuItem::<AppState>::new(LocalizedString::new("4")).on_activate(
-                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
-                                                    data.number_of_players_selected = 4;
-                                                }
-                                            );
-                                            let item6 = MenuItem::<AppState>::new(LocalizedString::new("6")).on_activate(
-                                                |ctx: &mut MenuEventCtx, data: &mut AppState, _env: &Env| { 
-                                                    data.number_of_players_selected = 6;
-                                                }
-                                            );
-                                            let new_game_context_menu = Menu::new("How Many Players?").entry(item2).entry(item3).entry(item4).entry(item6);
-                                            ctx.show_context_menu(new_game_context_menu, data.mouse_click_screen_coordinates.unwrap());
+                                            let item2 = MenuItem::<AppState>::new(LocalizedString::new("2"), *SET_PLAYER_COUNT_TO_2_SELECTOR); 
+                                            let item3 = MenuItem::<AppState>::new(LocalizedString::new("3"), *SET_PLAYER_COUNT_TO_3_SELECTOR);
+                                            let item4 = MenuItem::<AppState>::new(LocalizedString::new("4"), *SET_PLAYER_COUNT_TO_4_SELECTOR);
+                                            let item6 = MenuItem::<AppState>::new(LocalizedString::new("6"), *SET_PLAYER_COUNT_TO_6_SELECTOR);
+                                            let new_game_menu = MenuDesc::new(LocalizedString::new("How Many Players?")).append(item2).append(item3).append(item4).append(item6);
+                                            
+                                            // let last_mouse_press_mutex_x
+                                            // let last_mouse_press_mutex_y
+
+                                            let new_game_context_menu = ContextMenu::new(new_game_menu, data.mouse_click_screen_coordinates.unwrap());
+                                            ctx.show_context_menu(new_game_context_menu);
                                         })
                                     )
                                     .with_flex_spacer(1.0)                                               
@@ -2091,24 +2117,6 @@ impl MainWidget<AppState> {
                                             .with_child(Label::new("Room ID:"))
                                             .with_child( 
                                                 Flex::row()
-                                                .with_flex_child(
-                                                    TextBox::with_formatter(TextBox::new(), RoomIDFormatter::new((*ROOM_ID).get().unwrap().clone())).expand_width()
-                                                    .lens(
-                                                        lens::Map::new(
-                                                            |data: &AppState| -> String {
-                                                                let res = (*ROOM_ID).get();
-                                                                if res.is_some() {
-                                                                    let tmp : String = res.unwrap().clone();
-                                                                    return tmp;
-                                                                } else {
-                                                                    println!("ERROR in build_page_ui when page = AppState::CreateRemoteGame: the ROOM_ID OnceCell has not been set yet even though it should have been...");
-                                                                    return String::from("");
-                                                                }
-                                                            },
-                                                            |_data: &mut AppState, _lens_data: String| {}
-                                                        )
-                                                    )
-                                                , 1.0)
                                                 .with_child(
                                                     WidgetExt::fix_height(
                                                         Padding::new((5.0, 0.0),
@@ -2236,13 +2244,13 @@ impl MainWidget<AppState> {
                                             if end_game_popup_window_id_mutex_wrapper.is_ok() {
                                                 let end_game_popup_window_id_mutex = end_game_popup_window_id_mutex_wrapper.unwrap();
                                                 let end_game_popup_window_id_option = (*end_game_popup_window_id_mutex).clone();
-                                                Mutex::unlock(end_game_popup_window_id_mutex);
+                                                drop(end_game_popup_window_id_mutex);
                                                 if end_game_popup_window_id_option.is_none() {
                                                     let window_pos : Point = ctx.window().get_position();
                                                     let window_size : Size =  ctx.window().get_size();
                                                     let dialog_popup_position : Point = Point::new(window_pos.x + window_size.width / 2.0 - CLOSE_DIALOG_WIDTH / 2.0, window_pos.y + window_size.height / 2.0 - CLOSE_DIALOG_HEIGHT / 2.0);
         
-                                                    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, CloseDialogWidget::<AppState>::make()))
+                                                    let mut window_desc : WindowDesc<AppState> = WindowDesc::new(|| {Padding::new(*CLOSE_DIALOG_POPUP_OUTER_PADDING, CloseDialogWidget::<AppState>::make())})
                                                     .resizable(false)
                                                     .title("End Current Game?")
                                                     .set_position(dialog_popup_position)
@@ -2270,7 +2278,7 @@ impl MainWidget<AppState> {
                                             if help_popup_window_id_mutex_wrapper.is_ok() {
                                                 let help_popup_window_id_mutex = help_popup_window_id_mutex_wrapper.unwrap();
                                                 let help_popup_window_id_option = (*help_popup_window_id_mutex).clone();
-                                                Mutex::unlock(help_popup_window_id_mutex);
+                                                drop(help_popup_window_id_mutex);
                                                 if help_popup_window_id_option.is_none() {
                                                     println!("Opening the help dialog...");
 
@@ -2284,7 +2292,7 @@ impl MainWidget<AppState> {
                                                             Label::new("Gameplay proceeds clockwise.")
                                                         );
                                                         return main;
-                                                    }()).resizable(false)
+                                                    }).resizable(false)
                                                     .title("Help")
                                                     .set_position(dialog_popup_position)
                                                     .window_size(Size::new(HELP_DIALOG_WIDTH, HELP_DIALOG_HEIGHT));
@@ -2773,6 +2781,20 @@ impl Widget<AppState> for MainWidget<AppState> {
             Event::MouseDown(mouse_event) => {
                 data.mouse_click_screen_coordinates = Some(mouse_event.window_pos);
             },
+            Event::Command(command) => {
+                if command.is(*SET_PLAYER_COUNT_TO_2_SELECTOR) {
+                    data.number_of_players_selected = 2;
+                }
+                if command.is(*SET_PLAYER_COUNT_TO_3_SELECTOR) {
+                    data.number_of_players_selected = 3;
+                }
+                if command.is(*SET_PLAYER_COUNT_TO_4_SELECTOR) {
+                    data.number_of_players_selected = 4;
+                }
+                if command.is(*SET_PLAYER_COUNT_TO_6_SELECTOR) {
+                    data.number_of_players_selected = 6;
+                }
+            },
             _ => {} // handle the event as normal
         }
         // print!("event = {:?}", event)
@@ -2793,7 +2815,7 @@ impl Widget<AppState> for MainWidget<AppState> {
     fn update(&mut self, ctx: &mut UpdateCtx<'_, '_>, old_data: &AppState, data: &AppState, env: &Env) {
         self.main_container.update(ctx, old_data, data, env);
         if data.window_type != old_data.window_type {
-            self.main_container = MainWidget::build_page_ui(data.window_type, data, env);
+            self.main_container = MainWidget::build_page_ui(data.window_type, data, Some(env));
             ctx.children_changed();
         }
     }
@@ -2862,7 +2884,7 @@ fn create_board() -> im::Vector<Hextile> {
 // Now both players have each others ip addresses as well as the ability to securely send messages to them
 
 fn main() {
-    let mut main_window = WindowDesc::new(MainWidget::<AppState>::new())
+    let mut main_window = WindowDesc::new(MainWidget::<AppState>::new)
                     .with_min_size(Size::new(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT))
                     .resizable(true)
                     .title("Chinese Checkers");
@@ -2870,7 +2892,7 @@ fn main() {
     main_window.id = local_main_window_id;
     let mut global_main_window_id_mutex = (*main_window_id).lock().unwrap();
     (*global_main_window_id_mutex) = Some(local_main_window_id);
-    Mutex::unlock(global_main_window_id_mutex);
+    drop(global_main_window_id_mutex);
 
     let initial_state = AppState {whose_turn : None, window_type : AppPage::Start, board: im::Vector::new(), 
         in_game: false, display_victory_banner: false, mouse_location_in_canvas : Point::new(0.0, 0.0), pieces : vector![], 
@@ -2942,7 +2964,7 @@ fn main() {
         //         println!("ERROR: attempting to set the ROOM_ID OnceCell in configure_env produced an error...");
         //     }
         //})
-        .log_to_console()
+        .use_simple_logger()
         .delegate(GlobalDelegate::make())
         .launch(initial_state)
         .expect("ERROR: Failed to launch application, exiting immediately....");
