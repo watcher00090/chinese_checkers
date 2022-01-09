@@ -18,7 +18,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use druid::Cursor;
-
+use druid::debug_state::DebugState;
 use druid::kurbo::Vec2;
 use druid::text::TextStorage;
 use druid::widget::prelude::*;

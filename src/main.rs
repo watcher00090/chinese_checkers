@@ -1,3 +1,4 @@
+//#![feature(mutex_unlock)]
 #![windows_subsystem = "windows"]
 
 use druid::widget::{Either, MainAxisAlignment, Painter, FillStrat, Svg, SvgData, Controller, RawLabel, TextBox, Scroll ,List, CrossAxisAlignment, SizedBox, Align, Padding, Button, Flex, Container, Label, IdentityWrapper};
@@ -66,6 +67,23 @@ mod radio;
 use radio::RadioGroup;
 
 mod ColorChangeableLabel;
+
+use winapi::um::libloaderapi::GetModuleHandleA;
+use winapi::um::winuser::LoadImageA;
+use winapi::um::winuser::SetClassLongPtrA;
+use winapi::um::winnt::PSTR;
+use winapi::shared::windef::HWND;
+use winapi::shared::windef::HWND__;
+use winapi::um::winuser::GCLP_HICON;
+use winapi::um::errhandlingapi::GetLastError;
+use winapi::um::winuser::IMAGE_ICON;
+use winapi::um::winuser::LR_DEFAULTCOLOR;
+use winapi::um::winuser::LR_LOADFROMFILE;
+use winapi::um::winnt::LPCSTR;
+
+use raw_window_handle::{RawWindowHandle};
+
+use druid::HasRawWindowHandle;
 
 #[macro_use]
 extern crate lazy_static;
@@ -256,6 +274,10 @@ static HELP_DIALOG_HEIGHT : f64 = 200f64;
 // let hex_right : Hextile = Hextile{y_hex : -4, x_hex : 4, z_hex : 0, c : [0.0,0.0,0.0,0.0], p : None};
 // let hex_bottom_left : Hextile = Hextile{y_hex : 0, x_hex : -4, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
 // let hex_bottom_right : Hextile = Hextile{y_hex : -4, x_hex : 0, z_hex : 4, c : [0.0,0.0,0.0,0.0], p : None};
+
+static NULL_PIECECOLOR : PieceColor = PieceColor::Red;
+static NULL_BOARDREGIONBOUNDARY : BoardRegionBoundaryHexCoords = BottomTriangleBoundaryCoords;
+static NULL_STARTINGREGION : StartingRegion = StartingRegion::TopLeft;
 
 #[derive(Clone, Copy)]
 struct BoardRegionBoundaryHexCoords {
@@ -1609,28 +1631,28 @@ impl Widget<AppState> for CanvasWidget {
 //     }
 // }
 
-// impl Formatter<String> for RoomIDFormatter<String> {
-//     fn format(&self, _: &String) -> String {
-//         return self.base.clone();
-//     }
+impl Formatter<String> for RoomIDFormatter<String> {
+    fn format(&self, _: &String) -> String {
+        return self.base.clone();
+    }
 
-//     fn validate_partial_input(&self, input: &str, _sel: &Selection) -> Validation {
-//         if String::from(input) ==  self.base {
-//             return Validation::success();
-//         } else {
-//             return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-//         }
-//     }
+    fn validate_partial_input(&self, input: &str, _sel: &Selection) -> Validation {
+        if String::from(input) ==  self.base {
+            return Validation::success();
+        } else {
+            return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+        }
+    }
 
-//     fn value(&self, input: &str) -> Result<String, ValidationError> {
-//         if String::from(input) == self.base {
-//             return Ok(self.base.clone())
-//         } else {
-//             return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
-//         }
-//     }
+    fn value(&self, input: &str) -> Result<String, ValidationError> {
+        if String::from(input) == self.base {
+            return Ok(self.base.clone())
+        } else {
+            return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
+        }
+    }
 
-// }
+}
 
 struct ChangeLabelColorController {}
 
