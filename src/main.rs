@@ -83,7 +83,8 @@ use winapi::um::winnt::LPCSTR;
 
 use raw_window_handle::{RawWindowHandle};
 
-use druid::HasRawWindowHandle;
+// use druid::WindowHandle;
+// use druid::HasRawWindowHandle;
 
 #[macro_use]
 extern crate lazy_static;
@@ -1631,28 +1632,28 @@ impl Widget<AppState> for CanvasWidget {
 //     }
 // }
 
-impl Formatter<String> for RoomIDFormatter<String> {
-    fn format(&self, _: &String) -> String {
-        return self.base.clone();
-    }
+// impl Formatter<String> for RoomIDFormatter<String> {
+//     fn format(&self, _: &String) -> String {
+//         return self.base.clone();
+//     }
 
-    fn validate_partial_input(&self, input: &str, _sel: &Selection) -> Validation {
-        if String::from(input) ==  self.base {
-            return Validation::success();
-        } else {
-            return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-        }
-    }
+//     fn validate_partial_input(&self, input: &str, _sel: &Selection) -> Validation {
+//         if String::from(input) ==  self.base {
+//             return Validation::success();
+//         } else {
+//             return Validation::failure(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+//         }
+//     }
 
-    fn value(&self, input: &str) -> Result<String, ValidationError> {
-        if String::from(input) == self.base {
-            return Ok(self.base.clone())
-        } else {
-            return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
-        }
-    }
+//     fn value(&self, input: &str) -> Result<String, ValidationError> {
+//         if String::from(input) == self.base {
+//             return Ok(self.base.clone())
+//         } else {
+//             return Err(ValidationError::new(std::io::Error::from(std::io::ErrorKind::InvalidInput)))
+//         }
+//     }
 
-}
+// }
 
 struct ChangeLabelColorController {}
 
