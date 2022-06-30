@@ -2,12 +2,12 @@
 
 To build for a specific architecture, run the command:
 
-'''cargo build --all-features --target \<TRIPLE\>'''
+```cargo build --all-features --target \<TRIPLE\>```
 
 You can find a list of all supported targets by running the command:
 
-'''rustc --print target-list'''
+```rustc --print target-list```
 
-<p>Sources:</p>
+<p><u>Sources:</u></p>
 
 [1] https://doc.rust-lang.org/cargo/appendix/glossary.html?highlight=tripl#target
