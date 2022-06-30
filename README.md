@@ -2,7 +2,7 @@
 
 To build for a specific architecture, run the command:
 
-```cargo build --all-features --target \<TRIPLE\>```
+```cargo build --all-features --target <TRIPLE>```
 
 You can find a list of all supported targets by running the command:
 
