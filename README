@@ -1,14 +1,2 @@
 
 <h>Rust Chinese Checkers Project</h>
-
-<p>To build for a specific architecture, run the command:</p>
-
-<p>cargo build --all-features --target \<TRIPLE\></p>
-
-<p>You can find a list of all supported targets by running the command:</p>
-
-<p>rustc --print target-list</p>
-
-<p>Sources:</p>
-
-<p>\[1\] https://doc.rust-lang.org/cargo/appendix/glossary.html?highlight=tripl#target</p>
