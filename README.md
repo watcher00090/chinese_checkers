@@ -20,8 +20,5 @@ This is so that the software can be run on both Windows and Mac.
 <p><u>Sources:</u></p>
 
 [1] https://doc.rust-lang.org/cargo/appendix/glossary.html?highlight=tripl#target
-<<<<<<< HEAD
 
-*** If you're trying to build for Windows, add the flag '--windows' to the listed command also
-=======
->>>>>>> 9b1b51fb3977ecef1f83c38685a74d2c88c4af4d
+<p>***</p> If you're trying to build for Windows, add the flag '--windows' to the listed command also
