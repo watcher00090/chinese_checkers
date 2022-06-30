@@ -10,9 +10,10 @@ You can find a list of all supported targets by running the command:
 
 We are interested in producing the following release binaries:
 
-<li>
-<ul>x86_64-pc-windows-msvc</ul>
-<ul>x86_64-apple-darwin</ul>
+<ol>
+<li>x86_64-pc-windows-msvc</li>
+<li>x86_64-apple-darwin</li>
+</ol>
 
 so that the software can be run on both Windows and Mac.
 
