@@ -15,7 +15,7 @@ We are interested in producing a release binary for the following targets:
 <li>x86_64-apple-darwin</li>
 </ol>
 
-so that the software can be run on both Windows and Mac.
+This is so that the software can be run on both Windows and Mac.
 
 <p><u>Sources:</u></p>
 
