@@ -8,7 +8,7 @@ You can find a list of all supported targets by running the command:
 
 ```rustc --print target-list```
 
-We are interested in producing the following release binaries:
+We are interested in producing a release binary for the following targets:
 
 <ol>
 <li>x86_64-pc-windows-msvc</li>
